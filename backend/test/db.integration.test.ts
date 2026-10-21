@@ -83,3 +83,28 @@ test('the first-use date is stored once and kept on later calls', { skip: !url }
     await client.query('ROLLBACK');
   }
 });
+
+test('simultaneous first calls agree on one first-use date', { skip: !url }, async (t) => {
+  const pool = new Pool({ connectionString: url, max: 4 });
+  t.after(() => pool.end());
+  // Separate connections cannot share a rolled-back transaction, so restore the original row.
+  const original = await pool.query<{ value: string }>(
+    'SELECT value FROM app_settings WHERE key = $1',
+    [anchorSettingKey],
+  );
+  t.after(async () => {
+    await pool.query('DELETE FROM app_settings WHERE key = $1', [anchorSettingKey]);
+    if (original.rows[0])
+      await pool.query('INSERT INTO app_settings (key, value) VALUES ($1, $2)', [
+        anchorSettingKey,
+        original.rows[0].value,
+      ]);
+  });
+  await pool.query('DELETE FROM app_settings WHERE key = $1', [anchorSettingKey]);
+  const dates = await Promise.all(
+    ['2026-10-22', '2026-10-23', '2026-10-24', '2026-10-25'].map((today) =>
+      routineAnchorDate(pool, today),
+    ),
+  );
+  assert.equal(new Set(dates).size, 1);
+});

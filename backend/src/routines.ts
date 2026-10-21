@@ -60,18 +60,13 @@ export const routineInput = z
 export const anchorSettingKey = 'routine_anchor_date';
 
 // The first call stores today as the first-use date; later calls return the stored date.
-// The CTE's insert is invisible to the outer SELECT, so UNION ALL covers both cases in one query.
+// The no-op DO UPDATE always returns the row, even when a concurrent first call wins the insert
+// (DO NOTHING plus a SELECT would miss that row under READ COMMITTED).
 export async function routineAnchorDate(pool: Pool, today: string) {
   const { rows } = await pool.query<{ value: string }>(
-    `WITH inserted AS (
-       INSERT INTO app_settings (key, value) VALUES ($1, $2)
-       ON CONFLICT (key) DO NOTHING
-       RETURNING value
-     )
-     SELECT value FROM inserted
-     UNION ALL
-     SELECT value FROM app_settings WHERE key = $1
-     LIMIT 1`,
+    `INSERT INTO app_settings (key, value) VALUES ($1, $2)
+     ON CONFLICT (key) DO UPDATE SET value = app_settings.value
+     RETURNING value`,
     [anchorSettingKey, today],
   );
   return rows[0].value;
