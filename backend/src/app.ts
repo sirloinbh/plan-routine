@@ -1,7 +1,9 @@
 import express from 'express';
 import type { Pool } from 'pg';
 import { types } from 'pg';
-import { ZodError } from 'zod';
+import { z, ZodError } from 'zod';
+import { calendarDate, periodsFor } from './periods.js';
+import { routineAnchorDate } from './routines.js';
 
 // DATE columns stay YYYY-MM-DD strings so the service time zone never shifts them.
 types.setTypeParser(1082, (value) => value);
@@ -18,6 +20,8 @@ export function serviceDate(now = new Date()) {
   }).format(now);
 }
 
+const periodsQuery = z.object({ date: calendarDate.optional() });
+
 export function createApp(pool: Pool, options: { today?: () => string } = {}) {
   const today = options.today ?? (() => serviceDate());
   const app = express();
@@ -26,6 +30,13 @@ export function createApp(pool: Pool, options: { today?: () => string } = {}) {
   app.get('/api/health', async (_req, res) => {
     await pool.query('SELECT 1');
     res.json({ ok: true, service: 'plan-routine', today: today() });
+  });
+  app.get('/api/periods', async (req, res) => {
+    const { date } = periodsQuery.parse(req.query);
+    const current = today();
+    const anchorDate = await routineAnchorDate(pool, current);
+    const target = date ?? current;
+    res.json({ date: target, anchorDate, periods: periodsFor(target, anchorDate) });
   });
   app.use('/api', (_req, res) => {
     res.status(404).json({ error: '요청한 API를 찾을 수 없습니다' });
