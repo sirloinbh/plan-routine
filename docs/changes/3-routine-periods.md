@@ -47,5 +47,5 @@
 
 - 증상: CI `verify`의 `npm run check`가 15분 넘게 끝나지 않았다(첫 커밋부터 모든 head). 로컬은 DB 테스트가 skip돼 재현되지 않았다.
 - 원인(추정): 새 DB 테스트가 `t.after`로 `pool.end()`를 `client.release()`보다 먼저 등록했다. `pool.end()`는 대여된 클라이언트 반납을 기다리므로 실행 순서에 따라 영원히 대기한다.
-- 수정: `withClient` 도우미에서 `finally`로 `release()` 뒤 `pool.end()`를 보장하고, 동시 호출 테스트의 원래 값 복원도 `finally`로 옮겼다. 새 DB 테스트 3개에 30초 `timeout`을 둬 다시 멈추면 실패로 드러나게 했다. 멈춘 CI 실행 6건은 취소했다.
+- 수정: `withClient` 도우미에서 `finally`로 `release()` 뒤 `pool.end()`를 보장하고, 동시 호출 테스트의 원래 값 복원도 `finally`로 옮겼다. 기존 기본 스키마 테스트를 포함한 DB 테스트 4개 모두에 30초 `timeout`을 둬 다시 멈추면 실패로 드러나게 했다. 멈춘 CI 실행 6건은 취소했다.
 - 리뷰 2회를 마친 뒤의 CI 실패 수정이라 3차 리뷰는 하지 않았다. 결과는 최종 head CI로 확인한다.
