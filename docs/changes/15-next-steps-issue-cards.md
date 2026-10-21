@@ -1,0 +1,19 @@
+# #15 다음 작업 문서에 등록된 이슈카드와 라벨 반영
+
+- 이슈: https://github.com/sirloinbh/plan-routine/issues/15
+- 일자: 2026-10-22 (Asia/Seoul)
+
+## 목적
+
+사용자 요청으로 기본 기능 요구사항을 이슈카드 #3~#13과 로드맵 #14로 세분화해 등록하고, 우선순위·특성 라벨을 붙였다. "사용자 등록 대기"로 남아 있던 다음 작업 문서를 실제 진행 순서로 갱신한다.
+
+## 변경
+
+- `docs/next-steps/README.md`: 카드 11개의 진행 순서·우선순위·선행 관계와 라벨 체계를 기록했다. 기존 "첫 기능의 DB 마이그레이션 002 설계"는 #3으로 대체했다.
+- `docs/daily/2026-10-22.md` 추가, `docs/daily/README.md` 목록 갱신.
+- 원격(GitHub) 작업: 라벨 14개(`P0`~`P3`, `기능: *`, `작업: *`, `추적`) 생성 후 #3~#14에 부착. 코드 변경은 없다.
+
+## 검증
+
+- Prettier 3.9.10(저장소 고정 버전과 동일, 로컬 `node_modules` 미설치로 workout-memo의 설치본 사용) `--check` 변경 파일 → `All matched files use Prettier code style!` (표 정렬은 `--write`로 맞춤)
+- 문서만 변경되어 앱 테스트는 추가하지 않았다. 전체 검사는 GitHub Actions `verify`·`docker-build`로 확인한다.
