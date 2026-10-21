@@ -1,6 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { Pool } from 'pg';
+import { anchorSettingKey, routineAnchorDate } from '../src/routines.js';
 import { withApi } from './helpers.js';
 
 const url = process.env.TEST_DATABASE_URL;
@@ -23,3 +25,61 @@ test(
     });
   },
 );
+
+const routinesMigration = new URL('../../database/migrations/002_routines.sql', import.meta.url);
+
+test(
+  'routines migration re-runs safely and enforces routine and check rules',
+  { skip: !url },
+  async (t) => {
+    const pool = new Pool({ connectionString: url });
+    t.after(() => pool.end());
+    await pool.query(readFileSync(routinesMigration, 'utf8'));
+    const client = await pool.connect();
+    t.after(() => client.release());
+    // Each rule runs in a rolled-back transaction so the test DB keeps no rows.
+    const rejects = async (sql: string, code: string) => {
+      await client.query('BEGIN');
+      try {
+        const { rows } = await client.query<{ id: string }>(
+          "INSERT INTO routines (name, cadence, category) VALUES ('기상', 'daily', 'wake') RETURNING id",
+        );
+        await client.query(
+          "INSERT INTO routine_checks (routine_id, period_start) VALUES ($1, '2026-10-22')",
+          [rows[0].id],
+        );
+        await assert.rejects(client.query(sql.replaceAll(':id', rows[0].id)), { code });
+      } finally {
+        await client.query('ROLLBACK');
+      }
+    };
+    await rejects("INSERT INTO routines (name, cadence) VALUES ('운동', 'daily')", '23514');
+    await rejects(
+      "INSERT INTO routines (name, cadence, category) VALUES ('청소', 'weekly', 'housework')",
+      '23514',
+    );
+    await rejects("INSERT INTO routines (name, cadence) VALUES ('  ', 'weekly')", '23514');
+    await rejects("INSERT INTO routines (name, cadence) VALUES ('월간', 'monthly')", '23514');
+    await rejects(
+      "INSERT INTO routine_checks (routine_id, period_start) VALUES (:id, '2026-10-22')",
+      '23505',
+    );
+    await rejects('DELETE FROM routines WHERE id = :id', '23503');
+  },
+);
+
+test('the first-use date is stored once and kept on later calls', { skip: !url }, async (t) => {
+  const pool = new Pool({ connectionString: url });
+  t.after(() => pool.end());
+  const client = await pool.connect();
+  t.after(() => client.release());
+  await client.query('BEGIN');
+  try {
+    await client.query('DELETE FROM app_settings WHERE key = $1', [anchorSettingKey]);
+    const db = client as unknown as Pool;
+    assert.equal(await routineAnchorDate(db, '2026-10-22'), '2026-10-22');
+    assert.equal(await routineAnchorDate(db, '2026-11-20'), '2026-10-22');
+  } finally {
+    await client.query('ROLLBACK');
+  }
+});
