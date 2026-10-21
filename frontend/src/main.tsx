@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { LayoutDashboard, Settings2 } from 'lucide-react';
+import { LayoutDashboard, ListChecks, Settings2 } from 'lucide-react';
 import './style.css';
 import { healthText, type Health } from './health';
+import { DailyRoutines } from './routines';
 
 const pages = [
   {
@@ -10,6 +11,12 @@ const pages = [
     label: '대시보드',
     icon: LayoutDashboard,
     description: '계획을 세우고 실천과 루틴을 기록하며 피드백으로 개선하는 개인 서비스',
+  },
+  {
+    key: 'routines',
+    label: '하루 루틴',
+    icon: ListChecks,
+    description: '기상·운동·식단·가사·관리·공부·독서별로 매일 할 일을 정합니다',
   },
   { key: 'settings', label: '설정', icon: Settings2, description: '앱 환경과 데이터 관리' },
 ];
@@ -72,10 +79,14 @@ export function App() {
             {healthText(health)}
           </p>
         )}
-        <section className="card empty">
-          <h2>아직 기능이 없습니다</h2>
-          <p>기능은 GitHub 이슈 카드로 등록한 뒤 하나씩 추가합니다.</p>
-        </section>
+        {page === 'routines' ? (
+          <DailyRoutines />
+        ) : (
+          <section className="card empty">
+            <h2>아직 기능이 없습니다</h2>
+            <p>기능은 GitHub 이슈 카드로 등록한 뒤 하나씩 추가합니다.</p>
+          </section>
+        )}
       </main>
     </div>
   );
