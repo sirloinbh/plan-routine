@@ -101,3 +101,11 @@ test('invalid routine input fails with Korean messages', () => {
     '하루 루틴 카테고리가 올바르지 않습니다',
   ]);
 });
+
+test('a repeated date query parameter is rejected with a Korean 400', async () => {
+  await withApi(anchorPool('2026-10-22').pool, async (call) => {
+    const { status, data } = await call('/api/periods?date=2026-10-22&date=2026-10-23');
+    assert.equal(status, 400);
+    assert.equal(data.error, '날짜 형식이 올바르지 않습니다');
+  });
+});
