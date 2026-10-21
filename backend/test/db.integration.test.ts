@@ -124,3 +124,88 @@ test('simultaneous first calls agree on one first-use date', { skip: !url, timeo
     }
   }),
 );
+
+test(
+  'daily routines are added, renamed, reordered and archived against the real DB',
+  { skip: !url, timeout: 30_000 },
+  () =>
+    withClient(async (client, pool) => {
+      const original = await client.query<{ value: string }>(
+        'SELECT value FROM app_settings WHERE key = $1',
+        [anchorSettingKey],
+      );
+      const created: string[] = [];
+      try {
+        await withApi(
+          pool,
+          async (call) => {
+            for (const name of ['6시 기상', '물 한 잔', '스트레칭']) {
+              const { status, data } = await call('/api/routines', {
+                method: 'POST',
+                body: { name, cadence: 'daily', category: 'wake' },
+              });
+              assert.equal(status, 201);
+              created.push((data.routine as { id: string }).id);
+            }
+            const names = async () => {
+              const { data } = await call('/api/routines?cadence=daily');
+              return (data.routines as { id: string; name: string }[])
+                .filter((routine) => created.includes(routine.id))
+                .map((routine) => routine.name);
+            };
+            assert.deepEqual(await names(), ['6시 기상', '물 한 잔', '스트레칭']);
+
+            const moved = await call(`/api/routines/${created[2]}/move`, {
+              method: 'POST',
+              body: { direction: 'up' },
+            });
+            assert.equal(moved.status, 200);
+            assert.deepEqual(await names(), ['6시 기상', '스트레칭', '물 한 잔']);
+            // Moving the first item up leaves the order unchanged.
+            await call(`/api/routines/${created[0]}/move`, {
+              method: 'POST',
+              body: { direction: 'up' },
+            });
+            assert.deepEqual(await names(), ['6시 기상', '스트레칭', '물 한 잔']);
+
+            const renamed = await call(`/api/routines/${created[0]}`, {
+              method: 'PATCH',
+              body: { name: '6시 30분 기상' },
+            });
+            assert.equal(renamed.status, 200);
+
+            await client.query(
+              "INSERT INTO routine_checks (routine_id, period_start) VALUES ($1, '2026-10-22')",
+              [created[1]],
+            );
+            const archived = await call(`/api/routines/${created[1]}/archive`, { method: 'POST' });
+            assert.equal(archived.status, 200);
+            assert.deepEqual(await names(), ['6시 30분 기상', '스트레칭']);
+            // The archived routine keeps its check and can no longer be changed.
+            const checks = await client.query(
+              'SELECT 1 FROM routine_checks WHERE routine_id = $1',
+              [created[1]],
+            );
+            assert.equal(checks.rowCount, 1);
+            const again = await call(`/api/routines/${created[1]}/move`, {
+              method: 'POST',
+              body: { direction: 'down' },
+            });
+            assert.equal(again.status, 404);
+          },
+          { today: () => '2026-10-22' },
+        );
+      } finally {
+        await client.query('DELETE FROM routine_checks WHERE routine_id = ANY($1::bigint[])', [
+          created,
+        ]);
+        await client.query('DELETE FROM routines WHERE id = ANY($1::bigint[])', [created]);
+        await client.query('DELETE FROM app_settings WHERE key = $1', [anchorSettingKey]);
+        if (original.rows[0])
+          await client.query('INSERT INTO app_settings (key, value) VALUES ($1, $2)', [
+            anchorSettingKey,
+            original.rows[0].value,
+          ]);
+      }
+    }),
+);

@@ -3,6 +3,7 @@ import type { Pool } from 'pg';
 import { types } from 'pg';
 import { z, ZodError } from 'zod';
 import { calendarDate, periodsFor } from './periods.js';
+import { routineRoutes } from './routine-routes.js';
 import { routineAnchorDate } from './routines.js';
 
 // DATE columns stay YYYY-MM-DD strings so the service time zone never shifts them.
@@ -38,6 +39,7 @@ export function createApp(pool: Pool, options: { today?: () => string } = {}) {
     const target = date ?? current;
     res.json({ date: target, anchorDate, periods: periodsFor(target, anchorDate) });
   });
+  app.use('/api/routines', routineRoutes(pool, today));
   app.use('/api', (_req, res) => {
     res.status(404).json({ error: '요청한 API를 찾을 수 없습니다' });
   });
