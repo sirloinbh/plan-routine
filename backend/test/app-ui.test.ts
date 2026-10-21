@@ -228,9 +228,20 @@ function routineApi(initial: { id: string; name: string; category: string }[] = 
       const other = group[body!.direction === 'up' ? index - 1 : index + 1];
       if (other) [target.sortOrder, other.sortOrder] = [other.sortOrder, target.sortOrder];
     }
+    // Same response shapes as the real API: move returns the reordered group.
+    if (action === 'move')
+      return reply(200, {
+        routines: routines
+          .filter((r) => r.category === target.category)
+          .sort((a, b) => a.sortOrder - b.sortOrder),
+      });
     return reply(200, { routine: target });
   };
-  return { fetchImpl, writes };
+  // Simulates a change made elsewhere (another tab) without a request from this page.
+  const archiveElsewhere = (id: string) => {
+    routines = routines.filter((r) => r.id !== id);
+  };
+  return { fetchImpl, writes, archiveElsewhere };
 }
 
 async function openRoutines(api: ReturnType<typeof routineApi>) {
@@ -296,6 +307,11 @@ uiTest('routines can be reordered, renamed and archived after confirmation', asy
   assert.equal(ui.byLabel('button', '6시 기상 위로 이동').props.disabled, true);
 
   await ui.press('물 한 잔 위로 이동');
+  assert.deepEqual(api.writes.at(-1), {
+    method: 'POST',
+    path: '/api/routines/2/move',
+    body: { direction: 'up' },
+  });
   assert.deepEqual(wakeNames(), ['물 한 잔', '6시 기상']);
 
   await ui.press('6시 기상 이름 수정');
@@ -319,4 +335,19 @@ uiTest('routines can be reordered, renamed and archived after confirmation', asy
   });
   assert.deepEqual(wakeNames(), ['6시 30분 기상']);
   assert.match(ui.text(ui.find((n) => n.props.role === 'status')), /지난 기록은 남아 있습니다/);
+});
+
+uiTest('a routine changed elsewhere shows the Korean 404 and the list reloads', async () => {
+  const api = routineApi([
+    { id: '1', name: '6시 기상', category: 'wake' },
+    { id: '2', name: '물 한 잔', category: 'wake' },
+  ]);
+  const ui = await openRoutines(api);
+  api.archiveElsewhere('2');
+  await ui.press('물 한 잔 위로 이동');
+  assert.match(ui.text(ui.find((n) => n.props.role === 'alert')), /루틴을 찾을 수 없습니다/);
+  assert.deepEqual(
+    ui.find((n) => n.props.className === 'routine-name').map((n) => ui.text(n)),
+    ['6시 기상'],
+  );
 });
