@@ -6,7 +6,7 @@
 
 Node.js **24.21.0**, npm **11.19.0**. 설치는 `npm ci --ignore-scripts`(사용자 확인 후), 포맷은 `npm run format`, 전체 검증은 `npm run check`입니다. 전체 기준은 [개발 환경 설정 문서](docs/project-setup.md)와 [AGENTS.md](AGENTS.md)를 따릅니다.
 
-변경은 **GitHub 이슈 → 이슈 번호 브랜치 → 구현·테스트·docs 기록 → `npm run check` → PR → 사용자 직접 병합** 순서로 진행합니다.
+변경은 **GitHub 이슈 → 이슈 번호 브랜치 → 구현·테스트·docs 기록 → `npm run check` → PR → CI 통과 후 에이전트 병합** 순서로 진행합니다. 필수 CI 검사가 모두 통과하면 에이전트가 merge commit으로 병합합니다([AGENTS.md](AGENTS.md)).
 
 ## 실행
 
