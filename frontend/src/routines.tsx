@@ -42,12 +42,20 @@ export function DailyRoutines() {
   const [notice, setNotice] = useState<Notice>(null);
 
   useEffect(() => {
+    // A newer reload supersedes this one, so a slow older response cannot overwrite it.
+    let ignore = false;
     requestJson<{ routines: Routine[] }>('/api/routines?cadence=daily')
-      .then((data) => setRoutines(data.routines))
+      .then((data) => {
+        if (!ignore) setRoutines(data.routines);
+      })
       .catch((error: Error) => {
+        if (ignore) return;
         setRoutines((current) => current ?? []);
         setNotice({ kind: 'alert', text: error.message });
       });
+    return () => {
+      ignore = true;
+    };
   }, [version]);
 
   const run = async (action: () => Promise<unknown>, done: string) => {
@@ -55,12 +63,13 @@ export function DailyRoutines() {
     try {
       await action();
       setNotice({ kind: 'status', text: done });
-      setVersion((value) => value + 1);
       return true;
     } catch (error) {
       setNotice({ kind: 'alert', text: (error as Error).message });
       return false;
     } finally {
+      // Reload after failures too: a 404 usually means the list is stale (changed elsewhere).
+      setVersion((value) => value + 1);
       setBusy(false);
     }
   };
@@ -120,11 +129,11 @@ export function DailyRoutines() {
 
   return (
     <div className="routine-page">
-      {notice && (
-        <p role={notice.kind} className={notice.kind === 'alert' ? 'error' : 'notice'}>
-          {notice.text}
-        </p>
-      )}
+      {/* Live regions stay mounted so screen readers announce the first message too. */}
+      <div role="status" aria-live="polite">
+        {notice?.kind === 'status' && <p className="notice">{notice.text}</p>}
+      </div>
+      <div role="alert">{notice?.kind === 'alert' && <p className="error">{notice.text}</p>}</div>
       <div className="routine-groups">
         {groupByCategory(routines).map((group) => (
           <section
@@ -153,6 +162,7 @@ export function DailyRoutines() {
                       >
                         <input
                           aria-label={`${routine.name} 새 이름`}
+                          autoFocus
                           value={editing.name}
                           maxLength={100}
                           onChange={(event) =>

@@ -154,6 +154,12 @@ test(
                 .map((routine) => routine.name);
             };
             assert.deepEqual(await names(), ['6시 기상', '물 한 잔', '스트레칭']);
+            // Adding a routine records the first-use date (or keeps an existing one).
+            const anchor = await client.query<{ value: string }>(
+              'SELECT value FROM app_settings WHERE key = $1',
+              [anchorSettingKey],
+            );
+            assert.equal(anchor.rows[0]?.value, original.rows[0]?.value ?? '2026-10-22');
 
             const moved = await call(`/api/routines/${created[2]}/move`, {
               method: 'POST',

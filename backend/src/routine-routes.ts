@@ -2,7 +2,7 @@ import { Router } from 'express';
 import type { Pool } from 'pg';
 import { z } from 'zod';
 import { cadences } from './periods.js';
-import { routineAnchorDate, routineInput, routineName } from './routines.js';
+import { anchorSettingKey, routineInput, routineName } from './routines.js';
 
 const routineColumns = 'id::text AS id, name, cadence, category, sort_order AS "sortOrder"';
 const notFound = { error: '루틴을 찾을 수 없습니다' };
@@ -42,14 +42,18 @@ export function routineRoutes(pool: Pool, today: () => string) {
 
   router.post('/', async (req, res) => {
     const input = routineInput.parse(body(req.body));
-    // Creating the first routine counts as first use for four/twelve-week periods.
-    await routineAnchorDate(pool, today());
+    // Creating the first routine counts as first use for four/twelve-week periods. One statement
+    // keeps both writes atomic. Concurrent adds may share a sort_order; id breaks the tie and the
+    // next move renumbers the group.
     const { rows } = await pool.query(
-      `INSERT INTO routines (name, cadence, category, sort_order)
+      `WITH first_use AS (
+         INSERT INTO app_settings (key, value) VALUES ($4, $5) ON CONFLICT (key) DO NOTHING
+       )
+       INSERT INTO routines (name, cadence, category, sort_order)
        SELECT $1, $2::text, $3::text, COALESCE(MAX(sort_order) + 1, 0) FROM routines
        WHERE cadence = $2::text AND category IS NOT DISTINCT FROM $3::text AND archived_at IS NULL
        RETURNING ${routineColumns}`,
-      [input.name, input.cadence, input.category ?? null],
+      [input.name, input.cadence, input.category ?? null, anchorSettingKey, today()],
     );
     res.status(201).json({ routine: rows[0] });
   });

@@ -18,7 +18,7 @@ function scriptedPool(...results: { rows: unknown[] }[]) {
 const wake = { id: '1', name: '6시 기상', cadence: 'daily', category: 'wake', sortOrder: 0 };
 
 test('creating a routine records first use, then appends it to its category', async () => {
-  const { pool, queries } = scriptedPool({ rows: [{ value: '2026-10-22' }] }, { rows: [wake] });
+  const { pool, queries } = scriptedPool({ rows: [wake] });
   await withApi(
     pool,
     async (call) => {
@@ -31,8 +31,15 @@ test('creating a routine records first use, then appends it to its category', as
     },
     { today: () => '2026-10-22' },
   );
-  assert.deepEqual(queries[0].params, ['routine_anchor_date', '2026-10-22']);
-  assert.deepEqual(queries[1].params, ['6시 기상', 'daily', 'wake']);
+  // One statement records first use and inserts the routine, so both commit or neither does.
+  assert.equal(queries.length, 1);
+  assert.deepEqual(queries[0].params, [
+    '6시 기상',
+    'daily',
+    'wake',
+    'routine_anchor_date',
+    '2026-10-22',
+  ]);
 });
 
 test('invalid routine input is rejected with Korean messages before any query', async () => {
