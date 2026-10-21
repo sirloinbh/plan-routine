@@ -22,17 +22,19 @@ export const routineCategoryLabels: Record<(typeof routineCategories)[number], s
   reading: '독서',
 };
 
+export const routineName = z
+  .string({
+    required_error: '루틴 이름을 입력해 주세요',
+    invalid_type_error: '루틴 이름은 글자여야 합니다',
+  })
+  .trim()
+  .min(1, '루틴 이름을 입력해 주세요')
+  .max(100, '루틴 이름은 100자 이하로 입력해 주세요');
+
 // Mirrors the routines table checks so bad input fails with a Korean message before the DB.
 export const routineInput = z
   .object({
-    name: z
-      .string({
-        required_error: '루틴 이름을 입력해 주세요',
-        invalid_type_error: '루틴 이름은 글자여야 합니다',
-      })
-      .trim()
-      .min(1, '루틴 이름을 입력해 주세요')
-      .max(100, '루틴 이름은 100자 이하로 입력해 주세요'),
+    name: routineName,
     cadence: z.enum(cadences, {
       errorMap: () => ({ message: '루틴 주기는 매일, 매주, 4주, 12주 중 하나여야 합니다' }),
     }),
