@@ -2,6 +2,8 @@
 
 계획을 세우고 실천과 루틴을 기록하며 피드백으로 개선하는 개인 서비스. 사용자는 본인 한 명이며 로그인은 없다. 외부 공개 전에는 사설 접속 또는 인증을 먼저 설계한다.
 
+이 프로젝트에만 해당하는 규칙(PR 리뷰·병합 규칙 등)은 **[AGENTS.project.md](AGENTS.project.md)를 반드시 함께 읽고 따른다.** 두 파일이 다르면 AGENTS.project.md가 우선한다.
+
 ## 구현 작업 절차
 
 기능 추가·수정·리팩터링·설정·문서·스킬 변경 요청에는 [plan-routine-implementation](skills/plan-routine-implementation/SKILL.md)을 읽고 적용한다.
@@ -10,15 +12,14 @@
 2. 이슈 번호를 포함한 작업 브랜치를 만든다: `<type>/<issue-number>-<slug>`.
 3. 구현·수정과 관련 테스트를 함께 작성하고, 각 커밋에 `docs/changes/<issue-number>-<slug>.md` 변경 기록을 포함한다.
 4. 커밋 전과 PR 생성·갱신 전에 `npm run check`를 실행하고 결과를 docs와 PR에 기록한다.
-5. **PR을 올린 뒤 자동 코드 리뷰를 최대 2회 거친다.** 리뷰에서 보완점이 나오면 추가 커밋으로 반영하고, 1차 보완 후에는 2차 리뷰를 한 번 더 받는다. 2차 보완 커밋 뒤에는 더 리뷰하지 않는다. 보완점이 없으면 바로 다음 단계로 간다. 이 PR에서 고치기에 큰 수정은 새 이슈카드로 분리한다. 상세 절차는 [plan-routine-implementation](skills/plan-routine-implementation/SKILL.md)의 5단계를 따른다.
-6. **그 뒤 최종 head의 필수 CI 검사가 모두 통과하면 에이전트(주 에이전트·로컬 워커)가 묻지 않고 병합한다.** `scripts/gh-project.ps1 pr merge <url> --merge --match-head-commit <검증한 head SHA>`(merge commit)를 사용하고 연결 이슈(`Closes #N`)가 닫혔는지 확인한다. 연속 PR은 순서대로 병합한다. 앞 PR 병합 후 다음 PR 브랜치에 `origin/main`을 병합해 충돌을 해결하고 관련 테스트를 다시 실행해 일반 푸시(force 금지)한 뒤 CI 통과 후 병합한다. 실패·실행 중 검사가 있는 병합, `--admin` 등 브랜치 보호 우회, 자기 PR 승인으로 검토 대체, `main` 직접 커밋·푸시, force push는 하지 않는다. 현재 `main` 병합은 배포를 트리거하지 않는다(배포 미연결). 자동 배포를 연결하면 병합 후 배포 결과 확인 절차를 이 항목에 추가한다.
+5. PR 리뷰와 병합 규칙은 [AGENTS.project.md](AGENTS.project.md)의 "작업 절차"를 따른다.
 
 질문 답변·추천·읽기 전용 조사는 이슈나 브랜치를 만들지 않는다. 요구사항에 정해지지 않은 규칙(집계 방식, 정책, 범위)은 추천안과 함께 사용자에게 확인하고 이슈 코멘트로 기록한다.
 
 ## 프로젝트 기준
 
 - 기술: React 19 + Vite + TypeScript, Express 5 + pg + Zod, PostgreSQL 17, npm workspaces, Docker Compose, GitHub Actions. Node 24.21.0 / npm 11.19.0.
-- 포트(127.0.0.1 바인딩): 웹 8097, 호스트 DB 55447, API 3017, Vite 5177. 사용자 요청 없이 바꾸지 않는다.
+- 포트(127.0.0.1 바인딩): 웹 8107, API 3107, Vite 5207, 호스트 DB 15407, e2e API 3207, e2e 웹 5307. 포트는 중앙 레지스트리(`sirloinbh/project-standards`의 `registry/projects.json`, 슬롯 07) 값이며, 바꾸려면 중앙 리포에 이슈를 연다.
 - 날짜는 `YYYY-MM-DD`, 서비스 시간대는 `Asia/Seoul`. 서버의 "오늘"은 `serviceDate()`로 계산한다.
 - 입력 검증과 판정은 서버에서도 수행한다. 여러 행 변경은 트랜잭션으로 처리한다. 사용자에게 보이는 검증 오류는 한국어 메시지로 지정한다.
 - 마이그레이션은 `database/migrations` 한 곳에서 관리하고 재실행해도 안전하게 쓴다. 기존 DB 적용은 [DB 문서](database/README.md)의 `psql -f` 방식을 쓴다.
