@@ -1,5 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { requestJson } from './api';
+import { Badge } from './components/ui/badge';
+import { Button } from './components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
+import { Input } from './components/ui/input';
 
 export type Routine = {
   id: string;
@@ -122,144 +126,157 @@ export function DailyRoutines() {
 
   if (routines === null)
     return (
-      <p role="status" className="status">
+      <p role="status" className="text-body-sm text-muted-foreground">
         루틴을 불러오는 중…
       </p>
     );
 
   return (
-    <div className="routine-page">
+    <div className="flex flex-col gap-4">
       {/* Live regions stay mounted so screen readers announce the first message too. */}
       <div role="status" aria-live="polite">
-        {notice?.kind === 'status' && <p className="notice">{notice.text}</p>}
+        {notice?.kind === 'status' && (
+          <p className="text-body-sm text-muted-foreground">{notice.text}</p>
+        )}
       </div>
-      <div role="alert">{notice?.kind === 'alert' && <p className="error">{notice.text}</p>}</div>
-      <div className="routine-groups">
+      <div role="alert">
+        {notice?.kind === 'alert' && <p className="text-body-sm text-destructive">{notice.text}</p>}
+      </div>
+      <div className="grid gap-4 md:grid-cols-2">
         {groupByCategory(routines).map((group) => (
-          <section
-            key={group.key}
-            className="card routine-group"
-            aria-label={`${group.label} 루틴`}
-          >
-            <h2>
-              {group.label}
-              <span className="count">{group.routines.length}</span>
-            </h2>
-            {group.routines.length === 0 ? (
-              <p className="muted">아직 루틴이 없습니다</p>
-            ) : (
-              <ol className="routine-list">
-                {group.routines.map((routine, index) => (
-                  <li key={routine.id}>
-                    {editing?.id === routine.id ? (
-                      <form
-                        className="routine-edit"
-                        aria-label={`${routine.name} 이름 수정`}
-                        onSubmit={(event) => {
-                          event.preventDefault();
-                          void rename();
-                        }}
-                      >
-                        <input
-                          aria-label={`${routine.name} 새 이름`}
-                          autoFocus
-                          value={editing.name}
-                          maxLength={100}
-                          onChange={(event) =>
-                            setEditing({ id: routine.id, name: event.target.value })
-                          }
-                        />
-                        <button type="submit" className="primary" disabled={busy}>
-                          저장
-                        </button>
-                        <button type="button" className="ghost" onClick={() => setEditing(null)}>
-                          취소
-                        </button>
-                      </form>
-                    ) : (
-                      <>
-                        <span className="routine-name">{routine.name}</span>
-                        <span className="routine-actions">
-                          <button
-                            type="button"
-                            className="ghost"
-                            aria-label={`${routine.name} 위로 이동`}
-                            disabled={busy || index === 0}
-                            onClick={() => void move(routine, 'up')}
-                          >
-                            위로
-                          </button>
-                          <button
-                            type="button"
-                            className="ghost"
-                            aria-label={`${routine.name} 아래로 이동`}
-                            disabled={busy || index === group.routines.length - 1}
-                            onClick={() => void move(routine, 'down')}
-                          >
-                            아래로
-                          </button>
-                          <button
-                            type="button"
-                            className="ghost"
-                            aria-label={`${routine.name} 이름 수정`}
-                            disabled={busy}
-                            onClick={() => {
-                              setConfirmArchive(null);
-                              setEditing({ id: routine.id, name: routine.name });
-                            }}
-                          >
-                            수정
-                          </button>
-                          {confirmArchive === routine.id ? (
-                            <button
+          <Card key={group.key} role="region" aria-label={`${group.label} 루틴`}>
+            <CardHeader>
+              <CardTitle asHeading="h2" className="flex items-center gap-2">
+                {group.label}
+                <Badge variant="secondary">{group.routines.length}</Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3">
+              {group.routines.length === 0 ? (
+                <p className="text-body-sm text-muted-foreground">아직 루틴이 없습니다</p>
+              ) : (
+                <ol className="flex flex-col divide-y">
+                  {group.routines.map((routine, index) => (
+                    <li key={routine.id} className="flex flex-wrap items-center gap-2 py-2">
+                      {editing?.id === routine.id ? (
+                        <form
+                          className="flex w-full flex-wrap gap-2"
+                          aria-label={`${routine.name} 이름 수정`}
+                          onSubmit={(event) => {
+                            event.preventDefault();
+                            void rename();
+                          }}
+                        >
+                          <Input
+                            className="min-w-0 flex-1"
+                            aria-label={`${routine.name} 새 이름`}
+                            autoFocus
+                            value={editing.name}
+                            maxLength={100}
+                            onChange={(event) =>
+                              setEditing({ id: routine.id, name: event.target.value })
+                            }
+                          />
+                          <Button type="submit" disabled={busy}>
+                            저장
+                          </Button>
+                          <Button type="button" variant="ghost" onClick={() => setEditing(null)}>
+                            취소
+                          </Button>
+                        </form>
+                      ) : (
+                        <>
+                          <span className="min-w-0 flex-1 text-body break-words">
+                            {routine.name}
+                          </span>
+                          <span className="flex flex-wrap gap-1">
+                            <Button
                               type="button"
-                              className="danger"
-                              aria-label={`${routine.name} 보관 확인`}
-                              disabled={busy}
-                              onClick={() => void archive(routine)}
+                              variant="ghost"
+                              size="sm"
+                              aria-label={`${routine.name} 위로 이동`}
+                              disabled={busy || index === 0}
+                              onClick={() => void move(routine, 'up')}
                             >
-                              보관 확인
-                            </button>
-                          ) : (
-                            <button
+                              위로
+                            </Button>
+                            <Button
                               type="button"
-                              className="ghost"
-                              aria-label={`${routine.name} 보관`}
-                              disabled={busy}
-                              onClick={() => setConfirmArchive(routine.id)}
+                              variant="ghost"
+                              size="sm"
+                              aria-label={`${routine.name} 아래로 이동`}
+                              disabled={busy || index === group.routines.length - 1}
+                              onClick={() => void move(routine, 'down')}
                             >
-                              보관
-                            </button>
-                          )}
-                        </span>
-                      </>
-                    )}
-                  </li>
-                ))}
-              </ol>
-            )}
-            <form
-              className="routine-add"
-              aria-label={`${group.label} 루틴 추가`}
-              onSubmit={(event) => {
-                event.preventDefault();
-                void add(group.key, group.label);
-              }}
-            >
-              <input
-                aria-label={`${group.label} 새 루틴 이름`}
-                placeholder="새 루틴 이름"
-                value={drafts[group.key] ?? ''}
-                maxLength={100}
-                onChange={(event) =>
-                  setDrafts((current) => ({ ...current, [group.key]: event.target.value }))
-                }
-              />
-              <button type="submit" className="primary" disabled={busy}>
-                추가
-              </button>
-            </form>
-          </section>
+                              아래로
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              aria-label={`${routine.name} 이름 수정`}
+                              disabled={busy}
+                              onClick={() => {
+                                setConfirmArchive(null);
+                                setEditing({ id: routine.id, name: routine.name });
+                              }}
+                            >
+                              수정
+                            </Button>
+                            {confirmArchive === routine.id ? (
+                              <Button
+                                type="button"
+                                variant="destructive"
+                                size="sm"
+                                aria-label={`${routine.name} 보관 확인`}
+                                disabled={busy}
+                                onClick={() => void archive(routine)}
+                              >
+                                보관 확인
+                              </Button>
+                            ) : (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                aria-label={`${routine.name} 보관`}
+                                disabled={busy}
+                                onClick={() => setConfirmArchive(routine.id)}
+                              >
+                                보관
+                              </Button>
+                            )}
+                          </span>
+                        </>
+                      )}
+                    </li>
+                  ))}
+                </ol>
+              )}
+              <form
+                className="flex gap-2"
+                aria-label={`${group.label} 루틴 추가`}
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void add(group.key, group.label);
+                }}
+              >
+                <Input
+                  className="min-w-0 flex-1"
+                  aria-label={`${group.label} 새 루틴 이름`}
+                  placeholder="새 루틴 이름"
+                  value={drafts[group.key] ?? ''}
+                  maxLength={100}
+                  onChange={(event) =>
+                    setDrafts((current) => ({ ...current, [group.key]: event.target.value }))
+                  }
+                />
+                <Button type="submit" disabled={busy}>
+                  추가
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
         ))}
       </div>
     </div>
