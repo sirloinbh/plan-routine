@@ -1,0 +1,15 @@
+# 중앙 관리 파일. 수정은 sirloinbh/project-standards의 templates/app/deploy/에서
+[Unit]
+Description=계획·실천·루틴·피드백 pull-based deployment of origin/main
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ubuntu
+Group=docker
+WorkingDirectory=/opt/plan-routine
+# Copied first: the deploy checks out a new commit while this script runs.
+ExecStart=/bin/bash -c 'cp /opt/plan-routine/deploy/autodeploy.sh /tmp/plan-autodeploy.sh && exec /bin/bash /tmp/plan-autodeploy.sh'
+TimeoutStartSec=45min
+Nice=10
