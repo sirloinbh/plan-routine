@@ -24,7 +24,7 @@
 ### 앱 코드
 
 - **화면:** 자체 셸을 `AppShell`로 바꾸고 페이지 주소를 붙였다(`/`, `/routines`, `/settings`). 자체 `style.css`는 지웠다.
-- **하루 루틴:** 상태 로직은 그대로 두고 그리는 부분을 공통 `Card`·`Button`·`Input`·`Badge`와 토큰 유틸리티로 옮겼다. 접근성 이름(`aria-label`)은 모두 같다. 화면 테스트 4개(분류 순서, 추가, 빈 이름, 보관 확인)를 새로 넣었다.
+- **하루 루틴:** 상태 로직은 그대로 두고 그리는 부분을 공통 `Card`·`Button`·`Input`·`Badge`와 토큰 유틸리티로 옮겼다. 접근성 이름(`aria-label`)은 모두 같다. 화면 테스트(`routines.test.tsx`)는 지운 `backend/test/app-ui.test.ts`의 루틴 검사(7개 분류와 빈 상태, 추가, 빈 이름·서버 오류 때 입력 유지, 순서 변경·이름 수정·보관 확인, 다른 곳에서 바뀐 루틴의 404와 목록 다시 불러오기)를 상태를 가진 가짜 API로 옮긴 것이다.
 - **진입점:** `app.tsx`(화면), `main.tsx`(렌더링과 운영 빌드에서만 서비스 워커 등록), `index.css`(Tailwind, `tw-animate-css`, 공통 토큰).
 - **PWA:** 아이콘 4개(중앙 `scripts/pwa-icons.mjs`), `index.html`의 manifest·아이콘·라이트/다크 `theme-color`·`viewport-fit=cover`·깜빡임 방지 스크립트.
 - **테스트·빌드:** `frontend`에 `test`(vitest) 스크립트와 `src/test/setup.ts`를 넣고, 루트 `npm test`가 프론트엔드 테스트도 돌린다. 운영 빌드는 `tsconfig.build.json`으로 테스트 파일을 뺀다. `vite.config.ts`에 Tailwind 플러그인.
@@ -33,5 +33,5 @@
 
 ## 검증
 
-- Prettier, ESLint, `tsc`(전체), 프론트엔드 테스트 44개 통과, `vite build`, `ioc-scan`
+- Prettier, ESLint, `tsc`(전체), 프론트엔드 테스트 46개 통과, `vite build`, `ioc-scan`
 - 백엔드 테스트는 DB가 필요해 CI에서 확인한다.
