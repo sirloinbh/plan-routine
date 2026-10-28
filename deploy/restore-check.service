@@ -1,0 +1,14 @@
+# 중앙 관리 파일. 수정은 sirloinbh/project-standards의 templates/app/deploy/에서
+[Unit]
+Description=계획·실천·루틴·피드백 weekly restore check of the newest database dump
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+User=ubuntu
+Group=docker
+WorkingDirectory=/opt/plan-routine
+ExecStart=/bin/bash -c 'cp /opt/plan-routine/deploy/backup.sh /tmp/plan-restore-check.sh && exec /bin/bash /tmp/plan-restore-check.sh verify'
+TimeoutStartSec=30min
+Nice=10
