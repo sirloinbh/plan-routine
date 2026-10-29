@@ -1,15 +1,18 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { expect, test, vi } from 'vitest';
+
 import { App } from './app';
 
 // /api/health answers with `body`; the routines page gets an empty list.
 const health = (body: object, status = 200) =>
   vi.stubGlobal(
     'fetch',
-    vi.fn(async (url: string) =>
-      url === '/api/health'
-        ? new Response(JSON.stringify(body), { status })
-        : new Response(JSON.stringify({ routines: [] }), { status: 200 }),
+    vi.fn((url: string) =>
+      Promise.resolve(
+        url === '/api/health'
+          ? new Response(JSON.stringify(body), { status })
+          : new Response(JSON.stringify({ routines: [] }), { status: 200 }),
+      ),
     ),
   );
 
