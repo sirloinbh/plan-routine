@@ -1,6 +1,8 @@
-import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { test } from 'node:test';
+
 import type { Pool } from 'pg';
+
 import { withApi } from './helpers.js';
 
 // Fake pool that answers queries in order and records them. The real SQL runs in the DB tests.

@@ -1,7 +1,9 @@
-import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { test } from 'node:test';
+
 import { Pool, type PoolClient } from 'pg';
+
 import { anchorSettingKey, routineAnchorDate } from '../src/routines.js';
 import { withApi } from './helpers.js';
 

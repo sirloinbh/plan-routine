@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
+
 import { requestJson } from './api';
 import { Badge } from './components/ui/badge';
 import { Button } from './components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
 import { Input } from './components/ui/input';
+import { groupByCategory } from './routine-groups';
 
 export type Routine = {
   id: string;
@@ -12,26 +14,6 @@ export type Routine = {
   category: string | null;
   sortOrder: number;
 };
-
-// Same codes and order as the backend's routineCategories.
-export const dailyCategories = [
-  { key: 'wake', label: '기상' },
-  { key: 'exercise', label: '운동' },
-  { key: 'diet', label: '식단' },
-  { key: 'housework', label: '가사' },
-  { key: 'care', label: '관리' },
-  { key: 'study', label: '공부' },
-  { key: 'reading', label: '독서' },
-];
-
-export function groupByCategory(routines: Routine[]) {
-  return dailyCategories.map((category) => ({
-    ...category,
-    routines: routines
-      .filter((routine) => routine.category === category.key)
-      .sort((a, b) => a.sortOrder - b.sortOrder || Number(a.id) - Number(b.id)),
-  }));
-}
 
 type Notice = { kind: 'status' | 'alert'; text: string } | null;
 
@@ -170,6 +152,7 @@ export function DailyRoutines() {
                           <Input
                             className="min-w-0 flex-1"
                             aria-label={`${routine.name} 새 이름`}
+                            // eslint-disable-next-line jsx-a11y-x/no-autofocus -- the rename field opens on a click, so focus follows that action.
                             autoFocus
                             value={editing.name}
                             maxLength={100}

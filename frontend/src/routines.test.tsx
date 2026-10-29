@@ -1,6 +1,8 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { expect, test, vi } from 'vitest';
-import { DailyRoutines, groupByCategory, type Routine } from './routines';
+
+import { groupByCategory } from './routine-groups';
+import { DailyRoutines, type Routine } from './routines';
 
 type Seed = { id: string; name: string; category: string };
 
@@ -10,11 +12,12 @@ function routineApi(seed: Seed[] = []) {
   let routines: Routine[] = seed.map((r, i) => ({ ...r, cadence: 'daily', sortOrder: i + 1 }));
   let nextId = 100;
   const writes: { method: string; path: string; body?: unknown }[] = [];
-  const reply = (status: number, body: unknown) => new Response(JSON.stringify(body), { status });
+  const reply = (status: number, body: unknown) =>
+    Promise.resolve(new Response(JSON.stringify(body), { status }));
   const notFound = () => reply(404, { error: '루틴을 찾을 수 없습니다' });
   vi.stubGlobal(
     'fetch',
-    vi.fn(async (url: string, init?: RequestInit) => {
+    vi.fn((url: string, init?: RequestInit) => {
       const method = init?.method ?? 'GET';
       const path = url.split('?')[0];
       if (method === 'GET') return reply(200, { routines });

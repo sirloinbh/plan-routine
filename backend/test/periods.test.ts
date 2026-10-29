@@ -1,5 +1,6 @@
-import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { test } from 'node:test';
+
 import { calendarDate, isCalendarDate, periodFor, periodsFor, weekStart } from '../src/periods.js';
 
 // First use on Thursday 2026-10-22, so four/twelve-week periods count from Sunday 2026-10-18.
