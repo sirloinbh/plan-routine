@@ -94,6 +94,17 @@ test('the diary opens from the main menu and from the daily checklist page', asy
   window.history.replaceState(null, '', '/');
 });
 
+test('the main menu opens the weekly routine page', async () => {
+  health({ today: '2026-10-26' });
+  render(<App />);
+  const menu = screen.getByRole('navigation', { name: '주 메뉴' });
+  fireEvent.click(within(menu).getByRole('link', { name: '주간 루틴' }));
+  expect(window.location.pathname).toBe('/weekly');
+  expect(await screen.findByRole('heading', { level: 1, name: '주간 루틴' })).toBeInTheDocument();
+  expect(await screen.findByText('이번 주에 체크할 루틴이 없습니다')).toBeInTheDocument();
+  window.history.replaceState(null, '', '/');
+});
+
 test('an unknown address falls back to the overview', async () => {
   health({ today: '2026-10-26' });
   window.history.replaceState(null, '', '/no-such-page');

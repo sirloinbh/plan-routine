@@ -1,4 +1,11 @@
-import { CalendarCheck, LayoutDashboard, ListChecks, NotebookPen, Settings2 } from 'lucide-react';
+import {
+  CalendarCheck,
+  CalendarRange,
+  LayoutDashboard,
+  ListChecks,
+  NotebookPen,
+  Settings2,
+} from 'lucide-react';
 import { type ReactNode, useEffect, useState } from 'react';
 import { BrowserRouter, Link, Navigate, Route, Routes } from 'react-router';
 
@@ -10,6 +17,7 @@ import { DailyChecklist } from './daily-checklist';
 import { Diary } from './diary';
 import { type Health, healthText } from './health';
 import { DailyRoutines } from './routines';
+import { WeeklyRoutines } from './weekly-routines';
 
 // Every page URL lives here (central docs/directory-rules.md).
 const pages = {
@@ -17,6 +25,7 @@ const pages = {
   today: '/today',
   diary: '/diary',
   routines: '/routines',
+  weekly: '/weekly',
   settings: '/settings',
 } as const;
 
@@ -26,6 +35,7 @@ const nav: NavItem[] = [
   { to: pages.today, label: '오늘 체크', icon: CalendarCheck },
   { to: pages.diary, label: '일기', icon: NotebookPen },
   { to: pages.routines, label: '하루 루틴', icon: ListChecks },
+  { to: pages.weekly, label: '주간 루틴', icon: CalendarRange },
   { to: pages.settings, label: '설정', icon: Settings2 },
 ];
 
@@ -134,6 +144,18 @@ export function App() {
                 health={health}
               >
                 <DailyRoutines />
+              </Page>
+            }
+          />
+          <Route
+            path={pages.weekly}
+            element={
+              <Page
+                title="주간 루틴"
+                description="매주 한 번 할 일을 정하고 이번 주 완료 여부를 체크합니다"
+                health={health}
+              >
+                <WeeklyRoutines />
               </Page>
             }
           />

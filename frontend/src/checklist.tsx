@@ -1,10 +1,37 @@
 import { progressText } from './checklist-progress';
 import { Badge } from './components/ui/badge';
+import { Button } from './components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
 import { Checkbox } from './components/ui/checkbox';
 import { Label } from './components/ui/label';
+import { Notice } from './components/ui/notice';
+import type { NoticeValue } from './lib/use-notice';
 
 export type ChecklistItem = { id: string; name: string; checked: boolean };
+
+// What a checklist page shows until its first load succeeds.
+export function ChecklistPending({
+  failed,
+  notice,
+  onRetry,
+}: {
+  failed: boolean;
+  notice: NoticeValue | undefined;
+  onRetry: () => void;
+}) {
+  return failed ? (
+    <div className="flex flex-col items-start gap-3">
+      <Notice notice={notice} />
+      <Button type="button" variant="outline" size="sm" onClick={onRetry}>
+        다시 시도
+      </Button>
+    </div>
+  ) : (
+    <p role="status" className="text-body-sm text-muted-foreground">
+      체크리스트를 불러오는 중…
+    </p>
+  );
+}
 
 // One titled checklist with its progress. The weekly, four-week and twelve-week cards reuse it.
 export function Checklist({

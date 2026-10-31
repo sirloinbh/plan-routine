@@ -367,6 +367,113 @@ test(
 );
 
 test(
+  'a weekly check holds for its whole week, once, and a new week starts empty',
+  { skip: !url, timeout: 30_000 },
+  () =>
+    withClient(async (client, pool) => {
+      const original = await client.query<{ value: string }>(
+        'SELECT value FROM app_settings WHERE key = $1',
+        [anchorSettingKey],
+      );
+      const created: string[] = [];
+      let today = '2026-10-22';
+      try {
+        await withApi(
+          pool,
+          async (call) => {
+            const added = await call('/api/routines', {
+              method: 'POST',
+              body: { name: '주간 청소', cadence: 'weekly' },
+            });
+            assert.equal(added.status, 201);
+            const { id, category } = added.data.routine as { id: string; category: unknown };
+            created.push(id);
+            assert.equal(category, null);
+
+            const week = async () => {
+              const { status, data } = await call('/api/checklist?cadence=weekly');
+              assert.equal(status, 200);
+              const item = (data.items as { id: string; checked: boolean }[]).find(
+                (entry) => entry.id === id,
+              );
+              return { period: data.period, checked: item?.checked };
+            };
+            const rows = async () =>
+              (
+                await client.query<{ period_start: string }>(
+                  'SELECT period_start FROM routine_checks WHERE routine_id = $1 ORDER BY 1',
+                  [id],
+                )
+              ).rows.map((row) => row.period_start);
+            const thisWeek = { start: '2026-10-18', end: '2026-10-24' };
+            assert.deepEqual(await week(), { period: thisWeek, checked: false });
+
+            // Thursday's check holds until Saturday; checking again that week adds no row.
+            const put = await call(`/api/routines/${id}/checks/2026-10-22`, { method: 'PUT' });
+            assert.equal(put.status, 200);
+            assert.deepEqual(put.data.period, thisWeek);
+            today = '2026-10-24';
+            assert.deepEqual(await week(), { period: thisWeek, checked: true });
+            const again = await call(`/api/routines/${id}/checks/2026-10-24`, { method: 'PUT' });
+            assert.equal(again.status, 200);
+            assert.deepEqual(await rows(), ['2026-10-18']);
+
+            // Sunday starts a new week and last week's record stays.
+            today = '2026-10-25';
+            assert.deepEqual(await week(), {
+              period: { start: '2026-10-25', end: '2026-10-31' },
+              checked: false,
+            });
+            assert.deepEqual(await rows(), ['2026-10-18']);
+            const next = await call(`/api/routines/${id}/checks/2026-10-25`, { method: 'PUT' });
+            assert.equal(next.status, 200);
+            assert.deepEqual(await rows(), ['2026-10-18', '2026-10-25']);
+
+            // Weekly routines have no category, so their group is matched on NULL.
+            const second = await call('/api/routines', {
+              method: 'POST',
+              body: { name: '주간 가계부', cadence: 'weekly' },
+            });
+            const secondId = (second.data.routine as { id: string }).id;
+            created.push(secondId);
+            const moved = await call(`/api/routines/${secondId}/move`, {
+              method: 'POST',
+              body: { direction: 'up' },
+            });
+            assert.equal(moved.status, 200);
+            const order = (moved.data.routines as { id: string }[]).map((routine) => routine.id);
+            assert.ok(order.indexOf(secondId) < order.indexOf(id));
+            const renamed = await call(`/api/routines/${secondId}`, {
+              method: 'PATCH',
+              body: { name: '주간 가계부 정리' },
+            });
+            assert.equal(renamed.status, 200);
+
+            // Unchecking removes that week's check only.
+            const removed = await call(`/api/routines/${id}/checks/2026-10-25`, {
+              method: 'DELETE',
+            });
+            assert.equal(removed.status, 200);
+            assert.deepEqual(await rows(), ['2026-10-18']);
+          },
+          { today: () => today },
+        );
+      } finally {
+        await client.query('DELETE FROM routine_checks WHERE routine_id = ANY($1::bigint[])', [
+          created,
+        ]);
+        await client.query('DELETE FROM routines WHERE id = ANY($1::bigint[])', [created]);
+        await client.query('DELETE FROM app_settings WHERE key = $1', [anchorSettingKey]);
+        if (original.rows[0])
+          await client.query('INSERT INTO app_settings (key, value) VALUES ($1, $2)', [
+            anchorSettingKey,
+            original.rows[0].value,
+          ]);
+      }
+    }),
+);
+
+test(
   'daily routines are added, renamed, reordered and archived against the real DB',
   { skip: !url, timeout: 30_000 },
   () =>
