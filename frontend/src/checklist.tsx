@@ -1,13 +1,10 @@
+import { progressText } from './checklist-progress';
 import { Badge } from './components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
 import { Checkbox } from './components/ui/checkbox';
 import { Label } from './components/ui/label';
 
 export type ChecklistItem = { id: string; name: string; checked: boolean };
-
-export function progressText(items: { checked: boolean }[]) {
-  return `${items.filter((item) => item.checked).length}/${items.length}`;
-}
 
 // One titled checklist with its progress. The weekly, four-week and twelve-week cards reuse it.
 export function Checklist({
