@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { requestJson } from './api';
 import type { Routine } from './routines';
@@ -6,35 +6,58 @@ import type { Routine } from './routines';
 export type RoutineNotice = { kind: 'status' | 'alert'; text: string } | null;
 
 // Loads one cadence's routines and changes them. All state lives here (not in child components)
-// so per-item editing survives re-renders. `version` changes after every change.
+// so per-item editing survives re-renders. `version` changes after every change made here;
+// `refresh` only loads again, so it does not tell other lists on the page that something changed.
 export function useRoutineList(cadence: string) {
   const [routines, setRoutines] = useState<Routine[] | null>(null);
   const [version, setVersion] = useState(0);
+  const [refreshes, setRefreshes] = useState(0);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [editing, setEditing] = useState<{ id: string; name: string } | null>(null);
   const [confirmArchive, setConfirmArchive] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<RoutineNotice>(null);
+  const loadErrorShown = useRef(false);
 
   useEffect(() => {
     // A newer reload supersedes this one, so a slow older response cannot overwrite it.
     let ignore = false;
     requestJson<{ routines: Routine[] }>(`/api/routines?cadence=${cadence}`)
       .then((data) => {
-        if (!ignore) setRoutines(data.routines);
+        if (ignore) return;
+        setRoutines(data.routines);
+        setLoadFailed(false);
+        // Only a load's own error: the message of a failed change must survive the reload after it.
+        if (loadErrorShown.current) setNotice(null);
+        loadErrorShown.current = false;
       })
       .catch((error: Error) => {
         if (ignore) return;
         setRoutines((current) => current ?? []);
+        setLoadFailed(true);
+        loadErrorShown.current = true;
         setNotice({ kind: 'alert', text: error.message });
       });
     return () => {
       ignore = true;
     };
-  }, [cadence, version]);
+  }, [cadence, version, refreshes]);
+
+  const refresh = useCallback(() => setRefreshes((value) => value + 1), []);
+
+  // Picks up changes made elsewhere when the page is shown again.
+  useEffect(() => {
+    const reloadWhenShown = () => {
+      if (document.visibilityState === 'visible') refresh();
+    };
+    document.addEventListener('visibilitychange', reloadWhenShown);
+    return () => document.removeEventListener('visibilitychange', reloadWhenShown);
+  }, [refresh]);
 
   const run = async (action: () => Promise<unknown>, done: string) => {
     setBusy(true);
+    loadErrorShown.current = false;
     try {
       await action();
       setNotice({ kind: 'status', text: done });
@@ -101,6 +124,8 @@ export function useRoutineList(cadence: string) {
   return {
     routines,
     version,
+    loadFailed,
+    refresh,
     drafts,
     editing,
     confirmArchive,

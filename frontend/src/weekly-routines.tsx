@@ -1,4 +1,5 @@
 import { Checklist, type ChecklistItem, ChecklistPending } from './checklist';
+import { Button } from './components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
 import { EmptyState } from './components/ui/empty-state';
 import { Notice } from './components/ui/notice';
@@ -9,7 +10,8 @@ import { useRoutineList } from './use-routine-list';
 export function WeeklyRoutines() {
   const list = useRoutineList('weekly');
   // Changing the routines below changes this week's checklist too.
-  const checklist = useChecklist<ChecklistItem>('weekly', list.version);
+  // A failed save usually means a routine changed elsewhere, so the list below reloads too.
+  const checklist = useChecklist<ChecklistItem>('weekly', list.version, list.refresh);
   const { data } = checklist;
 
   return (
@@ -20,6 +22,17 @@ export function WeeklyRoutines() {
             이번 주 ({data.period.start} ~ {data.period.end})
           </h2>
           <Notice notice={checklist.notice} />
+          {checklist.loadFailed && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="self-start"
+              onClick={checklist.retry}
+            >
+              다시 시도
+            </Button>
+          )}
           {data.items.length === 0 ? (
             <EmptyState
               title="이번 주에 체크할 루틴이 없습니다"
@@ -48,6 +61,16 @@ export function WeeklyRoutines() {
           <RoutineNotices notice={list.notice} />
           {list.routines === null ? (
             <p className="text-body-sm text-muted-foreground">루틴을 불러오는 중…</p>
+          ) : list.loadFailed && list.routines.length === 0 ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="self-start"
+              onClick={list.refresh}
+            >
+              목록 다시 불러오기
+            </Button>
           ) : list.routines.length === 0 ? (
             <p className="text-body-sm text-muted-foreground">아직 루틴이 없습니다</p>
           ) : (

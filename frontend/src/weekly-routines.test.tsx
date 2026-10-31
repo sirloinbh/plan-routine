@@ -20,6 +20,8 @@ function weeklyApi(seed: Seed[] = []) {
   let routines = seed.map((r, i) => ({ ...r, cadence: 'weekly', category: null, sortOrder: i }));
   let nextId = 100;
   let today = '2026-10-22';
+  let failChecklistLoads = 0;
+  let failListLoads = 0;
   const checks = new Set<string>();
   const writes: { method: string; path: string; body?: unknown }[] = [];
   const reply = (status: number, body: unknown) =>
@@ -29,8 +31,19 @@ function weeklyApi(seed: Seed[] = []) {
     vi.fn((url: string, init?: RequestInit) => {
       const method = init?.method ?? 'GET';
       const path = url.split('?')[0];
-      if (method === 'GET' && path === '/api/routines') return reply(200, { routines });
+      const serverError = () => reply(500, { error: '서버 오류가 발생했습니다' });
+      if (method === 'GET' && path === '/api/routines') {
+        if (failListLoads > 0) {
+          failListLoads -= 1;
+          return serverError();
+        }
+        return reply(200, { routines });
+      }
       if (method === 'GET') {
+        if (failChecklistLoads > 0) {
+          failChecklistLoads -= 1;
+          return serverError();
+        }
         const start = weekStart(today);
         return reply(200, {
           date: today,
@@ -66,6 +79,13 @@ function weeklyApi(seed: Seed[] = []) {
         return reply(200, {});
       }
       if (action === 'archive') routines = routines.filter((r) => r !== found);
+      if (action === 'move') {
+        const sorted = [...routines].sort((a, b) => a.sortOrder - b.sortOrder);
+        const other = sorted[sorted.indexOf(found) + (body!.direction === 'up' ? -1 : 1)];
+        if (other) [found.sortOrder, other.sortOrder] = [other.sortOrder, found.sortOrder];
+        routines = [...routines].sort((a, b) => a.sortOrder - b.sortOrder);
+      }
+      if (method === 'PATCH') found.name = body!.name;
       return reply(200, {});
     }),
   );
@@ -73,6 +93,20 @@ function weeklyApi(seed: Seed[] = []) {
     writes,
     checks,
     setToday: (date: string) => (today = date),
+    failChecklistLoads: (count: number) => (failChecklistLoads = count),
+    failListLoads: (count: number) => (failListLoads = count),
+    addElsewhere: (name: string) => {
+      routines = [
+        ...routines,
+        {
+          id: String(nextId++),
+          name,
+          cadence: 'weekly',
+          category: null,
+          sortOrder: routines.length,
+        },
+      ];
+    },
     archiveElsewhere: (id: string) => (routines = routines.filter((r) => r.id !== id)),
   };
 }
@@ -166,6 +200,76 @@ test('archiving after confirmation removes it from the checklist too', async () 
   expect(within(thisWeek()).getByText('0/2')).toBeInTheDocument();
 });
 
+const manage = () => screen.getByRole('region', { name: '주간 루틴 관리' });
+const checklistNames = () =>
+  within(thisWeek())
+    .getAllByRole('checkbox')
+    .map((checkbox) => within(checkbox.closest('li')!).getByText(/./).textContent);
+
+test('renaming and reordering show in the checklist too', async () => {
+  const api = weeklyApi(seed);
+  render(<WeeklyRoutines />);
+  await box('청소');
+  fireEvent.click(screen.getByRole('button', { name: '청소 위로 이동' }));
+  await flush();
+  expect(api.writes.at(-1)).toEqual({
+    method: 'POST',
+    path: '/api/routines/2/move',
+    body: { direction: 'up' },
+  });
+  expect(checklistNames()).toEqual(['청소', '독후감 쓰기', '가계부 쓰기']);
+
+  fireEvent.click(screen.getByRole('button', { name: '청소 이름 수정' }));
+  fireEvent.change(screen.getByRole('textbox', { name: '청소 새 이름' }), {
+    target: { value: '대청소' },
+  });
+  fireEvent.click(within(manage()).getByRole('button', { name: '저장' }));
+  await flush();
+  expect(checklistNames()).toEqual(['대청소', '독후감 쓰기', '가계부 쓰기']);
+});
+
+test('a page shown again picks up routines added elsewhere in both lists', async () => {
+  const api = weeklyApi(seed);
+  render(<WeeklyRoutines />);
+  await box('청소');
+  api.addElsewhere('가계부 정리');
+  await act(async () => {
+    document.dispatchEvent(new Event('visibilitychange'));
+    await flush();
+  });
+  expect(await box('가계부 정리')).toBeInTheDocument();
+  expect(within(manage()).getByText('가계부 정리')).toBeInTheDocument();
+});
+
+test('a reload that fails after the first load offers a retry', async () => {
+  const api = weeklyApi();
+  render(<WeeklyRoutines />);
+  await screen.findByText('이번 주에 체크할 루틴이 없습니다');
+  api.failChecklistLoads(1);
+  fireEvent.change(screen.getByRole('textbox', { name: '주간 새 루틴 이름' }), {
+    target: { value: '청소' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: '추가' }));
+  await flush();
+  expect(screen.queryByRole('checkbox', { name: '청소' })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: '다시 시도' }));
+  expect(await box('청소')).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: '다시 시도' })).not.toBeInTheDocument();
+});
+
+test('a failed list load offers its own retry instead of claiming the list is empty', async () => {
+  const api = weeklyApi(seed);
+  api.failListLoads(1);
+  render(<WeeklyRoutines />);
+  await flush();
+  expect(within(manage()).queryByText('아직 루틴이 없습니다')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: '목록 다시 불러오기' }));
+  await flush();
+  expect(screen.getByRole('button', { name: '청소 보관' })).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: '목록 다시 불러오기' })).not.toBeInTheDocument();
+  expect(within(manage()).queryByRole('alert')).toBeEmptyDOMElement();
+});
+
 test('a routine archived elsewhere shows the Korean 404 and leaves the checklist', async () => {
   const api = weeklyApi(seed);
   render(<WeeklyRoutines />);
@@ -177,6 +281,8 @@ test('a routine archived elsewhere shows the Korean 404 and leaves the checklist
     '루틴을 찾을 수 없습니다',
   );
   expect(screen.queryByRole('checkbox', { name: '청소' })).not.toBeInTheDocument();
+  // The routine list reloads as well, so it no longer offers buttons that would fail again.
+  expect(screen.queryByRole('button', { name: '청소 보관' })).not.toBeInTheDocument();
 });
 
 test('a failed checklist load offers a retry and the routine list still works', async () => {

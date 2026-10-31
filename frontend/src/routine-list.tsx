@@ -52,7 +52,7 @@ export function RoutineItems({ list, routines }: { list: RoutineList; routines: 
             </form>
           ) : (
             <>
-              <span className="min-w-0 flex-1 text-body break-words">{routine.name}</span>
+              <span className="min-w-0 flex-1 basis-48 text-body break-words">{routine.name}</span>
               <span className="flex flex-wrap gap-1">
                 <Button
                   type="button"

@@ -429,6 +429,26 @@ test(
             assert.equal(next.status, 200);
             assert.deepEqual(await rows(), ['2026-10-18', '2026-10-25']);
 
+            // Weekly routines have no category, so their group is matched on NULL.
+            const second = await call('/api/routines', {
+              method: 'POST',
+              body: { name: '주간 가계부', cadence: 'weekly' },
+            });
+            const secondId = (second.data.routine as { id: string }).id;
+            created.push(secondId);
+            const moved = await call(`/api/routines/${secondId}/move`, {
+              method: 'POST',
+              body: { direction: 'up' },
+            });
+            assert.equal(moved.status, 200);
+            const order = (moved.data.routines as { id: string }[]).map((routine) => routine.id);
+            assert.ok(order.indexOf(secondId) < order.indexOf(id));
+            const renamed = await call(`/api/routines/${secondId}`, {
+              method: 'PATCH',
+              body: { name: '주간 가계부 정리' },
+            });
+            assert.equal(renamed.status, 200);
+
             // Unchecking removes that week's check only.
             const removed = await call(`/api/routines/${id}/checks/2026-10-25`, {
               method: 'DELETE',

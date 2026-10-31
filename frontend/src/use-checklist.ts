@@ -14,8 +14,12 @@ export type ChecklistData<T> = {
 };
 
 // Loads a cadence's checklist and saves checks, showing them at once. Changing `reloadKey` loads
-// again, for pages that also change the routines themselves.
-export function useChecklist<T extends ChecklistItem>(cadence: string, reloadKey = 0) {
+// again, for pages that also change the routines themselves; `onSaveFailed` tells them a save failed.
+export function useChecklist<T extends ChecklistItem>(
+  cadence: string,
+  reloadKey = 0,
+  onSaveFailed?: () => void,
+) {
   // null follows the server's today: the next load after midnight shows the new day.
   const [date, setDate] = useState<string | null>(null);
   const [version, setVersion] = useState(0);
@@ -100,6 +104,7 @@ export function useChecklist<T extends ChecklistItem>(cadence: string, reloadKey
       error(cause);
       // A 404 usually means the list is stale (the routine was archived elsewhere).
       setVersion((value) => value + 1);
+      onSaveFailed?.();
     } finally {
       saving.current.delete(saveKey);
       saveEvents.current += 1;
