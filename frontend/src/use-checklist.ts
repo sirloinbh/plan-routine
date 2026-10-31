@@ -3,6 +3,10 @@ import { useEffect, useRef, useState } from 'react';
 import type { ChecklistItem } from './checklist';
 import { requestJson } from './lib/api';
 import { useNotice } from './lib/use-notice';
+import { serviceDate } from './service-date';
+
+// How often an open page looks at the clock. No request is sent unless the date has changed.
+const dateCheckMs = 60_000;
 
 export type ChecklistData<T> = {
   date: string;
@@ -27,18 +31,24 @@ export function useChecklist<T extends ChecklistItem>(
   const [version, setVersion] = useState(0);
   const [data, setData] = useState<ChecklistData<T> | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
-  const { notice, error, clear } = useNotice();
+  const { notice, status, error, clear } = useNotice();
   // Ignoring repeat clicks (instead of disabling the box) keeps keyboard focus on the box.
   const saving = useRef(new Set<string>());
   // Counts every save's start and end, so a load overlapping either one can be recognised.
   const saveEvents = useRef(0);
   const loadErrorShown = useRef(false);
   const reloadAfterSaves = useRef(false);
+  // The device's date when the latest load started, and when what is on screen was loaded. Comparing
+  // with these rather than with the server's today keeps a wrong device clock from causing trouble.
+  const requestedOn = useRef('');
+  const shownOn = useRef('');
 
   useEffect(() => {
     // A newer load supersedes this one, so a slow older response cannot overwrite it.
     let ignore = false;
     const eventsAtStart = saveEvents.current;
+    const startedOn = serviceDate();
+    requestedOn.current = startedOn;
     requestJson<ChecklistData<T>>(`/api/checklist?cadence=${cadence}${date ? `&date=${date}` : ''}`)
       .then((loaded) => {
         if (ignore) return;
@@ -52,6 +62,7 @@ export function useChecklist<T extends ChecklistItem>(
           return;
         }
         setData(loaded);
+        shownOn.current = startedOn;
         setLoadFailed(false);
         // Only a load's own error: a failed save's message must survive the reload after it.
         if (loadErrorShown.current) clear();
@@ -77,6 +88,19 @@ export function useChecklist<T extends ChecklistItem>(
     return () => document.removeEventListener('visibilitychange', reloadWhenShown);
   }, []);
 
+  // A window left open may never fire visibilitychange, so also look at the clock while it is open.
+  useEffect(() => {
+    const reloadIfDateChanged = () => {
+      if (serviceDate() !== requestedOn.current) setVersion((value) => value + 1);
+    };
+    const timer = setInterval(reloadIfDateChanged, dateCheckMs);
+    window.addEventListener('focus', reloadIfDateChanged);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('focus', reloadIfDateChanged);
+    };
+  }, []);
+
   const setChecked = (itemDate: string, id: string, checked: boolean) =>
     // The user may have moved to another day while this request was running.
     setData((current) =>
@@ -89,6 +113,13 @@ export function useChecklist<T extends ChecklistItem>(
     );
 
   const toggle = async (itemDate: string, item: ChecklistItem) => {
+    // Following today on a screen from an earlier period: this check would land in that period.
+    const current = serviceDate();
+    if (date === null && data && current !== shownOn.current && current > data.period.end) {
+      status('날짜가 바뀌어 새 기간을 불러왔습니다. 다시 체크해 주세요');
+      setVersion((value) => value + 1);
+      return;
+    }
     const saveKey = `${itemDate}/${item.id}`;
     if (saving.current.has(saveKey)) return;
     saving.current.add(saveKey);

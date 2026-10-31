@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import { expect, test, vi } from 'vitest';
+import { afterEach, expect, test, vi } from 'vitest';
 
 import { FourWeekDue } from './four-week-due';
 
@@ -172,6 +172,24 @@ test('a box checked in one period is not kept in the next', async () => {
   await showPageAgain();
   // The fake API keeps the check, so only the new period makes the card drop it.
   expect(screen.queryByRole('checkbox', { name: '이불빨래' })).not.toBeInTheDocument();
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+test('a check after the period ended is not saved to it', async () => {
+  vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] });
+  vi.setSystemTime(new Date('2026-11-14T03:00:00Z'));
+  const api = dueApi(seed);
+  render(<FourWeekDue />);
+  const target = await screen.findByRole('checkbox', { name: '이불빨래' });
+
+  vi.setSystemTime(new Date('2026-11-15T03:00:00Z'));
+  fireEvent.click(target);
+  await flush();
+  expect(api.writes).toEqual([]);
+  expect(screen.getByRole('status')).toHaveTextContent('날짜가 바뀌어 새 기간을 불러왔습니다');
 });
 
 test('its heading is a level below the page title', async () => {
