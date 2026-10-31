@@ -108,6 +108,8 @@ export function useChecklist<T extends ChecklistItem>(
     } finally {
       saving.current.delete(saveKey);
       saveEvents.current += 1;
+      // A load that failed during this save must not make the next load clear its message.
+      loadErrorShown.current = false;
       if (saving.current.size === 0 && reloadAfterSaves.current) {
         reloadAfterSaves.current = false;
         setVersion((value) => value + 1);

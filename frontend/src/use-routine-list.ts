@@ -66,6 +66,8 @@ export function useRoutineList(cadence: string) {
       setNotice({ kind: 'alert', text: (error as Error).message });
       return false;
     } finally {
+      // A load that failed during this change must not make the next load clear its message.
+      loadErrorShown.current = false;
       // Reload after failures too: a 404 usually means the list is stale (changed elsewhere).
       setVersion((value) => value + 1);
       setBusy(false);

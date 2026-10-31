@@ -59,9 +59,7 @@ export function WeeklyRoutines() {
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           <RoutineNotices notice={list.notice} />
-          {list.routines === null ? (
-            <p className="text-body-sm text-muted-foreground">루틴을 불러오는 중…</p>
-          ) : list.loadFailed && list.routines.length === 0 ? (
+          {list.loadFailed && (
             <Button
               type="button"
               variant="outline"
@@ -71,10 +69,15 @@ export function WeeklyRoutines() {
             >
               목록 다시 불러오기
             </Button>
-          ) : list.routines.length === 0 ? (
-            <p className="text-body-sm text-muted-foreground">아직 루틴이 없습니다</p>
-          ) : (
+          )}
+          {list.routines === null ? (
+            <p className="text-body-sm text-muted-foreground">루틴을 불러오는 중…</p>
+          ) : list.routines.length > 0 ? (
             <RoutineItems list={list} routines={list.routines} />
+          ) : (
+            !list.loadFailed && (
+              <p className="text-body-sm text-muted-foreground">아직 루틴이 없습니다</p>
+            )
           )}
           <RoutineAddForm
             list={list}

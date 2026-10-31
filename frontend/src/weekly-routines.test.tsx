@@ -270,6 +270,24 @@ test('a failed list load offers its own retry instead of claiming the list is em
   expect(within(manage()).queryByRole('alert')).toBeEmptyDOMElement();
 });
 
+test('a list reload that fails with routines on screen offers a retry', async () => {
+  const api = weeklyApi(seed);
+  render(<WeeklyRoutines />);
+  await box('청소');
+  api.failListLoads(1);
+  fireEvent.change(screen.getByRole('textbox', { name: '주간 새 루틴 이름' }), {
+    target: { value: '가계부 정리' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: '추가' }));
+  await flush();
+  expect(within(manage()).queryByText('가계부 정리')).not.toBeInTheDocument();
+  expect(within(manage()).getByText('청소')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: '목록 다시 불러오기' }));
+  await flush();
+  expect(within(manage()).getByText('가계부 정리')).toBeInTheDocument();
+  expect(api.writes.filter((write) => write.path === '/api/routines')).toHaveLength(1);
+});
+
 test('a routine archived elsewhere shows the Korean 404 and leaves the checklist', async () => {
   const api = weeklyApi(seed);
   render(<WeeklyRoutines />);
