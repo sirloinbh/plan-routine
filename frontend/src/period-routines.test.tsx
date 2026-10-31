@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { expect, test, vi } from 'vitest';
 
-import { WeeklyRoutines } from './weekly-routines';
+import { FourWeekRoutines, WeeklyRoutines } from './period-routines';
 
 type Seed = { id: string; name: string };
 
@@ -119,6 +119,90 @@ const seed = [
   { id: '2', name: '청소' },
   { id: '3', name: '가계부 쓰기' },
 ];
+
+// The four-week page shares the weekly page's code, so only what differs is checked here.
+function fourWeekApi(remainingDays: number) {
+  const writes: { method: string; path: string; body?: unknown }[] = [];
+  const routines = [
+    { id: '1', name: '이불빨래', cadence: 'four_week', category: null, sortOrder: 0 },
+  ];
+  const reply = (body: unknown) =>
+    Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(body) });
+  vi.stubGlobal(
+    'fetch',
+    vi.fn((url: string, init?: RequestInit) => {
+      const method = init?.method ?? 'GET';
+      if (method !== 'GET') {
+        writes.push({
+          method,
+          path: url,
+          body: init?.body ? JSON.parse(String(init.body)) : undefined,
+        });
+        return reply({});
+      }
+      if (url.startsWith('/api/routines')) return reply({ url, routines });
+      return reply({
+        date: '2026-10-22',
+        today: '2026-10-22',
+        previousDate: '2026-10-21',
+        nextDate: null,
+        period: { start: '2026-10-18', end: '2026-11-14' },
+        remainingDays,
+        endsSoon: false,
+        items: routines.map((r) => ({ ...r, checked: false })),
+      });
+    }),
+  );
+  return writes;
+}
+
+test('the four-week page shows its period and the days left', async () => {
+  fourWeekApi(23);
+  render(<FourWeekRoutines />);
+  await box('이불빨래');
+  expect(
+    screen.getByRole('heading', { level: 2, name: '이번 4주 (2026-10-18 ~ 2026-11-14)' }),
+  ).toBeVisible();
+  expect(screen.getByText('23일 남았습니다')).toBeInTheDocument();
+  expect(vi.mocked(fetch).mock.calls.map(([url]) => url)).toEqual(
+    expect.arrayContaining(['/api/routines?cadence=four_week', '/api/checklist?cadence=four_week']),
+  );
+});
+
+test('the last day of a four-week period says so', async () => {
+  fourWeekApi(0);
+  render(<FourWeekRoutines />);
+  expect(await screen.findByText('오늘이 마지막 날입니다')).toBeInTheDocument();
+});
+
+test('a four-week routine is added with its cadence and checked under the date', async () => {
+  const writes = fourWeekApi(23);
+  render(<FourWeekRoutines />);
+  const input = await screen.findByRole('textbox', { name: '4주 새 루틴 이름' });
+  expect(input).toHaveAttribute('placeholder', '예: 이불빨래, 소모품 교체, 대청소');
+  fireEvent.change(input, { target: { value: '대청소' } });
+  fireEvent.click(screen.getByRole('button', { name: '추가' }));
+  await flush();
+  expect(writes.at(-1)).toEqual({
+    method: 'POST',
+    path: '/api/routines',
+    body: { name: '대청소', cadence: 'four_week' },
+  });
+  fireEvent.click(await box('이불빨래'));
+  await flush();
+  expect(writes.at(-1)).toEqual({
+    method: 'PUT',
+    path: '/api/routines/1/checks/2026-10-22',
+    body: undefined,
+  });
+});
+
+test('the weekly page does not show days left', async () => {
+  weeklyApi(seed);
+  render(<WeeklyRoutines />);
+  await box('청소');
+  expect(screen.queryByText(/남았습니다|마지막 날/)).not.toBeInTheDocument();
+});
 
 test('shows this week from Sunday to Saturday with its progress', async () => {
   weeklyApi(seed);

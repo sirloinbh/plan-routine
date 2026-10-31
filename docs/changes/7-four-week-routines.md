@@ -1,0 +1,48 @@
+# #7 4주 루틴 정하기와 체크
+
+- 이슈: [#7](https://github.com/sirloinbh/plan-routine/issues/7)
+- 브랜치: `feat/7-four-week-routines`
+- 일자: 2026-10-31 (Asia/Seoul)
+
+## 목적
+
+이불빨래처럼 4주에 한 번 하는 일을 정하고, 잊지 않도록 체크한다. 기간은 앱 첫 사용일이 속한 주의 일요일부터 28일씩이다(#3에서 확정).
+
+## 확정한 규칙 (사용자 확인, #7 코멘트 기록)
+
+- 4주 기간의 마지막 7일에만 미완료 항목을 "오늘 체크" 화면에 함께 보여 준다.
+
+## 구현하면서 정한 세부 규칙 (#7 코멘트 기록)
+
+- 마지막 7일은 종료일까지 남은 일수가 0~6일인 날이다. 판정은 서버가 한다.
+- 오늘 체크 화면에서 완료한 항목은 그 자리에 체크된 채 남아 바로 되돌릴 수 있고, 다음에 불러올 때 빠진다.
+- 기본 예시(이불빨래, 소모품 교체, 대청소)는 #6처럼 입력칸 안내 문구로 보여 준다.
+
+## 변경
+
+- API(`backend/src/check-routes.ts`): `GET /api/checklist` 응답에 `remainingDays`(오늘부터 기간 종료일까지 남은 일수)와 `endsSoon`(마지막 7일 여부)을 추가했다. `backend/src/periods.ts`에 `daysBetween`을 추가했다. DB 변경은 없다.
+- 화면
+  - `frontend/src/period-routines.tsx`(`weekly-routines.tsx`에서 이름 변경): 주간과 4주가 같은 화면을 쓴다. 4주는 남은 일수를 함께 보여 준다. 메뉴 "4주 루틴", `/four-week`.
+  - `frontend/src/four-week-due.tsx`: "오늘 체크" 화면의 "곧 끝나는 4주 루틴" 카드.
+
+## 테스트
+
+- `backend/test/periods.test.ts`: `daysBetween`.
+- `backend/test/check-routes.test.ts`: 남은 일수와 마지막 7일의 경계(7일 남음, 6일 남음, 마지막 날, 다음 기간 첫날), 지난 기간.
+- `backend/test/db.integration.test.ts`(실제 DB): 4주 경계(같은 기간의 재체크에도 1행, 다음 기간 초기화, 지난 기간 기록 보존, 첫 사용일 기준 계산).
+- `frontend/src/period-routines.test.tsx`: 4주 기간과 남은 일수, 마지막 날 문구, 추가 요청, 체크. 주간 테스트는 불러오는 경로만 바꿨다.
+- `frontend/src/four-week-due.test.tsx`: 마지막 7일이 아닐 때 숨김, 미완료 항목만 표시, 완료 후 자리 유지와 되돌리기, 다음 불러오기 때 제외, 모두 완료 시 숨김, 불러오기 실패 안내.
+- `frontend/src/app.test.tsx`: 메뉴에서 4주 루틴 열기.
+
+## 검증
+
+- 로컬(`TEST_DATABASE_URL` 제거): 포맷·lint·타입 검사·빌드 통과, 스킬 검사 4 pass. 백엔드 테스트 51개 중 41 pass / 0 fail / 10 skip이며, skip 10건은 DB 통합 테스트다. 프론트엔드 테스트는 `--testTimeout=60000`으로 113개 중 111 pass / 0 fail / 2 skip이다. skip 2건은 중앙 표준 동기화(#49)로 들어온 다크 모드 전용 앱용 테스트로, 이 앱에는 해당하지 않는다.
+- 브라우저: 메모리 기반 임시 API에 Vite 개발 서버를 연결하고 헤드리스 Chrome으로 확인했다. 콘솔 오류는 없었다. 실제 DB와 연결한 화면은 확인하지 못했다. 임시 API의 기간 계산은 실제 서버 코드가 아니므로, 기간과 남은 일수는 API·DB 테스트로 확인한다.
+  - 모바일 390×844: 가로 스크롤 없음(scrollWidth 390), 카드 한 열.
+  - PC 1440×900: 가로 스크롤 없음.
+  - 두 크기 공통: 4주 화면의 기간과 진행률, 마지막 날 문구. 오늘 체크 화면에 미완료 항목만 표시, 체크 후 자리 유지와 되돌리기.
+
+## 한계·후속
+
+- 지난 기간의 체크를 화면에서 고칠 수 없다.
+- 화면을 계속 띄운 채 기간이 바뀌면 다시 불러오기 전까지 체크가 지난 기간으로 저장된다: [#44](https://github.com/sirloinbh/plan-routine/issues/44).

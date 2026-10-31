@@ -1,5 +1,6 @@
 import {
   CalendarCheck,
+  CalendarDays,
   CalendarRange,
   LayoutDashboard,
   ListChecks,
@@ -15,9 +16,10 @@ import { EmptyState } from './components/ui/empty-state';
 import { Toaster } from './components/ui/sonner';
 import { DailyChecklist } from './daily-checklist';
 import { Diary } from './diary';
+import { FourWeekDue } from './four-week-due';
 import { type Health, healthText } from './health';
+import { FourWeekRoutines, WeeklyRoutines } from './period-routines';
 import { DailyRoutines } from './routines';
-import { WeeklyRoutines } from './weekly-routines';
 
 // Every page URL lives here (central docs/directory-rules.md).
 const pages = {
@@ -26,6 +28,7 @@ const pages = {
   diary: '/diary',
   routines: '/routines',
   weekly: '/weekly',
+  fourWeek: '/four-week',
   settings: '/settings',
 } as const;
 
@@ -36,6 +39,7 @@ const nav: NavItem[] = [
   { to: pages.diary, label: '일기', icon: NotebookPen },
   { to: pages.routines, label: '하루 루틴', icon: ListChecks },
   { to: pages.weekly, label: '주간 루틴', icon: CalendarRange },
+  { to: pages.fourWeek, label: '4주 루틴', icon: CalendarDays },
   { to: pages.settings, label: '설정', icon: Settings2 },
 ];
 
@@ -117,6 +121,7 @@ export function App() {
                 health={health}
               >
                 <DailyChecklist />
+                <FourWeekDue />
                 <Button asChild variant="outline" className="self-start">
                   <Link to={pages.diary}>오늘 일기 쓰기</Link>
                 </Button>
@@ -156,6 +161,18 @@ export function App() {
                 health={health}
               >
                 <WeeklyRoutines />
+              </Page>
+            }
+          />
+          <Route
+            path={pages.fourWeek}
+            element={
+              <Page
+                title="4주 루틴"
+                description="4주에 한 번 할 일을 정하고 이번 기간의 완료 여부를 체크합니다"
+                health={health}
+              >
+                <FourWeekRoutines />
               </Page>
             }
           />

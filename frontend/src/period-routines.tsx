@@ -7,11 +7,29 @@ import { RoutineAddForm, RoutineItems, RoutineNotices } from './routine-list';
 import { useChecklist } from './use-checklist';
 import { useRoutineList } from './use-routine-list';
 
-export function WeeklyRoutines() {
-  const list = useRoutineList('weekly');
-  // Changing the routines below changes this week's checklist too.
+type PeriodPage = {
+  cadence: string;
+  /** Names the routines: "주간 루틴 관리". */
+  name: string;
+  /** Names the current period: "이번 주". */
+  periodName: string;
+  examples: string;
+  emptyHint: string;
+  showRemaining?: boolean;
+};
+
+function PeriodRoutines({
+  cadence,
+  name,
+  periodName,
+  examples,
+  emptyHint,
+  showRemaining = false,
+}: PeriodPage) {
+  const list = useRoutineList(cadence);
+  // Changing the routines below changes this period's checklist too.
   // A failed save usually means a routine changed elsewhere, so the list below reloads too.
-  const checklist = useChecklist<ChecklistItem>('weekly', list.version, list.refresh);
+  const checklist = useChecklist<ChecklistItem>(cadence, list.version, list.refresh);
   const { data } = checklist;
 
   return (
@@ -19,8 +37,15 @@ export function WeeklyRoutines() {
       {data ? (
         <div className="flex flex-col gap-4">
           <h2 className="text-body font-semibold">
-            이번 주 ({data.period.start} ~ {data.period.end})
+            {periodName} ({data.period.start} ~ {data.period.end})
           </h2>
+          {showRemaining && (
+            <p className="text-body-sm text-muted-foreground">
+              {data.remainingDays === 0
+                ? '오늘이 마지막 날입니다'
+                : `${data.remainingDays}일 남았습니다`}
+            </p>
+          )}
           <Notice notice={checklist.notice} />
           {checklist.loadFailed && (
             <Button
@@ -34,13 +59,10 @@ export function WeeklyRoutines() {
             </Button>
           )}
           {data.items.length === 0 ? (
-            <EmptyState
-              title="이번 주에 체크할 루틴이 없습니다"
-              description="아래에서 매주 한 번 할 일을 추가해 주세요."
-            />
+            <EmptyState title={`${periodName}에 체크할 루틴이 없습니다`} description={emptyHint} />
           ) : (
             <Checklist
-              title="이번 주"
+              title={periodName}
               items={data.items}
               onToggle={(item) => void checklist.toggle(data.date, item)}
             />
@@ -53,9 +75,9 @@ export function WeeklyRoutines() {
           onRetry={checklist.retry}
         />
       )}
-      <Card role="region" aria-label="주간 루틴 관리">
+      <Card role="region" aria-label={`${name} 루틴 관리`}>
         <CardHeader>
-          <CardTitle asHeading="h2">주간 루틴 관리</CardTitle>
+          <CardTitle asHeading="h2">{name} 루틴 관리</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           <RoutineNotices notice={list.notice} />
@@ -79,14 +101,34 @@ export function WeeklyRoutines() {
               <p className="text-body-sm text-muted-foreground">아직 루틴이 없습니다</p>
             )
           )}
-          <RoutineAddForm
-            list={list}
-            draftKey="weekly"
-            label="주간"
-            placeholder="예: 독후감 쓰기, 청소, 가계부 쓰기"
-          />
+          <RoutineAddForm list={list} draftKey={cadence} label={name} placeholder={examples} />
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export function WeeklyRoutines() {
+  return (
+    <PeriodRoutines
+      cadence="weekly"
+      name="주간"
+      periodName="이번 주"
+      examples="예: 독후감 쓰기, 청소, 가계부 쓰기"
+      emptyHint="아래에서 매주 한 번 할 일을 추가해 주세요."
+    />
+  );
+}
+
+export function FourWeekRoutines() {
+  return (
+    <PeriodRoutines
+      cadence="four_week"
+      name="4주"
+      periodName="이번 4주"
+      examples="예: 이불빨래, 소모품 교체, 대청소"
+      emptyHint="아래에서 4주에 한 번 할 일을 추가해 주세요."
+      showRemaining
+    />
   );
 }

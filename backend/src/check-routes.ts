@@ -2,12 +2,14 @@ import { type Request, type Response, Router } from 'express';
 import type { Pool } from 'pg';
 import { z } from 'zod';
 
-import { addDays, type Cadence, calendarDate, periodFor } from './periods.js';
+import { addDays, type Cadence, calendarDate, daysBetween, periodFor } from './periods.js';
 import { notFound, routineColumns, routineId } from './routine-routes.js';
 import { routineAnchorDate, routineCadence } from './routines.js';
 
 // Checks can change for today and the seven days before it (confirmed on issue #5).
 const editableDays = 7;
+// A period's last 7 days, when unfinished four-week routines join the daily page (issue #7).
+const endingDays = 7;
 
 const checklistQuery = z.object({
   cadence: routineCadence.default('daily'),
@@ -48,6 +50,8 @@ export function checkRoutes(pool: Pool, today: () => string) {
        ORDER BY category, sort_order, id`,
       [cadence, period.start],
     );
+    // From today, not from the requested date; a period already over has none left.
+    const daysLeft = daysBetween(current, period.end);
     const neighbour = (days: number) => {
       const other = addDays(target, days);
       return dateRangeError(other, current) ? null : other;
@@ -58,6 +62,8 @@ export function checkRoutes(pool: Pool, today: () => string) {
       previousDate: neighbour(-1),
       nextDate: neighbour(1),
       period,
+      remainingDays: Math.max(daysLeft, 0),
+      endsSoon: daysLeft >= 0 && daysLeft < endingDays,
       items: rows,
     });
   });
