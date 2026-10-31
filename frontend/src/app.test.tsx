@@ -12,7 +12,22 @@ const emptyChecklist = {
   items: [],
 };
 
-// /api/health answers with `body`; the routine and checklist pages get empty lists.
+const emptyDiary = {
+  date: '2026-10-26',
+  today: '2026-10-26',
+  previousDate: '2026-10-25',
+  nextDate: null,
+  progress: { checked: 0, total: 0 },
+  entry: null,
+};
+
+const pageData = (url: string) => {
+  if (url.startsWith('/api/checklist')) return emptyChecklist;
+  if (url.startsWith('/api/diary')) return emptyDiary;
+  return { routines: [] };
+};
+
+// /api/health answers with `body`; the routine, checklist and diary pages get empty data.
 const health = (body: object, status = 200) =>
   vi.stubGlobal(
     'fetch',
@@ -20,10 +35,7 @@ const health = (body: object, status = 200) =>
       Promise.resolve(
         url === '/api/health'
           ? new Response(JSON.stringify(body), { status })
-          : new Response(
-              JSON.stringify(url.startsWith('/api/checklist') ? emptyChecklist : { routines: [] }),
-              { status: 200 },
-            ),
+          : new Response(JSON.stringify(pageData(url)), { status: 200 }),
       ),
     ),
   );
@@ -66,6 +78,19 @@ test('the main menu opens the daily checklist page', async () => {
   expect(window.location.pathname).toBe('/today');
   expect(await screen.findByRole('heading', { level: 1, name: '오늘 체크' })).toBeInTheDocument();
   expect(await screen.findByText('체크할 루틴이 없습니다')).toBeInTheDocument();
+  window.history.replaceState(null, '', '/');
+});
+
+test('the diary opens from the main menu and from the daily checklist page', async () => {
+  health({ today: '2026-10-26' });
+  render(<App />);
+  const menu = screen.getByRole('navigation', { name: '주 메뉴' });
+  fireEvent.click(within(menu).getByRole('link', { name: '오늘 체크' }));
+  fireEvent.click(await screen.findByRole('link', { name: '오늘 일기 쓰기' }));
+  expect(window.location.pathname).toBe('/diary');
+  expect(await screen.findByRole('heading', { level: 1, name: '일기' })).toBeInTheDocument();
+  expect(await screen.findByRole('textbox', { name: '하루 돌아보기' })).toBeInTheDocument();
+  expect(within(menu).getByRole('link', { name: '일기' })).toHaveAttribute('aria-current', 'page');
   window.history.replaceState(null, '', '/');
 });
 

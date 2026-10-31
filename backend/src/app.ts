@@ -4,6 +4,7 @@ import { types } from 'pg';
 import { z, ZodError } from 'zod';
 
 import { checkRoutes } from './check-routes.js';
+import { diaryRoutes } from './diary-routes.js';
 import { calendarDate, periodsFor } from './periods.js';
 import { routineRoutes } from './routine-routes.js';
 import { routineAnchorDate } from './routines.js';
@@ -42,6 +43,7 @@ export function createApp(pool: Pool, options: { today?: () => string } = {}) {
     res.json({ date: target, anchorDate, periods: periodsFor(target, anchorDate) });
   });
   app.use('/api', checkRoutes(pool, today));
+  app.use('/api/diary', diaryRoutes(pool, today));
   app.use('/api/routines', routineRoutes(pool, today));
   app.use('/api', (_req, res) => {
     res.status(404).json({ error: '요청한 API를 찾을 수 없습니다' });
