@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 
 import type { ChecklistItem } from './checklist';
-import { requestJson } from './lib/api';
+import { RequestError, requestJson } from './lib/api';
 import { useNotice } from './lib/use-notice';
 import { serviceDate } from './service-date';
 
-// How often an open page looks at the clock. No request is sent unless the date has changed.
+// How often an open page looks at the clock. A request follows only if the date has changed, the
+// last load failed for a passing reason, or the server is on another date than this device.
 const dateCheckMs = 60_000;
 
 export type ChecklistData<T> = {
@@ -74,8 +75,10 @@ export function useChecklist<T extends ChecklistItem>(
         if (ignore) return;
         setLoadFailed(true);
         loadErrorShown.current = true;
-        // Try again at the next check: the network may just not be back yet after sleep.
-        requestedOn.current = '';
+        // Try again at the next check: the network may just not be back yet after sleep. A 4xx (say,
+        // a chosen day that has left the editable range) would only fail the same way again.
+        const status = cause instanceof RequestError ? cause.status : undefined;
+        if (status === undefined || status >= 500) requestedOn.current = '';
         error(cause);
       });
     return () => {

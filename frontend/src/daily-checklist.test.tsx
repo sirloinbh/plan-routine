@@ -403,6 +403,35 @@ test('a failed reload after midnight is tried again at the next check', async ()
   expect(screen.queryByRole('alert')).not.toBeInTheDocument();
 });
 
+test('a day that left the editable range is not asked for again every minute', async () => {
+  fakeClock('2026-10-22');
+  const api = checklistApi(seed);
+  render(<DailyChecklist />);
+  await box('6시 기상');
+  fireEvent.click(screen.getByRole('button', { name: '이전 날' }));
+  await screen.findByRole('heading', { level: 2, name: '2026-10-21' });
+
+  const working = vi.mocked(fetch).getMockImplementation()!;
+  const rejected = vi.fn((url: string, init?: RequestInit) =>
+    String(url).startsWith('/api/checklist')
+      ? Promise.resolve({
+          ok: false,
+          status: 400,
+          json: () => Promise.resolve({ error: '최근 7일까지만 체크할 수 있습니다' }),
+        })
+      : working(url, init),
+  );
+  vi.stubGlobal('fetch', rejected);
+  setClock('2026-10-23');
+  await nextCheck();
+  expect(screen.getByRole('alert')).toHaveTextContent('최근 7일까지만 체크할 수 있습니다');
+  expect(rejected).toHaveBeenCalledTimes(1);
+  await nextCheck();
+  await nextCheck();
+  expect(rejected).toHaveBeenCalledTimes(1);
+  expect(api.writes).toEqual([]);
+});
+
 test('after a failed reload a refused click still explains itself', async () => {
   fakeClock('2026-10-21');
   const api = checklistApi(seed);
