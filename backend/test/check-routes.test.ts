@@ -48,6 +48,8 @@ test('the checklist defaults to today and links only to dates in the editable ra
         previousDate: '2026-10-21',
         nextDate: null,
         period: { start: '2026-10-22', end: '2026-10-22' },
+        remainingDays: 0,
+        endsSoon: true,
         items: [wake],
       });
       const oldest = await call('/api/checklist?date=2026-10-15');
@@ -70,6 +72,43 @@ test('the checklist finds checks of longer cadences by their period start', asyn
     { today },
   );
   assert.deepEqual(issued(queries, 'EXISTS')[0].params, ['weekly', '2026-10-18']);
+});
+
+test('a four-week period reports the days left and its last 7 days', async () => {
+  // The fake anchor is Sunday 2026-10-18, so the period runs to 2026-11-14.
+  for (const [current, start, remainingDays, endsSoon] of [
+    ['2026-10-22', '2026-10-18', 23, false],
+    ['2026-11-07', '2026-10-18', 7, false],
+    ['2026-11-08', '2026-10-18', 6, true],
+    ['2026-11-14', '2026-10-18', 0, true],
+    ['2026-11-15', '2026-11-15', 27, false],
+  ] as const) {
+    const { pool } = fakePool();
+    await withApi(
+      pool,
+      async (call) => {
+        const { data } = await call('/api/checklist?cadence=four_week');
+        assert.equal((data.period as { start: string }).start, start, current);
+        assert.equal(data.remainingDays, remainingDays, current);
+        assert.equal(data.endsSoon, endsSoon, current);
+      },
+      { today: () => current },
+    );
+  }
+});
+
+test('a period already over has no days left and does not end soon', async () => {
+  const { pool } = fakePool();
+  await withApi(
+    pool,
+    async (call) => {
+      const { data } = await call('/api/checklist?cadence=weekly&date=2026-11-14');
+      assert.deepEqual(data.period, { start: '2026-11-08', end: '2026-11-14' });
+      assert.equal(data.remainingDays, 0);
+      assert.equal(data.endsSoon, false);
+    },
+    { today: () => '2026-11-15' },
+  );
 });
 
 test('dates outside the editable range are Korean 400s before any query', async () => {

@@ -10,6 +10,8 @@ export type ChecklistData<T> = {
   previousDate: string | null;
   nextDate: string | null;
   period: { start: string; end: string };
+  remainingDays: number;
+  endsSoon: boolean;
   items: T[];
 };
 

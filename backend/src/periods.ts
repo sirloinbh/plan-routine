@@ -35,6 +35,10 @@ export function addDays(date: string, days: number) {
   return fromDayNumber(toDayNumber(date) + days);
 }
 
+export function daysBetween(from: string, to: string) {
+  return toDayNumber(to) - toDayNumber(from);
+}
+
 // Weeks run Sunday to Saturday.
 export function weekStart(date: string) {
   const day = toDayNumber(date);

@@ -9,6 +9,8 @@ const emptyChecklist = {
   previousDate: '2026-10-25',
   nextDate: null,
   period: { start: '2026-10-26', end: '2026-10-26' },
+  remainingDays: 0,
+  endsSoon: false,
   items: [],
 };
 
@@ -102,6 +104,47 @@ test('the main menu opens the weekly routine page', async () => {
   expect(window.location.pathname).toBe('/weekly');
   expect(await screen.findByRole('heading', { level: 1, name: '주간 루틴' })).toBeInTheDocument();
   expect(await screen.findByText('이번 주에 체크할 루틴이 없습니다')).toBeInTheDocument();
+  window.history.replaceState(null, '', '/');
+});
+
+test('the main menu opens the four-week routine page', async () => {
+  health({ today: '2026-10-26' });
+  render(<App />);
+  const menu = screen.getByRole('navigation', { name: '주 메뉴' });
+  fireEvent.click(within(menu).getByRole('link', { name: '4주 루틴' }));
+  expect(window.location.pathname).toBe('/four-week');
+  expect(await screen.findByRole('heading', { level: 1, name: '4주 루틴' })).toBeInTheDocument();
+  expect(await screen.findByText('이번 4주에 체크할 루틴이 없습니다')).toBeInTheDocument();
+  window.history.replaceState(null, '', '/');
+});
+
+test('the daily checklist page shows unfinished four-week routines near the period end', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn((url: string) =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify(
+            url === '/api/checklist?cadence=four_week'
+              ? {
+                  ...emptyChecklist,
+                  endsSoon: true,
+                  remainingDays: 3,
+                  items: [{ id: '7', name: '이불빨래', checked: false }],
+                }
+              : url === '/api/health'
+                ? { today: '2026-10-26' }
+                : pageData(url),
+          ),
+          { status: 200 },
+        ),
+      ),
+    ),
+  );
+  window.history.replaceState(null, '', '/today');
+  render(<App />);
+  expect(await screen.findByRole('checkbox', { name: '이불빨래' })).toBeInTheDocument();
+  expect(screen.getByRole('region', { name: '곧 끝나는 4주 루틴 체크리스트' })).toBeVisible();
   window.history.replaceState(null, '', '/');
 });
 

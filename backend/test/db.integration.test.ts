@@ -474,6 +474,102 @@ test(
 );
 
 test(
+  'a four-week check holds for its period from the first-use week, then resets',
+  { skip: !url, timeout: 30_000 },
+  () =>
+    withClient(async (client, pool) => {
+      const original = await client.query<{ value: string }>(
+        'SELECT value FROM app_settings WHERE key = $1',
+        [anchorSettingKey],
+      );
+      await client.query('DELETE FROM app_settings WHERE key = $1', [anchorSettingKey]);
+      const created: string[] = [];
+      let today = '2026-10-22';
+      try {
+        await withApi(
+          pool,
+          async (call) => {
+            // The first routine records first use: Thursday, so periods count from Sunday 10-18.
+            const added = await call('/api/routines', {
+              method: 'POST',
+              body: { name: '이불빨래', cadence: 'four_week' },
+            });
+            assert.equal(added.status, 201);
+            const { id } = added.data.routine as { id: string };
+            created.push(id);
+
+            const period = async () => {
+              const { status, data } = await call('/api/checklist?cadence=four_week');
+              assert.equal(status, 200);
+              const item = (data.items as { id: string; checked: boolean }[]).find(
+                (entry) => entry.id === id,
+              );
+              return {
+                period: data.period,
+                remainingDays: data.remainingDays,
+                endsSoon: data.endsSoon,
+                checked: item?.checked,
+              };
+            };
+            const rows = async () =>
+              (
+                await client.query<{ period_start: string }>(
+                  'SELECT period_start FROM routine_checks WHERE routine_id = $1 ORDER BY 1',
+                  [id],
+                )
+              ).rows.map((row) => row.period_start);
+            const first = { start: '2026-10-18', end: '2026-11-14' };
+            assert.deepEqual(await period(), {
+              period: first,
+              remainingDays: 23,
+              endsSoon: false,
+              checked: false,
+            });
+
+            const put = await call(`/api/routines/${id}/checks/2026-10-22`, { method: 'PUT' });
+            assert.equal(put.status, 200);
+            assert.deepEqual(put.data.period, first);
+
+            // The last day of the period: still checked, and checking again adds no row.
+            today = '2026-11-14';
+            assert.deepEqual(await period(), {
+              period: first,
+              remainingDays: 0,
+              endsSoon: true,
+              checked: true,
+            });
+            const again = await call(`/api/routines/${id}/checks/2026-11-14`, { method: 'PUT' });
+            assert.equal(again.status, 200);
+            assert.deepEqual(await rows(), ['2026-10-18']);
+
+            // The next day starts a new period and the last record stays.
+            today = '2026-11-15';
+            assert.deepEqual(await period(), {
+              period: { start: '2026-11-15', end: '2026-12-12' },
+              remainingDays: 27,
+              endsSoon: false,
+              checked: false,
+            });
+            assert.deepEqual(await rows(), ['2026-10-18']);
+          },
+          { today: () => today },
+        );
+      } finally {
+        await client.query('DELETE FROM routine_checks WHERE routine_id = ANY($1::bigint[])', [
+          created,
+        ]);
+        await client.query('DELETE FROM routines WHERE id = ANY($1::bigint[])', [created]);
+        await client.query('DELETE FROM app_settings WHERE key = $1', [anchorSettingKey]);
+        if (original.rows[0])
+          await client.query('INSERT INTO app_settings (key, value) VALUES ($1, $2)', [
+            anchorSettingKey,
+            original.rows[0].value,
+          ]);
+      }
+    }),
+);
+
+test(
   'daily routines are added, renamed, reordered and archived against the real DB',
   { skip: !url, timeout: 30_000 },
   () =>

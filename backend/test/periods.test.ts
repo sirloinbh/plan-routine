@@ -1,7 +1,14 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { calendarDate, isCalendarDate, periodFor, periodsFor, weekStart } from '../src/periods.js';
+import {
+  calendarDate,
+  daysBetween,
+  isCalendarDate,
+  periodFor,
+  periodsFor,
+  weekStart,
+} from '../src/periods.js';
 
 // First use on Thursday 2026-10-22, so four/twelve-week periods count from Sunday 2026-10-18.
 const anchor = '2026-10-22';
@@ -87,4 +94,11 @@ test('only real YYYY-MM-DD dates pass, with a Korean message otherwise', () => {
   const result = calendarDate.safeParse('2026-02-30');
   assert.equal(result.success, false);
   assert.equal(result.error?.issues[0].message, '날짜는 YYYY-MM-DD 형식의 실제 날짜여야 합니다');
+});
+
+test('days between counts calendar days across months and years', () => {
+  assert.equal(daysBetween('2026-10-22', '2026-10-22'), 0);
+  assert.equal(daysBetween('2026-10-22', '2026-11-14'), 23);
+  assert.equal(daysBetween('2026-12-31', '2027-01-01'), 1);
+  assert.equal(daysBetween('2026-10-23', '2026-10-22'), -1);
 });
