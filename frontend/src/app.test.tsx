@@ -3,7 +3,16 @@ import { expect, test, vi } from 'vitest';
 
 import { App } from './app';
 
-// /api/health answers with `body`; the routines page gets an empty list.
+const emptyChecklist = {
+  date: '2026-10-26',
+  today: '2026-10-26',
+  previousDate: '2026-10-25',
+  nextDate: null,
+  period: { start: '2026-10-26', end: '2026-10-26' },
+  items: [],
+};
+
+// /api/health answers with `body`; the routine and checklist pages get empty lists.
 const health = (body: object, status = 200) =>
   vi.stubGlobal(
     'fetch',
@@ -11,7 +20,10 @@ const health = (body: object, status = 200) =>
       Promise.resolve(
         url === '/api/health'
           ? new Response(JSON.stringify(body), { status })
-          : new Response(JSON.stringify({ routines: [] }), { status: 200 }),
+          : new Response(
+              JSON.stringify(url.startsWith('/api/checklist') ? emptyChecklist : { routines: [] }),
+              { status: 200 },
+            ),
       ),
     ),
   );
@@ -44,6 +56,17 @@ test('each page has its own address and is marked in the main menu', async () =>
   expect(window.location.pathname).toBe('/settings');
   expect(await screen.findByRole('heading', { level: 1, name: '설정' })).toBeInTheDocument();
   expect(within(menu).getByRole('link', { name: '설정' })).toHaveAttribute('aria-current', 'page');
+});
+
+test('the main menu opens the daily checklist page', async () => {
+  health({ today: '2026-10-26' });
+  render(<App />);
+  const menu = screen.getByRole('navigation', { name: '주 메뉴' });
+  fireEvent.click(within(menu).getByRole('link', { name: '오늘 체크' }));
+  expect(window.location.pathname).toBe('/today');
+  expect(await screen.findByRole('heading', { level: 1, name: '오늘 체크' })).toBeInTheDocument();
+  expect(await screen.findByText('체크할 루틴이 없습니다')).toBeInTheDocument();
+  window.history.replaceState(null, '', '/');
 });
 
 test('an unknown address falls back to the overview', async () => {

@@ -128,6 +128,96 @@ test('simultaneous first calls agree on one first-use date', { skip: !url, timeo
 );
 
 test(
+  'checks persist, never duplicate, and leave the checklist with an archived routine',
+  { skip: !url, timeout: 30_000 },
+  () =>
+    withClient(async (client, pool) => {
+      const original = await client.query<{ value: string }>(
+        'SELECT value FROM app_settings WHERE key = $1',
+        [anchorSettingKey],
+      );
+      const created: string[] = [];
+      try {
+        await withApi(
+          pool,
+          async (call) => {
+            for (const name of ['체크 대상', '체크 안 함']) {
+              const { data } = await call('/api/routines', {
+                method: 'POST',
+                body: { name, cadence: 'daily', category: 'care' },
+              });
+              created.push((data.routine as { id: string }).id);
+            }
+            const [target, other] = created;
+            const checked = async (date: string) => {
+              const { status, data } = await call(`/api/checklist?date=${date}`);
+              assert.equal(status, 200);
+              return (data.items as { id: string; checked: boolean }[])
+                .filter((item) => created.includes(item.id))
+                .map((item) => [item.id, item.checked]);
+            };
+            const checkRows = async () =>
+              (
+                await client.query<{ period_start: string }>(
+                  'SELECT period_start FROM routine_checks WHERE routine_id = $1 ORDER BY 1',
+                  [target],
+                )
+              ).rows.map((row) => row.period_start);
+
+            assert.deepEqual(await checked('2026-10-22'), [
+              [target, false],
+              [other, false],
+            ]);
+            // Repeating a check and two simultaneous checks still store one row.
+            const path = `/api/routines/${target}/checks/2026-10-22`;
+            assert.equal((await call(path, { method: 'PUT' })).status, 200);
+            assert.equal((await call(path, { method: 'PUT' })).status, 200);
+            const both = await Promise.all([
+              call(`/api/routines/${target}/checks/2026-10-21`, { method: 'PUT' }),
+              call(`/api/routines/${target}/checks/2026-10-21`, { method: 'PUT' }),
+            ]);
+            assert.deepEqual(
+              both.map((response) => response.status),
+              [200, 200],
+            );
+            assert.deepEqual(await checkRows(), ['2026-10-21', '2026-10-22']);
+            assert.deepEqual(await checked('2026-10-22'), [
+              [target, true],
+              [other, false],
+            ]);
+            // Each day has its own check; unchecking twice is the same as once.
+            assert.equal((await call(path, { method: 'DELETE' })).status, 200);
+            assert.equal((await call(path, { method: 'DELETE' })).status, 200);
+            assert.deepEqual(await checkRows(), ['2026-10-21']);
+            assert.deepEqual(await checked('2026-10-21'), [
+              [target, true],
+              [other, false],
+            ]);
+            // The archived routine leaves the checklist, keeps its check and refuses changes.
+            await call(`/api/routines/${target}/archive`, { method: 'POST' });
+            assert.deepEqual(await checked('2026-10-21'), [[other, false]]);
+            assert.deepEqual(await checkRows(), ['2026-10-21']);
+            assert.equal((await call(path, { method: 'PUT' })).status, 404);
+            assert.deepEqual(await checkRows(), ['2026-10-21']);
+          },
+          { today: () => '2026-10-22' },
+        );
+      } finally {
+        await client.query('DELETE FROM routine_checks WHERE routine_id = ANY($1::bigint[])', [
+          created,
+        ]);
+        await client.query('DELETE FROM routines WHERE id = ANY($1::bigint[])', [created]);
+        await client.query('DELETE FROM app_settings WHERE key = $1', [anchorSettingKey]);
+        if (original.rows[0])
+          await client.query('INSERT INTO app_settings (key, value) VALUES ($1, $2)', [
+            anchorSettingKey,
+            original.rows[0].value,
+          ]);
+      }
+    }),
+);
+
+test(
   'daily routines are added, renamed, reordered and archived against the real DB',
   { skip: !url, timeout: 30_000 },
   () =>

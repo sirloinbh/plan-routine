@@ -1,19 +1,26 @@
-import { LayoutDashboard, ListChecks, Settings2 } from 'lucide-react';
+import { CalendarCheck, LayoutDashboard, ListChecks, Settings2 } from 'lucide-react';
 import { type ReactNode, useEffect, useState } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
 
 import { AppShell, type NavItem } from './components/layout/app-shell';
 import { EmptyState } from './components/ui/empty-state';
 import { Toaster } from './components/ui/sonner';
+import { DailyChecklist } from './daily-checklist';
 import { type Health, healthText } from './health';
 import { DailyRoutines } from './routines';
 
 // Every page URL lives here (central docs/directory-rules.md).
-const pages = { overview: '/', routines: '/routines', settings: '/settings' } as const;
+const pages = {
+  overview: '/',
+  today: '/today',
+  routines: '/routines',
+  settings: '/settings',
+} as const;
 
 // Main menu (LNB) items, in display order.
 const nav: NavItem[] = [
   { to: pages.overview, label: '대시보드', icon: LayoutDashboard },
+  { to: pages.today, label: '오늘 체크', icon: CalendarCheck },
   { to: pages.routines, label: '하루 루틴', icon: ListChecks },
   { to: pages.settings, label: '설정', icon: Settings2 },
 ];
@@ -85,6 +92,18 @@ export function App() {
                 description="계획을 세우고 실천과 루틴을 기록하며 피드백으로 개선하는 개인 서비스"
                 health={health}
               />
+            }
+          />
+          <Route
+            path={pages.today}
+            element={
+              <Page
+                title="오늘 체크"
+                description="오늘의 하루 루틴을 체크합니다. 지난 7일까지는 고칠 수 있습니다"
+                health={health}
+              >
+                <DailyChecklist />
+              </Page>
             }
           />
           <Route
