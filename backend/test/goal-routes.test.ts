@@ -253,6 +253,9 @@ test('invalid reviews are Korean 400s before any query', async () => {
         [[{ id: 'x', achieved: true }], '목표 번호가 올바르지 않습니다'],
         [[{ id: '2', achieved: '네' }], '달성 여부가 올바르지 않습니다'],
         [[{ id: '2' }], '달성 여부가 올바르지 않습니다'],
+        [[{ achieved: true }], '목표 번호가 올바르지 않습니다'],
+        [[{ id: 3, achieved: true }], '목표 번호가 올바르지 않습니다'],
+        [['x'], '회고 내용이 올바르지 않습니다'],
         [
           [{ id: '2', achieved: true, note: '가'.repeat(1001) }],
           '메모는 1000자 이하로 입력해 주세요',
@@ -270,6 +273,8 @@ test('invalid reviews are Korean 400s before any query', async () => {
         assert.equal(status, 400);
         assert.equal(data.error, message);
       }
+      const arrayBody = await call('/api/goals/reviews', { method: 'PUT', body: [] });
+      assert.equal(arrayBody.data.error, '요청 형식이 올바르지 않습니다');
       const noBody = await call('/api/goals/reviews', { method: 'PUT' });
       assert.equal(noBody.data.error, '회고할 목표가 없습니다');
     },

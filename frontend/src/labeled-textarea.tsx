@@ -22,7 +22,9 @@ export function LabeledTextarea({
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between gap-2">
-        <Label htmlFor={id}>{label}</Label>
+        <Label htmlFor={id} className="min-w-0 leading-normal wrap-anywhere">
+          {label}
+        </Label>
         <span
           className={
             value.length > limit

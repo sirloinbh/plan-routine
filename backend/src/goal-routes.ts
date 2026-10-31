@@ -14,47 +14,60 @@ const pastGoal = { error: '지난 기간의 목표는 고칠 수 없습니다' }
 const noNul = (value: string) => !value.includes('\0');
 const nulMessage = '쓸 수 없는 문자가 들어 있습니다';
 
-const goalId = z.string().regex(/^\d{1,18}$/, '목표 번호가 올바르지 않습니다');
+const goalIdMessage = '목표 번호가 올바르지 않습니다';
+const goalId = z
+  .string({ required_error: goalIdMessage, invalid_type_error: goalIdMessage })
+  .regex(/^\d{1,18}$/, goalIdMessage);
+const badRequest = { invalid_type_error: '요청 형식이 올바르지 않습니다' };
 const idParam = z.object({ id: goalId });
-const goalInput = z.object({
-  title: z
-    .string({
-      required_error: '목표를 입력해 주세요',
-      invalid_type_error: '목표는 글자여야 합니다',
-    })
-    .trim()
-    .min(1, '목표를 입력해 주세요')
-    .max(200, '목표는 200자 이하로 입력해 주세요')
-    .refine(noNul, nulMessage),
-});
-const reviewsInput = z.object({
-  reviews: z
-    .array(
-      z.object({
-        id: goalId,
-        achieved: z
-          .boolean({
-            required_error: '달성 여부가 올바르지 않습니다',
-            invalid_type_error: '달성 여부가 올바르지 않습니다',
-          })
-          .nullable(),
-        // A blank note is the same as no note.
-        note: z
-          .string({ invalid_type_error: '메모는 글자여야 합니다' })
-          .trim()
-          .max(1000, '메모는 1000자 이하로 입력해 주세요')
-          .refine(noNul, nulMessage)
-          .nullish()
-          .transform((value) => value || null),
-      }),
-      { required_error: '회고할 목표가 없습니다', invalid_type_error: '회고할 목표가 없습니다' },
-    )
-    .min(1, '회고할 목표가 없습니다')
-    .refine(
-      (reviews) => new Set(reviews.map((review) => review.id)).size === reviews.length,
-      '같은 목표를 두 번 회고할 수 없습니다',
-    ),
-});
+const goalInput = z.object(
+  {
+    title: z
+      .string({
+        required_error: '목표를 입력해 주세요',
+        invalid_type_error: '목표는 글자여야 합니다',
+      })
+      .trim()
+      .min(1, '목표를 입력해 주세요')
+      .max(200, '목표는 200자 이하로 입력해 주세요')
+      .refine(noNul, nulMessage),
+  },
+  badRequest,
+);
+const reviewsInput = z.object(
+  {
+    reviews: z
+      .array(
+        z.object(
+          {
+            id: goalId,
+            achieved: z
+              .boolean({
+                required_error: '달성 여부가 올바르지 않습니다',
+                invalid_type_error: '달성 여부가 올바르지 않습니다',
+              })
+              .nullable(),
+            // A blank note is the same as no note.
+            note: z
+              .string({ invalid_type_error: '메모는 글자여야 합니다' })
+              .trim()
+              .max(1000, '메모는 1000자 이하로 입력해 주세요')
+              .refine(noNul, nulMessage)
+              .nullish()
+              .transform((value) => value || null),
+          },
+          { invalid_type_error: '회고 내용이 올바르지 않습니다' },
+        ),
+        { required_error: '회고할 목표가 없습니다', invalid_type_error: '회고할 목표가 없습니다' },
+      )
+      .min(1, '회고할 목표가 없습니다')
+      .refine(
+        (reviews) => new Set(reviews.map((review) => review.id)).size === reviews.length,
+        '같은 목표를 두 번 회고할 수 없습니다',
+      ),
+  },
+  badRequest,
+);
 
 // Express leaves req.body undefined without a JSON body; parse {} so field messages stay Korean.
 const body = (value: unknown) => value ?? {};

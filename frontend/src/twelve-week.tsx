@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { Badge } from './components/ui/badge';
 import { Button } from './components/ui/button';
@@ -9,6 +9,8 @@ import { LabeledTextarea } from './labeled-textarea';
 import { requestJson } from './lib/api';
 import { useNotice } from './lib/use-notice';
 import { PeriodRoutines } from './period-routines';
+import { serviceDate } from './service-date';
+import { isPassingFailure, useReloadOnDateChange } from './use-date-change';
 
 type Goal = {
   id: string;
@@ -34,32 +36,50 @@ const answers: { value: boolean | null; label: string }[] = [
 
 const needsReview = ({ goals }: GoalPeriod) => goals.some((goal) => !goal.reviewedAt);
 
-function PastPeriod({ past, onSaved }: { past: GoalPeriod; onSaved: () => void }) {
+function PastPeriod({
+  past,
+  onSaving,
+  onSaved,
+}: {
+  past: GoalPeriod;
+  onSaving: () => void;
+  onSaved: (goals: Goal[]) => void;
+}) {
   // Only what was edited; the rest shows what the server has, so a reload loses no typing.
   const [drafts, setDrafts] = useState<Record<string, ReviewDraft>>({});
   const [saving, setSaving] = useState(false);
-  const { notice, error, clear } = useNotice();
+  const { notice, status, error, clear } = useNotice();
   const draftOf = (goal: Goal): ReviewDraft =>
     drafts[goal.id] ?? { achieved: goal.achieved, note: goal.reviewNote ?? '' };
-  const edit = (goal: Goal, change: Partial<ReviewDraft>) =>
+  // Ignored while saving rather than disabled, which keeps keyboard focus on the radio.
+  const edit = (goal: Goal, change: Partial<ReviewDraft>) => {
+    if (saving) return;
     setDrafts((current) => ({ ...current, [goal.id]: { ...draftOf(goal), ...change } }));
+  };
 
   const save = async () => {
     if (saving) return;
     setSaving(true);
     clear();
+    onSaving();
+    const reviews = past.goals.map((goal) => {
+      const { achieved, note } = draftOf(goal);
+      return { id: goal.id, achieved, note };
+    });
     try {
-      await requestJson('/api/goals/reviews', {
+      const { goals } = await requestJson<{ goals: Goal[] }>('/api/goals/reviews', {
         method: 'PUT',
-        body: {
-          reviews: past.goals.map((goal) => {
-            const { achieved, note } = draftOf(goal);
-            return { id: goal.id, achieved, note };
-          }),
-        },
+        body: { reviews },
       });
       setDrafts({});
-      onSaved();
+      const answered = reviews.some(({ achieved, note }) => achieved !== null || note.trim());
+      status(
+        answered
+          ? '회고를 저장했습니다'
+          : '저장했습니다. 달성 여부나 메모를 남기면 회고가 끝납니다',
+      );
+      // The saved answers show at once, even if the reload that follows fails.
+      onSaved(goals);
     } catch (cause) {
       // The typing stays in the drafts, ready to save again.
       error(cause);
@@ -90,7 +110,9 @@ function PastPeriod({ past, onSaved }: { past: GoalPeriod; onSaved: () => void }
             const draft = draftOf(goal);
             return (
               <fieldset key={goal.id} className="flex min-w-0 flex-col gap-3 border-t pt-3">
-                <legend className="text-body font-medium break-words">{goal.title}</legend>
+                <legend className="max-w-full text-body font-medium wrap-anywhere">
+                  {goal.title}
+                </legend>
                 <div className="flex flex-wrap gap-4">
                   {answers.map((answer) => (
                     <label key={answer.label} className="flex items-center gap-2 text-body-sm">
@@ -106,7 +128,7 @@ function PastPeriod({ past, onSaved }: { past: GoalPeriod; onSaved: () => void }
                 </div>
                 <LabeledTextarea
                   id={`review-${goal.id}`}
-                  label={`${goal.title} 메모`}
+                  label="메모"
                   value={draft.note}
                   rows={2}
                   limit={1000}
@@ -133,6 +155,12 @@ function CurrentGoals({ data, reload }: { data: GoalsData; reload: () => void })
   const [busy, setBusy] = useState(false);
   const { notice, status, error, clear } = useNotice();
   const { goals } = data.current;
+
+  // The goal being edited has gone: the period moved on, or it was removed elsewhere.
+  if (editing && !goals.some((goal) => goal.id === editing.id)) {
+    setEditing(null);
+    error(`'${editing.title}' 수정을 저장하지 못했습니다. 이번 기간의 목표가 아닙니다`);
+  }
 
   // Reloads after failures too: a 404 usually means the list changed elsewhere, and a past-goal
   // refusal means the period has moved on.
@@ -162,7 +190,8 @@ function CurrentGoals({ data, reload }: { data: GoalsData; reload: () => void })
       () => requestJson('/api/goals', { method: 'POST', body: { title } }),
       `'${title}' 목표를 추가했습니다`,
     );
-    if (ok) setDraft('');
+    // Anything typed while this was saving is the next goal; keep it.
+    if (ok) setDraft((current) => (current.trim() === title ? '' : current));
   };
 
   const rename = async () => {
@@ -200,7 +229,7 @@ function CurrentGoals({ data, reload }: { data: GoalsData; reload: () => void })
           {data.current.period.start} ~ {data.current.period.end} · {data.remainingWeeks}주
           남았습니다
         </p>
-        <Notice notice={notice} />
+        <Notice notice={notice} className="wrap-anywhere" />
         {goals.length === 0 ? (
           <p className="text-body-sm text-muted-foreground">아직 목표가 없습니다</p>
         ) : (
@@ -313,21 +342,27 @@ export function TwelveWeek() {
   const { notice, error, clear } = useNotice();
   // Kept here: a finished review's card moves down the page and mounts anew.
   const reviewNotice = useNotice();
+  const requestedOn = useRef('');
 
   useEffect(() => {
     // A newer load supersedes this one, so a slow older response cannot overwrite it.
     let ignore = false;
+    const startedOn = serviceDate();
+    requestedOn.current = startedOn;
     requestJson<GoalsData>('/api/goals')
       .then((loaded) => {
         if (ignore) return;
         setData(loaded);
         setLoadFailed(false);
         clear();
+        // The server is not on this device's date yet (a fast clock), so ask again at the next check.
+        if (loaded.today !== startedOn) requestedOn.current = '';
       })
       .catch((cause: unknown) => {
         if (ignore) return;
         setLoadFailed(true);
         error(cause);
+        if (isPassingFailure(cause)) requestedOn.current = '';
       });
     return () => {
       ignore = true;
@@ -343,9 +378,23 @@ export function TwelveWeek() {
     return () => document.removeEventListener('visibilitychange', reloadWhenShown);
   }, []);
 
-  const reload = () => setVersion((value) => value + 1);
-  const reviewSaved = () => {
-    reviewNotice.status('회고를 저장했습니다');
+  const reload = useCallback(() => setVersion((value) => value + 1), []);
+  useReloadOnDateChange(requestedOn, reload);
+
+  const reviewSaved = (past: GoalPeriod, saved: Goal[]) => {
+    const savedById = new Map(saved.map((goal) => [goal.id, goal]));
+    setData(
+      (current) =>
+        current && {
+          ...current,
+          past: current.past.map((entry) => ({
+            ...entry,
+            goals: entry.goals.map((goal) => savedById.get(goal.id) ?? goal),
+          })),
+        },
+    );
+    if (needsReview(past) && saved.every((goal) => goal.reviewedAt))
+      reviewNotice.status('회고를 저장했습니다');
     reload();
   };
   const toReview = data?.past.filter(needsReview) ?? [];
@@ -369,7 +418,12 @@ export function TwelveWeek() {
         <p className="text-body font-semibold">지난 기간의 목표를 돌아보고 새 목표를 세워 보세요</p>
       )}
       {toReview.map((past) => (
-        <PastPeriod key={past.period.start} past={past} onSaved={reviewSaved} />
+        <PastPeriod
+          key={past.period.start}
+          past={past}
+          onSaving={reviewNotice.clear}
+          onSaved={(saved) => reviewSaved(past, saved)}
+        />
       ))}
       {data && <CurrentGoals data={data} reload={reload} />}
       <PeriodRoutines
@@ -380,7 +434,12 @@ export function TwelveWeek() {
         emptyHint="아래에서 12주에 한 번 할 일을 추가해 주세요."
       />
       {reviewed.map((past) => (
-        <PastPeriod key={past.period.start} past={past} onSaved={reviewSaved} />
+        <PastPeriod
+          key={past.period.start}
+          past={past}
+          onSaving={reviewNotice.clear}
+          onSaved={(saved) => reviewSaved(past, saved)}
+        />
       ))}
     </div>
   );

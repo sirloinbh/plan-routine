@@ -585,6 +585,20 @@ test(
         "SELECT 1 FROM routines WHERE cadence = 'twelve_week' AND name = '목표 재설정'",
       );
       assert.equal(seeded.rowCount, 1);
+      // Archiving it sticks when the migration runs again. Rolled back to keep the shared row.
+      await client.query('BEGIN');
+      try {
+        await client.query(
+          "UPDATE routines SET archived_at = now() WHERE cadence = 'twelve_week' AND name = '목표 재설정'",
+        );
+        await client.query(readFileSync(goalsMigration, 'utf8'));
+        const active = await client.query(
+          "SELECT 1 FROM routines WHERE cadence = 'twelve_week' AND name = '목표 재설정' AND archived_at IS NULL",
+        );
+        assert.equal(active.rowCount, 0);
+      } finally {
+        await client.query('ROLLBACK');
+      }
       const rejects = async (values: string) => {
         await client.query('BEGIN');
         try {
