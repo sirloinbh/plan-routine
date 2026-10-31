@@ -311,6 +311,160 @@ test('a failed first load offers a retry', async () => {
   expect(await box('6시 기상')).toBeInTheDocument();
 });
 
+// Noon in Seoul. Only the clock and the interval are faked; flush() still uses a real timer.
+const setClock = (date: string) => vi.setSystemTime(new Date(`${date}T03:00:00Z`));
+const fakeClock = (date: string) => {
+  vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] });
+  setClock(date);
+};
+const checklistLoads = () =>
+  vi.mocked(fetch).mock.calls.filter(([url]) => String(url).startsWith('/api/checklist')).length;
+
+test('the first check after midnight is not saved to yesterday and the next goes to today', async () => {
+  fakeClock('2026-10-21');
+  const api = checklistApi(seed);
+  api.setToday('2026-10-21');
+  render(<DailyChecklist />);
+  await screen.findByRole('heading', { level: 2, name: '오늘 (2026-10-21)' });
+
+  setClock('2026-10-22');
+  api.setToday('2026-10-22');
+  fireEvent.click(await box('6시 기상'));
+  await flush();
+  expect(api.writes).toEqual([]);
+  expect(screen.getByRole('status')).toHaveTextContent('날짜가 바뀌어 새 기간을 불러왔습니다');
+  expect(screen.getByRole('heading', { level: 2, name: '오늘 (2026-10-22)' })).toBeVisible();
+  expect(await box('6시 기상')).not.toBeChecked();
+
+  fireEvent.click(await box('6시 기상'));
+  await flush();
+  expect(api.writes).toEqual([{ method: 'PUT', path: '/api/routines/1/checks/2026-10-22' }]);
+});
+
+test('an open window moves to the new day by itself, without requests before that', async () => {
+  fakeClock('2026-10-21');
+  const api = checklistApi(seed);
+  api.setToday('2026-10-21');
+  render(<DailyChecklist />);
+  await screen.findByRole('heading', { level: 2, name: '오늘 (2026-10-21)' });
+
+  const before = checklistLoads();
+  await act(async () => {
+    vi.advanceTimersByTime(5 * 60_000);
+    await Promise.resolve();
+  });
+  expect(checklistLoads()).toBe(before);
+
+  setClock('2026-10-22');
+  api.setToday('2026-10-22');
+  await act(async () => {
+    vi.advanceTimersByTime(60_000);
+    await new Promise((resolve) => setTimeout(resolve));
+  });
+  expect(screen.getByRole('heading', { level: 2, name: '오늘 (2026-10-22)' })).toBeVisible();
+});
+
+test('focusing the window moves to the new day', async () => {
+  fakeClock('2026-10-21');
+  const api = checklistApi(seed);
+  api.setToday('2026-10-21');
+  render(<DailyChecklist />);
+  await screen.findByRole('heading', { level: 2, name: '오늘 (2026-10-21)' });
+
+  setClock('2026-10-22');
+  api.setToday('2026-10-22');
+  await act(async () => {
+    window.dispatchEvent(new Event('focus'));
+    await new Promise((resolve) => setTimeout(resolve));
+  });
+  expect(screen.getByRole('heading', { level: 2, name: '오늘 (2026-10-22)' })).toBeVisible();
+});
+
+const nextCheck = () =>
+  act(async () => {
+    vi.advanceTimersByTime(60_000);
+    await new Promise((resolve) => setTimeout(resolve));
+  });
+
+test('a failed reload after midnight is tried again at the next check', async () => {
+  fakeClock('2026-10-21');
+  const api = checklistApi(seed);
+  api.setToday('2026-10-21');
+  render(<DailyChecklist />);
+  await screen.findByRole('heading', { level: 2, name: '오늘 (2026-10-21)' });
+
+  setClock('2026-10-22');
+  api.setToday('2026-10-22');
+  api.failNextLoad();
+  await nextCheck();
+  expect(screen.getByRole('alert')).toHaveTextContent('서버 오류가 발생했습니다');
+  await nextCheck();
+  expect(screen.getByRole('heading', { level: 2, name: '오늘 (2026-10-22)' })).toBeVisible();
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+});
+
+test('a day that left the editable range is not asked for again every minute', async () => {
+  fakeClock('2026-10-22');
+  const api = checklistApi(seed);
+  render(<DailyChecklist />);
+  await box('6시 기상');
+  fireEvent.click(screen.getByRole('button', { name: '이전 날' }));
+  await screen.findByRole('heading', { level: 2, name: '2026-10-21' });
+
+  const working = vi.mocked(fetch).getMockImplementation()!;
+  const rejected = vi.fn((url: string, init?: RequestInit) =>
+    String(url).startsWith('/api/checklist')
+      ? Promise.resolve({
+          ok: false,
+          status: 400,
+          json: () => Promise.resolve({ error: '최근 7일까지만 체크할 수 있습니다' }),
+        })
+      : working(url, init),
+  );
+  vi.stubGlobal('fetch', rejected);
+  setClock('2026-10-23');
+  await nextCheck();
+  expect(screen.getByRole('alert')).toHaveTextContent('최근 7일까지만 체크할 수 있습니다');
+  expect(rejected).toHaveBeenCalledTimes(1);
+  await nextCheck();
+  await nextCheck();
+  expect(rejected).toHaveBeenCalledTimes(1);
+  expect(api.writes).toEqual([]);
+});
+
+test('after a failed reload a refused click still explains itself', async () => {
+  fakeClock('2026-10-21');
+  const api = checklistApi(seed);
+  api.setToday('2026-10-21');
+  render(<DailyChecklist />);
+  await box('6시 기상');
+
+  setClock('2026-10-22');
+  api.setToday('2026-10-22');
+  api.failNextLoad();
+  await nextCheck();
+  fireEvent.click(await box('6시 기상'));
+  await flush();
+  expect(api.writes).toEqual([]);
+  expect(screen.getByRole('heading', { level: 2, name: '오늘 (2026-10-22)' })).toBeVisible();
+  expect(screen.getByRole('status')).toHaveTextContent('날짜가 바뀌어 새 기간을 불러왔습니다');
+});
+
+test('a chosen past day can still be checked after midnight', async () => {
+  fakeClock('2026-10-21');
+  const api = checklistApi(seed);
+  api.setToday('2026-10-21');
+  render(<DailyChecklist />);
+  await box('6시 기상');
+  fireEvent.click(screen.getByRole('button', { name: '이전 날' }));
+  await screen.findByRole('heading', { level: 2, name: '2026-10-20' });
+
+  setClock('2026-10-22');
+  fireEvent.click(await box('6시 기상'));
+  await flush();
+  expect(api.writes).toEqual([{ method: 'PUT', path: '/api/routines/1/checks/2026-10-20' }]);
+});
+
 test('with no routines it points to the routine page instead of an empty grid', async () => {
   checklistApi();
   render(<DailyChecklist />);

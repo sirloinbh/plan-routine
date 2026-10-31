@@ -17,11 +17,14 @@ export function FourWeekDue() {
     ? data.items.filter((item) => !item.checked || checkedHere.has(keyOf(item)))
     : [];
 
-  if (!notice && !loadFailed && items.length === 0) return null;
+  // Without a card, only a failure is worth showing: "check again" would have nothing to check.
+  const shownNotice = items.length > 0 || notice?.kind === 'error' ? notice : undefined;
+
+  if (!shownNotice && !loadFailed && items.length === 0) return null;
 
   return (
     <div className="flex flex-col items-start gap-2">
-      <Notice notice={notice} />
+      <Notice notice={shownNotice} />
       {loadFailed && (
         <Button type="button" variant="outline" size="sm" onClick={retry}>
           4주 루틴 다시 불러오기
