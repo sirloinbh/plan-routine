@@ -306,6 +306,15 @@ test(
               });
               assert.equal(past.status, 200);
             }
+            // The longest allowed text is stored whole, counting an emoji as JavaScript does.
+            const longest = await call('/api/diary/2026-10-21', {
+              method: 'PUT',
+              body: { body: '😀'.repeat(2500), goodNote: '가'.repeat(1000) },
+            });
+            assert.equal(longest.status, 200);
+            assert.equal((longest.data.entry as { body: string }).body.length, 5000);
+            assert.equal((longest.data.entry as { goodNote: string }).goodNote.length, 1000);
+            await call('/api/diary/2026-10-21', { method: 'PUT', body: { body: '2026-10-21' } });
             const yesterday = await call('/api/diary?date=2026-10-21');
             assert.equal((yesterday.data.entry as { body: string }).body, '2026-10-21');
 
@@ -321,8 +330,14 @@ test(
               });
               created.push((data.routine as { id: string }).id);
             }
-            await call(`/api/routines/${created[0]}/checks/2026-10-22`, { method: 'PUT' });
-            await call(`/api/routines/${created[1]}/checks/2026-10-21`, { method: 'PUT' });
+            const checks = await Promise.all([
+              call(`/api/routines/${created[0]}/checks/2026-10-22`, { method: 'PUT' }),
+              call(`/api/routines/${created[1]}/checks/2026-10-21`, { method: 'PUT' }),
+            ]);
+            assert.deepEqual(
+              checks.map((response) => response.status),
+              [200, 200],
+            );
             assert.deepEqual((await call('/api/diary?date=2026-10-22')).data.progress, {
               checked: baseline.checked + 1,
               total: baseline.total + 2,

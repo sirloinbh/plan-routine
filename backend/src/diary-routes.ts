@@ -14,12 +14,17 @@ const entryColumns = `entry_date AS date, body, good_note AS "goodNote",
 const diaryQuery = z.object({ date: calendarDate.optional() });
 const diaryParams = z.object({ date: calendarDate });
 
+// PostgreSQL text cannot hold a NUL character; without this check it would answer a 500.
+const noNul = (value: string) => !value.includes('\0');
+const nulMessage = '쓸 수 없는 문자가 들어 있습니다';
+
 // A blank note is the same as no note.
 const diaryNote = (label: string) =>
   z
     .string({ invalid_type_error: `${label}은 글자여야 합니다` })
     .trim()
     .max(1000, `${label}은 1000자 이하로 입력해 주세요`)
+    .refine(noNul, nulMessage)
     .nullish()
     .transform((value) => value || null);
 
@@ -31,7 +36,8 @@ const diaryInput = z.object({
     })
     .trim()
     .min(1, '일기 본문을 입력해 주세요')
-    .max(5000, '일기 본문은 5000자 이하로 입력해 주세요'),
+    .max(5000, '일기 본문은 5000자 이하로 입력해 주세요')
+    .refine(noNul, nulMessage),
   goodNote: diaryNote('잘한 점'),
   regretNote: diaryNote('아쉬운 점'),
   tomorrowNote: diaryNote('내일 할 일'),
@@ -60,8 +66,8 @@ export function diaryRoutes(pool: Pool, today: () => string) {
       `SELECT ${entryColumns} FROM diary_entries WHERE entry_date = $1`,
       [target],
     );
-    // That day's daily routines, to help write the feedback. Counted here rather than through
-    // /api/checklist, which only answers for recent dates.
+    // Today's active daily routines against that day's checks, to help write the feedback. Counted
+    // here rather than through /api/checklist, which only answers for recent dates.
     const progress = await pool.query<{ checked: number; total: number }>(
       `SELECT count(routine_checks.routine_id)::int AS checked, count(*)::int AS total
        FROM routines

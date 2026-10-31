@@ -39,13 +39,14 @@ const sameForm = (a: DiaryForm, b: DiaryForm) =>
   a.regretNote === b.regretNote &&
   a.tomorrowNote === b.tomorrowNote;
 
-// The shared UI has no textarea yet, so this one follows the Input component's look.
+// The shared UI has no textarea yet, so this one follows the Input component's look. No maxLength
+// attribute: the browser would silently cut pasted text, so the count warns and the server rejects.
 function DiaryField({
   id,
   label,
   value,
   rows,
-  maxLength,
+  limit,
   readOnly,
   onChange,
 }: {
@@ -53,18 +54,28 @@ function DiaryField({
   label: string;
   value: string;
   rows: number;
-  maxLength: number;
+  limit: number;
   readOnly: boolean;
   onChange: (value: string) => void;
 }) {
   return (
     <div className="flex flex-col gap-2">
-      <Label htmlFor={id}>{label}</Label>
+      <div className="flex items-center justify-between gap-2">
+        <Label htmlFor={id}>{label}</Label>
+        <span
+          className={
+            value.length > limit
+              ? 'text-caption text-destructive'
+              : 'text-caption text-muted-foreground'
+          }
+        >
+          {value.length}/{limit}
+        </span>
+      </div>
       <textarea
         id={id}
         className="w-full min-w-0 rounded-md border border-input bg-transparent px-3 py-2 text-base shadow-xs transition-[color,box-shadow] outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 md:text-body-sm dark:bg-input/30"
         rows={rows}
-        maxLength={maxLength}
         readOnly={readOnly}
         value={value}
         onChange={(event) => onChange(event.target.value)}
@@ -82,6 +93,8 @@ export function Diary() {
   const [savedForm, setSavedForm] = useState<DiaryForm>(formFrom(null));
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  // A notice appears beside what it is about: the save button or the date buttons.
+  const [noticeAtSave, setNoticeAtSave] = useState(false);
   const { notice, status, error, clear } = useNotice();
 
   useEffect(() => {
@@ -113,6 +126,7 @@ export function Diary() {
   // Also bumps the version so pressing the same button again retries a failed load.
   const moveTo = (target: string | null) => {
     if (saving) return;
+    setNoticeAtSave(false);
     if (dirty) {
       error('저장하지 않은 내용이 있습니다. 저장한 뒤 날짜를 옮겨 주세요');
       return;
@@ -126,6 +140,7 @@ export function Diary() {
   const save = async (target: string) => {
     if (saving || loading) return;
     setSaving(true);
+    setNoticeAtSave(true);
     clear();
     try {
       const { entry } = await requestJson<{ entry: DiaryEntry }>(`/api/diary/${target}`, {
@@ -196,7 +211,7 @@ export function Diary() {
           )}
         </div>
       </div>
-      <Notice notice={notice} />
+      {!noticeAtSave && <Notice notice={notice} />}
       <Card>
         <CardContent>
           <form
@@ -212,7 +227,7 @@ export function Diary() {
               label="하루 돌아보기"
               value={form.body}
               rows={8}
-              maxLength={5000}
+              limit={5000}
               readOnly={readOnly}
               onChange={setField('body')}
             />
@@ -221,7 +236,7 @@ export function Diary() {
               label="잘한 점 (선택)"
               value={form.goodNote}
               rows={2}
-              maxLength={1000}
+              limit={1000}
               readOnly={readOnly}
               onChange={setField('goodNote')}
             />
@@ -230,7 +245,7 @@ export function Diary() {
               label="아쉬운 점 (선택)"
               value={form.regretNote}
               rows={2}
-              maxLength={1000}
+              limit={1000}
               readOnly={readOnly}
               onChange={setField('regretNote')}
             />
@@ -239,10 +254,11 @@ export function Diary() {
               label="내일 할 일 (선택)"
               value={form.tomorrowNote}
               rows={2}
-              maxLength={1000}
+              limit={1000}
               readOnly={readOnly}
               onChange={setField('tomorrowNote')}
             />
+            {noticeAtSave && <Notice notice={notice} />}
             <div className="flex flex-wrap items-center gap-3">
               <Button type="submit">저장</Button>
               {dirty && (

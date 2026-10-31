@@ -103,6 +103,8 @@ test('an empty or too long entry is a Korean 400 before any query', async () => 
         [{ body: '가'.repeat(5001) }, '일기 본문은 5000자 이하로 입력해 주세요'],
         [{ body: '본문', goodNote: '가'.repeat(1001) }, '잘한 점은 1000자 이하로 입력해 주세요'],
         [{ body: '본문', regretNote: 1 }, '아쉬운 점은 글자여야 합니다'],
+        [{ body: 'a\0b' }, '쓸 수 없는 문자가 들어 있습니다'],
+        [{ body: '본문', goodNote: 'a\0b' }, '쓸 수 없는 문자가 들어 있습니다'],
         [
           { body: '본문', tomorrowNote: '가'.repeat(1001) },
           '내일 할 일은 1000자 이하로 입력해 주세요',

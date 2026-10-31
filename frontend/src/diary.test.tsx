@@ -20,6 +20,10 @@ function diaryApi(seed: Entry[] = []) {
   const writes: { path: string; body: Record<string, string> }[] = [];
   let failNextLoad = false;
   let failNextSave = false;
+  let heldLoad: (() => void) | null = null;
+  let holdNextLoad = false;
+  let heldSave: (() => void) | null = null;
+  let holdNextSave = false;
   const reply = (status: number, body: unknown) =>
     Promise.resolve({ ok: status < 400, status, json: () => Promise.resolve(body) });
   const shift = (date: string, days: number) =>
@@ -33,13 +37,18 @@ function diaryApi(seed: Entry[] = []) {
           return reply(500, { error: '서버 오류가 발생했습니다' });
         }
         const date = new URL(url, 'http://localhost').searchParams.get('date') ?? today;
-        return reply(200, {
+        const response = reply(200, {
           date,
           today,
           previousDate: shift(date, -1),
           nextDate: date < today ? shift(date, 1) : null,
           progress: { checked: 2, total: 5 },
           entry: entries.get(date) ?? null,
+        });
+        if (!holdNextLoad) return response;
+        holdNextLoad = false;
+        return new Promise((resolve) => {
+          heldLoad = () => resolve(response);
         });
       }
       const body = JSON.parse(String(init?.body)) as Record<string, string>;
@@ -49,6 +58,8 @@ function diaryApi(seed: Entry[] = []) {
         return reply(500, { error: '서버 오류가 발생했습니다' });
       }
       if (!body.body.trim()) return reply(400, { error: '일기 본문을 입력해 주세요' });
+      if (body.body.length > 5000)
+        return reply(400, { error: '일기 본문은 5000자 이하로 입력해 주세요' });
       const date = url.split('/')[3];
       const entry = {
         date,
@@ -58,13 +69,22 @@ function diaryApi(seed: Entry[] = []) {
         tomorrowNote: body.tomorrowNote.trim() || null,
       };
       entries.set(date, entry);
-      return reply(200, { entry });
+      const response = reply(200, { entry });
+      if (!holdNextSave) return response;
+      holdNextSave = false;
+      return new Promise((resolve) => {
+        heldSave = () => resolve(response);
+      });
     }),
   );
   return {
     writes,
     failNextLoad: () => (failNextLoad = true),
     failNextSave: () => (failNextSave = true),
+    holdNextLoad: () => (holdNextLoad = true),
+    releaseLoad: () => heldLoad?.(),
+    holdNextSave: () => (holdNextSave = true),
+    releaseSave: () => heldSave?.(),
   };
 }
 
@@ -143,6 +163,75 @@ test('a rejected or failed save shows the Korean error and keeps the text', asyn
   expect(screen.getByRole('alert')).toHaveTextContent('서버 오류가 발생했습니다');
   expect(await field('하루 돌아보기')).toHaveValue('지우면 안 되는 글');
   expect(screen.getByText('저장하지 않은 내용이 있습니다')).toBeInTheDocument();
+});
+
+test('text over the limit is not cut: the count warns and the server rejects it', async () => {
+  const api = diaryApi();
+  render(<Diary />);
+  const body = await field('하루 돌아보기');
+  expect(body).not.toHaveAttribute('maxlength');
+  const tooLong = '가'.repeat(5001);
+  await type('하루 돌아보기', tooLong);
+  expect(screen.getByText('5001/5000')).toBeInTheDocument();
+  press('저장');
+  await flush();
+  expect(api.writes).toHaveLength(1);
+  expect(screen.getByRole('alert')).toHaveTextContent('일기 본문은 5000자 이하로 입력해 주세요');
+  expect(await field('하루 돌아보기')).toHaveValue(tooLong);
+});
+
+test('a save result appears beside the save button, a blocked move beside the date buttons', async () => {
+  diaryApi();
+  render(<Diary />);
+  const form = (await field('하루 돌아보기')).closest('form')!;
+  press('저장');
+  await flush();
+  expect(form).toContainElement(screen.getByRole('alert'));
+  await type('하루 돌아보기', '아직 저장 안 함');
+  press('이전 날');
+  await flush();
+  expect(form).not.toContainElement(screen.getByRole('alert'));
+});
+
+test('while a day is loading the form is locked and a slow older answer is ignored', async () => {
+  const api = diaryApi([saved]);
+  render(<Diary />);
+  await field('하루 돌아보기');
+  press('이전 날');
+  await screen.findByRole('heading', { level: 2, name: '2026-10-21' });
+  api.holdNextLoad();
+  press('이전 날');
+  await flush();
+  expect(await field('하루 돌아보기')).toHaveAttribute('readonly');
+  press('저장');
+  await flush();
+  expect(api.writes).toEqual([]);
+
+  press('오늘로');
+  await flush();
+  expect(await field('하루 돌아보기')).not.toHaveAttribute('readonly');
+  api.releaseLoad();
+  await flush();
+  expect(screen.getByRole('heading', { level: 2, name: `오늘 (${today})` })).toBeVisible();
+  expect(await field('하루 돌아보기')).toHaveValue('잘 보낸 하루');
+});
+
+test('while saving the form is locked and the date stays', async () => {
+  const api = diaryApi();
+  render(<Diary />);
+  await type('하루 돌아보기', '저장 중인 글');
+  api.holdNextSave();
+  press('저장');
+  await flush();
+  expect(await field('하루 돌아보기')).toHaveAttribute('readonly');
+  press('이전 날');
+  await flush();
+  expect(screen.getByRole('heading', { level: 2, name: `오늘 (${today})` })).toBeVisible();
+  api.releaseSave();
+  await flush();
+  expect(api.writes).toHaveLength(1);
+  expect(await field('하루 돌아보기')).toHaveValue('저장 중인 글');
+  expect(await field('하루 돌아보기')).not.toHaveAttribute('readonly');
 });
 
 test('a past day can be opened and written, and each day keeps its own entry', async () => {
