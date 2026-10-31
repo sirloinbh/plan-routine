@@ -32,7 +32,7 @@ const wake = {
   checked: true,
 };
 const today = () => '2026-10-22';
-const issued = (queries: { sql: string }[], word: string) =>
+const issued = (queries: { sql: string; params: unknown[] }[], word: string) =>
   queries.filter((query) => query.sql.includes(word));
 
 test('the checklist defaults to today and links only to dates in the editable range', async () => {
