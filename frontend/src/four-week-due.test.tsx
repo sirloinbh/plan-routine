@@ -7,6 +7,9 @@ type Seed = { id: string; name: string; checked?: boolean };
 
 // A fake checklist API with state. A plain object rather than a Response resolves in microtasks only.
 function dueApi(seed: Seed[], options: { endsSoon?: boolean; remainingDays?: number } = {}) {
+  let routines = seed;
+  let periodStart = '2026-10-18';
+  let failNextSave = false;
   const checks = new Set(seed.filter((r) => r.checked).map((r) => r.id));
   const writes: { method: string; path: string }[] = [];
   let failLoads = false;
@@ -23,23 +26,42 @@ function dueApi(seed: Seed[], options: { endsSoon?: boolean; remainingDays?: num
           today: '2026-11-10',
           previousDate: '2026-11-09',
           nextDate: null,
-          period: { start: '2026-10-18', end: '2026-11-14' },
+          period: { start: periodStart, end: '2026-11-14' },
           remainingDays: options.remainingDays ?? 4,
           endsSoon: options.endsSoon ?? true,
-          items: seed.map((r) => ({ id: r.id, name: r.name, checked: checks.has(r.id) })),
+          items: routines.map((r) => ({ id: r.id, name: r.name, checked: checks.has(r.id) })),
         });
       }
       writes.push({ method, path: url });
+      if (failNextSave) {
+        failNextSave = false;
+        return reply(500, { error: '서버 오류가 발생했습니다' });
+      }
       const id = url.split('/')[3];
+      if (!routines.some((r) => r.id === id))
+        return reply(404, { error: '루틴을 찾을 수 없습니다' });
       if (method === 'PUT') checks.add(id);
       else checks.delete(id);
       return reply(200, {});
     }),
   );
-  return { writes, failLoads: () => (failLoads = true) };
+  return {
+    writes,
+    failLoads: (on = true) => (failLoads = on),
+    failNextSave: () => (failNextSave = true),
+    archiveElsewhere: (id: string) => (routines = routines.filter((r) => r.id !== id)),
+    checkElsewhere: (id: string) => checks.add(id),
+    uncheckElsewhere: (id: string) => checks.delete(id),
+    setPeriodStart: (date: string) => (periodStart = date),
+  };
 }
 
 const flush = () => act(() => new Promise((resolve) => setTimeout(resolve)));
+const showPageAgain = () =>
+  act(async () => {
+    document.dispatchEvent(new Event('visibilitychange'));
+    await new Promise((resolve) => setTimeout(resolve));
+  });
 const seed = [
   { id: '1', name: '이불빨래' },
   { id: '2', name: '소모품 교체', checked: true },
@@ -69,7 +91,7 @@ test('the last day says so', async () => {
   ).toBeInTheDocument();
 });
 
-test('a checked box stays to be undone, and the next visit drops it', async () => {
+test('a checked box stays to be undone, even after a reload, and leaving the page drops it', async () => {
   const api = dueApi(seed);
   const { unmount } = render(<FourWeekDue />);
   fireEvent.click(await screen.findByRole('checkbox', { name: '이불빨래' }));
@@ -84,6 +106,8 @@ test('a checked box stays to be undone, and the next visit drops it', async () =
 
   fireEvent.click(screen.getByRole('checkbox', { name: '이불빨래' }));
   await flush();
+  await showPageAgain();
+  expect(screen.getByRole('checkbox', { name: '이불빨래' })).toBeChecked();
   unmount();
   render(<FourWeekDue />);
   await flush();
@@ -97,8 +121,65 @@ test('with everything finished nothing is shown', async () => {
   expect(screen.queryByRole('region')).not.toBeInTheDocument();
 });
 
-test('a failed load shows the Korean error', async () => {
-  dueApi(seed).failLoads();
+test('a failed load shows the Korean error and can be retried', async () => {
+  const api = dueApi(seed);
+  api.failLoads();
   render(<FourWeekDue />);
   expect(await screen.findByRole('alert')).toHaveTextContent('서버 오류가 발생했습니다');
+  api.failLoads(false);
+  fireEvent.click(screen.getByRole('button', { name: '4주 루틴 다시 불러오기' }));
+  expect(await screen.findByRole('checkbox', { name: '이불빨래' })).toBeInTheDocument();
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: '4주 루틴 다시 불러오기' })).not.toBeInTheDocument();
+});
+
+test('a reload that fails while the card is showing keeps it and offers a retry', async () => {
+  const api = dueApi(seed);
+  render(<FourWeekDue />);
+  await screen.findByRole('checkbox', { name: '이불빨래' });
+  api.failLoads();
+  await showPageAgain();
+  expect(screen.getByRole('checkbox', { name: '이불빨래' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: '4주 루틴 다시 불러오기' })).toBeInTheDocument();
+});
+
+test('a failed save restores the box and shows the Korean error', async () => {
+  const api = dueApi(seed);
+  render(<FourWeekDue />);
+  const target = await screen.findByRole('checkbox', { name: '이불빨래' });
+  api.failNextSave();
+  fireEvent.click(target);
+  await flush();
+  expect(screen.getByRole('alert')).toHaveTextContent('서버 오류가 발생했습니다');
+  expect(screen.getByRole('checkbox', { name: '이불빨래' })).not.toBeChecked();
+});
+
+test('the Korean 404 stays when the only routine was archived elsewhere', async () => {
+  const api = dueApi([{ id: '1', name: '이불빨래' }]);
+  render(<FourWeekDue />);
+  const target = await screen.findByRole('checkbox', { name: '이불빨래' });
+  api.archiveElsewhere('1');
+  fireEvent.click(target);
+  await flush();
+  expect(screen.getByRole('alert')).toHaveTextContent('루틴을 찾을 수 없습니다');
+  expect(screen.queryByRole('checkbox', { name: '이불빨래' })).not.toBeInTheDocument();
+});
+
+test('a box checked in one period is not kept in the next', async () => {
+  const api = dueApi(seed);
+  render(<FourWeekDue />);
+  fireEvent.click(await screen.findByRole('checkbox', { name: '이불빨래' }));
+  await flush();
+  api.setPeriodStart('2026-11-15');
+  await showPageAgain();
+  // Checked elsewhere in the new period, so it no longer counts as checked here.
+  expect(screen.queryByRole('checkbox', { name: '이불빨래' })).not.toBeInTheDocument();
+});
+
+test('its heading is a level below the page title', async () => {
+  dueApi(seed);
+  render(<FourWeekDue />);
+  expect(
+    await screen.findByRole('heading', { level: 2, name: /곧 끝나는 4주 루틴/ }),
+  ).toBeVisible();
 });

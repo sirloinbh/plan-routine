@@ -36,17 +36,19 @@ export function ChecklistPending({
 // One titled checklist with its progress. The weekly, four-week and twelve-week cards reuse it.
 export function Checklist({
   title,
+  headingLevel = 'h3',
   items,
   onToggle,
 }: {
   title: string;
+  headingLevel?: 'h2' | 'h3';
   items: ChecklistItem[];
   onToggle: (item: ChecklistItem) => void;
 }) {
   return (
     <Card role="region" aria-label={`${title} 체크리스트`}>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
+        <CardTitle asHeading={headingLevel} className="flex items-center gap-2">
           {title}
           <Badge variant="secondary">{progressText(items)}</Badge>
         </CardTitle>

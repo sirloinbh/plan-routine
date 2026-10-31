@@ -116,6 +116,36 @@ test('the main menu opens the four-week routine page', async () => {
   window.history.replaceState(null, '', '/');
 });
 
+test('the daily checklist page shows unfinished four-week routines near the period end', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn((url: string) =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify(
+            url === '/api/checklist?cadence=four_week'
+              ? {
+                  ...emptyChecklist,
+                  endsSoon: true,
+                  remainingDays: 3,
+                  items: [{ id: '7', name: '이불빨래', checked: false }],
+                }
+              : url === '/api/health'
+                ? { today: '2026-10-26' }
+                : pageData(url),
+          ),
+          { status: 200 },
+        ),
+      ),
+    ),
+  );
+  window.history.replaceState(null, '', '/today');
+  render(<App />);
+  expect(await screen.findByRole('checkbox', { name: '이불빨래' })).toBeInTheDocument();
+  expect(screen.getByRole('region', { name: '곧 끝나는 4주 루틴 체크리스트' })).toBeVisible();
+  window.history.replaceState(null, '', '/');
+});
+
 test('an unknown address falls back to the overview', async () => {
   health({ today: '2026-10-26' });
   window.history.replaceState(null, '', '/no-such-page');
