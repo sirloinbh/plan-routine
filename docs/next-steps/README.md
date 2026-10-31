@@ -2,24 +2,24 @@
 
 최종 갱신일: **2026-10-31 (Asia/Seoul)**.
 
-전체 목록과 진행 상황은 로드맵 [#14](https://github.com/sirloinbh/plan-routine/issues/14)에서 추적한다. 끝난 카드: #3, #4, #5, #6, #7, #9, #44.
+기본 기능의 처음 카드 목록은 로드맵 [#14](https://github.com/sirloinbh/plan-routine/issues/14)에 있다. 지금 상태는 이 문서와 이슈 목록을 기준으로 본다. 끝난 기능 카드: #3, #4, #5, #6, #7, #9, #44.
 
 ## 내일 할 일
 
-순서는 우선순위, 그다음 이슈 번호다(`std-backlog` 5장). 다른 지시가 없으면 1번부터 진행한다.
+순서는 우선순위, 그다음 이슈 번호다(`std-backlog` 5장). 예외로 사용자가 매우 후순위로 지정한 #12, #13은 같은 P3 안에서 뒤로 뺐다. 다른 지시가 없으면 1번부터 진행한다.
 
 | 순서 | 이슈                                                       | 할 일                                             | 우선순위 | 착수 전 확인                                                                                                               |
 | ---- | ---------------------------------------------------------- | ------------------------------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------- |
 | 1    | [#8](https://github.com/sirloinbh/plan-routine/issues/8)   | 12주 루틴: 목표 재설정과 회고                     | P2       | 없음. 목표와 루틴을 연결하지 않기로 확정했고, 연결은 [#52](https://github.com/sirloinbh/plan-routine/issues/52)로 분리했다 |
-| 2    | [#10](https://github.com/sirloinbh/plan-routine/issues/10) | 날짜별 기록 열람                                  | P2       | 카드의 확인 항목. 일기 진행률을 그날 있던 루틴 기준으로 집계할지도 정한다                                                  |
+| 2    | [#10](https://github.com/sirloinbh/plan-routine/issues/10) | 날짜별 기록 열람                                  | P2       | 일기 진행률을 그날 있던 루틴 기준으로 집계할지 (#10 코멘트)                                                                |
 | 3    | [#11](https://github.com/sirloinbh/plan-routine/issues/11) | 루틴별 이력과 달성률 열람                         | P2       | 카드의 확인 항목                                                                                                           |
 | 4    | [#19](https://github.com/sirloinbh/plan-routine/issues/19) | 하루 루틴 수정·보관 후 키보드 포커스 복귀         | P2       | 없음                                                                                                                       |
-| 5    | [#45](https://github.com/sirloinbh/plan-routine/issues/45) | 저장하지 않은 일기를 두고 떠날 때 안내            | P2       | 없음                                                                                                                       |
+| 5    | [#45](https://github.com/sirloinbh/plan-routine/issues/45) | 저장하지 않은 일기를 두고 떠날 때 안내            | P2       | 메뉴 이동을 막는 방법(라우터 구조 변경 또는 임시 저장)                                                                     |
 | 6    | [#41](https://github.com/sirloinbh/plan-routine/issues/41) | 날짜 이동 후 키보드 포커스 유지 (일기 화면 포함)  | P3       | 없음                                                                                                                       |
 | 7    | [#42](https://github.com/sirloinbh/plan-routine/issues/42) | 보관과 체크의 동시 요청 DB 테스트                 | P3       | 없음                                                                                                                       |
 | 8    | [#47](https://github.com/sirloinbh/plan-routine/issues/47) | 잘못된 요청 본문에 한국어 오류로 답하기           | P3       | 없음                                                                                                                       |
 | 9    | [#52](https://github.com/sirloinbh/plan-routine/issues/52) | 12주 목표를 하루·주간 루틴과 연결                 | P3       | #8 이후. 연결 방식                                                                                                         |
-| 10   | [#12](https://github.com/sirloinbh/plan-routine/issues/12) | [후순위] 다른 프로젝트 웹앱으로 링크 이동         | P3       | 사용자가 매우 후순위로 지정                                                                                                |
+| 10   | [#12](https://github.com/sirloinbh/plan-routine/issues/12) | [후순위] 다른 프로젝트 웹앱으로 링크 이동         | P3       | 카드의 확인 항목(허용 URL). 사용자가 매우 후순위로 지정                                                                    |
 | 11   | [#13](https://github.com/sirloinbh/plan-routine/issues/13) | [후순위] 다른 프로젝트 통합 허브 설계             | P3       | [#12](https://github.com/sirloinbh/plan-routine/issues/12) 이후                                                            |
 | 12   | [#34](https://github.com/sirloinbh/plan-routine/issues/34) | 불러오는 중 표시를 공통 Skeleton·Spinner로 바꾸기 | P4       | 없음                                                                                                                       |
 
@@ -43,10 +43,11 @@
 
 ## 라벨
 
-- 우선순위: `P0 선행 필수`, `P1 높음`, `P2 보통`, `P3 매우 후순위`
+- 우선순위: `priority/P0`~`priority/P4`. 기준은 `std-backlog` 2장에 있다.
+- 종류: `type/feature`, `type/docs`, `type/security`, `type/chore`, `type/research`
 - 기능: `기능: 루틴`, `기능: 체크리스트`, `기능: 일기`, `기능: 기록·열람`, `기능: 프로젝트 연계`
 - 작업 성격: `작업: DB`, `작업: API`, `작업: UI`, `작업: 설계`
-- 기타: `추적`(여러 카드를 묶는 이슈)
+- 기타: `추적`(여러 카드를 묶는 이슈), `accessibility`
 
 ## 실행 경계
 
