@@ -6,6 +6,7 @@ import {
   ListChecks,
   NotebookPen,
   Settings2,
+  Target,
 } from 'lucide-react';
 import { type ReactNode, useEffect, useState } from 'react';
 import { BrowserRouter, Link, Navigate, Route, Routes } from 'react-router';
@@ -20,6 +21,7 @@ import { FourWeekDue } from './four-week-due';
 import { type Health, healthText } from './health';
 import { FourWeekRoutines, WeeklyRoutines } from './period-routines';
 import { DailyRoutines } from './routines';
+import { TwelveWeek } from './twelve-week';
 
 // Every page URL lives here (central docs/directory-rules.md).
 const pages = {
@@ -29,6 +31,7 @@ const pages = {
   routines: '/routines',
   weekly: '/weekly',
   fourWeek: '/four-week',
+  twelveWeek: '/twelve-week',
   settings: '/settings',
 } as const;
 
@@ -40,6 +43,7 @@ const nav: NavItem[] = [
   { to: pages.routines, label: '하루 루틴', icon: ListChecks },
   { to: pages.weekly, label: '주간 루틴', icon: CalendarRange },
   { to: pages.fourWeek, label: '4주 루틴', icon: CalendarDays },
+  { to: pages.twelveWeek, label: '12주 루틴', icon: Target },
   { to: pages.settings, label: '설정', icon: Settings2 },
 ];
 
@@ -173,6 +177,18 @@ export function App() {
                 health={health}
               >
                 <FourWeekRoutines />
+              </Page>
+            }
+          />
+          <Route
+            path={pages.twelveWeek}
+            element={
+              <Page
+                title="12주 루틴"
+                description="12주마다 목표를 다시 세우고 지난 12주를 돌아봅니다"
+                health={health}
+              >
+                <TwelveWeek />
               </Page>
             }
           />

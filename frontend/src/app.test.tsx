@@ -23,7 +23,15 @@ const emptyDiary = {
   entry: null,
 };
 
+const emptyGoals = {
+  today: '2026-10-26',
+  remainingWeeks: 12,
+  current: { period: { start: '2026-10-25', end: '2027-01-16' }, goals: [] },
+  past: [],
+};
+
 const pageData = (url: string) => {
+  if (url.startsWith('/api/goals')) return emptyGoals;
   if (url.startsWith('/api/checklist')) return emptyChecklist;
   if (url.startsWith('/api/diary')) return emptyDiary;
   return { routines: [] };
@@ -145,6 +153,17 @@ test('the daily checklist page shows unfinished four-week routines near the peri
   render(<App />);
   expect(await screen.findByRole('checkbox', { name: '이불빨래' })).toBeInTheDocument();
   expect(screen.getByRole('region', { name: '곧 끝나는 4주 루틴 체크리스트' })).toBeVisible();
+  window.history.replaceState(null, '', '/');
+});
+
+test('the main menu opens the twelve-week page', async () => {
+  health({ today: '2026-10-26' });
+  render(<App />);
+  const menu = screen.getByRole('navigation', { name: '주 메뉴' });
+  fireEvent.click(within(menu).getByRole('link', { name: '12주 루틴' }));
+  expect(window.location.pathname).toBe('/twelve-week');
+  expect(await screen.findByRole('heading', { level: 1, name: '12주 루틴' })).toBeInTheDocument();
+  expect(await screen.findByText('아직 목표가 없습니다')).toBeInTheDocument();
   window.history.replaceState(null, '', '/');
 });
 
