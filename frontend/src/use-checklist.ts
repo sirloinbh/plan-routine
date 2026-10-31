@@ -63,6 +63,8 @@ export function useChecklist<T extends ChecklistItem>(
         }
         setData(loaded);
         shownOn.current = startedOn;
+        // The server is not on this device's date yet (a fast clock), so ask again at the next check.
+        if (loaded.today !== startedOn) requestedOn.current = '';
         setLoadFailed(false);
         // Only a load's own error: a failed save's message must survive the reload after it.
         if (loadErrorShown.current) clear();
@@ -72,6 +74,8 @@ export function useChecklist<T extends ChecklistItem>(
         if (ignore) return;
         setLoadFailed(true);
         loadErrorShown.current = true;
+        // Try again at the next check: the network may just not be back yet after sleep.
+        requestedOn.current = '';
         error(cause);
       });
     return () => {
@@ -116,6 +120,7 @@ export function useChecklist<T extends ChecklistItem>(
     // Following today on a screen from an earlier period: this check would land in that period.
     const current = serviceDate();
     if (date === null && data && current !== shownOn.current && current > data.period.end) {
+      loadErrorShown.current = false;
       status('날짜가 바뀌어 새 기간을 불러왔습니다. 다시 체크해 주세요');
       setVersion((value) => value + 1);
       return;

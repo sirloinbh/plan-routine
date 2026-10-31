@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
-import { afterEach, expect, test, vi } from 'vitest';
+import { expect, test, vi } from 'vitest';
 
 import { FourWeekRoutines, WeeklyRoutines } from './period-routines';
 
@@ -204,10 +204,6 @@ test('the weekly page does not show days left', async () => {
   expect(screen.queryByText(/남았습니다|마지막 날/)).not.toBeInTheDocument();
 });
 
-afterEach(() => {
-  vi.useRealTimers();
-});
-
 // Noon in Seoul. Only the clock and the interval are faked; flush() still uses a real timer.
 const setClock = (date: string) => vi.setSystemTime(new Date(`${date}T03:00:00Z`));
 const fakeClock = (date: string) => {
@@ -232,6 +228,36 @@ test('the first check after the week changes goes to the new week', async () => 
   ).toBeVisible();
   expect(screen.getByText(/날짜가 바뀌어 새 기간을 불러왔습니다/)).toBeInTheDocument();
 
+  fireEvent.click(await box('청소'));
+  await flush();
+  expect(api.checks).toEqual(new Set(['2/2026-10-25']));
+});
+
+test('a device clock ahead of the server still reaches the new week', async () => {
+  fakeClock('2026-10-24');
+  const api = weeklyApi(seed);
+  api.setToday('2026-10-24');
+  render(<WeeklyRoutines />);
+  await box('청소');
+  const nextCheck = () =>
+    act(async () => {
+      vi.advanceTimersByTime(60_000);
+      await new Promise((resolve) => setTimeout(resolve));
+    });
+
+  // The device reaches Sunday first; the server still answers with last week.
+  setClock('2026-10-25');
+  await nextCheck();
+  expect(
+    screen.getByRole('heading', { level: 2, name: '이번 주 (2026-10-18 ~ 2026-10-24)' }),
+  ).toBeVisible();
+
+  // Then the server reaches Sunday too.
+  api.setToday('2026-10-25');
+  await nextCheck();
+  expect(
+    screen.getByRole('heading', { level: 2, name: '이번 주 (2026-10-25 ~ 2026-10-31)' }),
+  ).toBeVisible();
   fireEvent.click(await box('청소'));
   await flush();
   expect(api.checks).toEqual(new Set(['2/2026-10-25']));

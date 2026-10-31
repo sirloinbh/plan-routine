@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, expect, test, vi } from 'vitest';
+import { expect, test, vi } from 'vitest';
 
 import { FourWeekDue } from './four-week-due';
 
@@ -10,6 +10,7 @@ function dueApi(seed: Seed[], options: { endsSoon?: boolean; remainingDays?: num
   let routines = seed;
   let periodStart = '2026-10-18';
   let failNextSave = false;
+  let endsSoon = options.endsSoon ?? true;
   const checks = new Set(seed.filter((r) => r.checked).map((r) => r.id));
   const writes: { method: string; path: string }[] = [];
   let failLoads = false;
@@ -28,7 +29,7 @@ function dueApi(seed: Seed[], options: { endsSoon?: boolean; remainingDays?: num
           nextDate: null,
           period: { start: periodStart, end: '2026-11-14' },
           remainingDays: options.remainingDays ?? 4,
-          endsSoon: options.endsSoon ?? true,
+          endsSoon,
           items: routines.map((r) => ({ id: r.id, name: r.name, checked: checks.has(r.id) })),
         });
       }
@@ -51,6 +52,7 @@ function dueApi(seed: Seed[], options: { endsSoon?: boolean; remainingDays?: num
     failNextSave: () => (failNextSave = true),
     archiveElsewhere: (id: string) => (routines = routines.filter((r) => r.id !== id)),
     setPeriodStart: (date: string) => (periodStart = date),
+    setEndsSoon: (value: boolean) => (endsSoon = value),
   };
 }
 
@@ -174,10 +176,6 @@ test('a box checked in one period is not kept in the next', async () => {
   expect(screen.queryByRole('checkbox', { name: '이불빨래' })).not.toBeInTheDocument();
 });
 
-afterEach(() => {
-  vi.useRealTimers();
-});
-
 test('a check after the period ended is not saved to it', async () => {
   vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] });
   vi.setSystemTime(new Date('2026-11-14T03:00:00Z'));
@@ -190,6 +188,22 @@ test('a check after the period ended is not saved to it', async () => {
   await flush();
   expect(api.writes).toEqual([]);
   expect(screen.getByRole('status')).toHaveTextContent('날짜가 바뀌어 새 기간을 불러왔습니다');
+});
+
+test('the refusal message does not stay once the new period has no card', async () => {
+  vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] });
+  vi.setSystemTime(new Date('2026-11-14T03:00:00Z'));
+  const api = dueApi(seed);
+  render(<FourWeekDue />);
+  const target = await screen.findByRole('checkbox', { name: '이불빨래' });
+
+  vi.setSystemTime(new Date('2026-11-15T03:00:00Z'));
+  api.setEndsSoon(false);
+  fireEvent.click(target);
+  await flush();
+  expect(api.writes).toEqual([]);
+  expect(screen.queryByRole('region')).not.toBeInTheDocument();
+  expect(screen.queryByRole('status')).not.toBeInTheDocument();
 });
 
 test('its heading is a level below the page title', async () => {

@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { afterEach, expect, test, vi } from 'vitest';
+import { expect, test, vi } from 'vitest';
 
 import { DailyChecklist } from './daily-checklist';
 
@@ -311,10 +311,6 @@ test('a failed first load offers a retry', async () => {
   expect(await box('6시 기상')).toBeInTheDocument();
 });
 
-afterEach(() => {
-  vi.useRealTimers();
-});
-
 // Noon in Seoul. Only the clock and the interval are faked; flush() still uses a real timer.
 const setClock = (date: string) => vi.setSystemTime(new Date(`${date}T03:00:00Z`));
 const fakeClock = (date: string) => {
@@ -382,6 +378,47 @@ test('focusing the window moves to the new day', async () => {
     await new Promise((resolve) => setTimeout(resolve));
   });
   expect(screen.getByRole('heading', { level: 2, name: '오늘 (2026-10-22)' })).toBeVisible();
+});
+
+const nextCheck = () =>
+  act(async () => {
+    vi.advanceTimersByTime(60_000);
+    await new Promise((resolve) => setTimeout(resolve));
+  });
+
+test('a failed reload after midnight is tried again at the next check', async () => {
+  fakeClock('2026-10-21');
+  const api = checklistApi(seed);
+  api.setToday('2026-10-21');
+  render(<DailyChecklist />);
+  await screen.findByRole('heading', { level: 2, name: '오늘 (2026-10-21)' });
+
+  setClock('2026-10-22');
+  api.setToday('2026-10-22');
+  api.failNextLoad();
+  await nextCheck();
+  expect(screen.getByRole('alert')).toHaveTextContent('서버 오류가 발생했습니다');
+  await nextCheck();
+  expect(screen.getByRole('heading', { level: 2, name: '오늘 (2026-10-22)' })).toBeVisible();
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+});
+
+test('after a failed reload a refused click still explains itself', async () => {
+  fakeClock('2026-10-21');
+  const api = checklistApi(seed);
+  api.setToday('2026-10-21');
+  render(<DailyChecklist />);
+  await box('6시 기상');
+
+  setClock('2026-10-22');
+  api.setToday('2026-10-22');
+  api.failNextLoad();
+  await nextCheck();
+  fireEvent.click(await box('6시 기상'));
+  await flush();
+  expect(api.writes).toEqual([]);
+  expect(screen.getByRole('heading', { level: 2, name: '오늘 (2026-10-22)' })).toBeVisible();
+  expect(screen.getByRole('status')).toHaveTextContent('날짜가 바뀌어 새 기간을 불러왔습니다');
 });
 
 test('a chosen past day can still be checked after midnight', async () => {
