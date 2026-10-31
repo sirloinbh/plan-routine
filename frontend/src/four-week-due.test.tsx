@@ -50,8 +50,6 @@ function dueApi(seed: Seed[], options: { endsSoon?: boolean; remainingDays?: num
     failLoads: (on = true) => (failLoads = on),
     failNextSave: () => (failNextSave = true),
     archiveElsewhere: (id: string) => (routines = routines.filter((r) => r.id !== id)),
-    checkElsewhere: (id: string) => checks.add(id),
-    uncheckElsewhere: (id: string) => checks.delete(id),
     setPeriodStart: (date: string) => (periodStart = date),
   };
 }
@@ -172,7 +170,7 @@ test('a box checked in one period is not kept in the next', async () => {
   await flush();
   api.setPeriodStart('2026-11-15');
   await showPageAgain();
-  // Checked elsewhere in the new period, so it no longer counts as checked here.
+  // The fake API keeps the check, so only the new period makes the card drop it.
   expect(screen.queryByRole('checkbox', { name: '이불빨래' })).not.toBeInTheDocument();
 });
 

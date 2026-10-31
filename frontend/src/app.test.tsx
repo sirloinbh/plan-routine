@@ -9,6 +9,8 @@ const emptyChecklist = {
   previousDate: '2026-10-25',
   nextDate: null,
   period: { start: '2026-10-26', end: '2026-10-26' },
+  remainingDays: 0,
+  endsSoon: false,
   items: [],
 };
 
