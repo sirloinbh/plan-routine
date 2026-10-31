@@ -11,7 +11,7 @@ const dailyCategories = [
   { key: 'reading', label: '독서' },
 ];
 
-export function groupByCategory(routines: Routine[]) {
+export function groupByCategory<T extends Routine>(routines: T[]) {
   return dailyCategories.map((category) => ({
     ...category,
     routines: routines

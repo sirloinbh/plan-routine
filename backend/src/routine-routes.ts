@@ -2,20 +2,14 @@ import { Router } from 'express';
 import type { Pool } from 'pg';
 import { z } from 'zod';
 
-import { cadences } from './periods.js';
-import { anchorSettingKey, routineInput, routineName } from './routines.js';
+import { anchorSettingKey, routineCadence, routineInput, routineName } from './routines.js';
 
-const routineColumns = 'id::text AS id, name, cadence, category, sort_order AS "sortOrder"';
-const notFound = { error: '루틴을 찾을 수 없습니다' };
+export const routineColumns = 'id::text AS id, name, cadence, category, sort_order AS "sortOrder"';
+export const notFound = { error: '루틴을 찾을 수 없습니다' };
 
-const listQuery = z.object({
-  cadence: z
-    .enum(cadences, {
-      errorMap: () => ({ message: '루틴 주기는 매일, 매주, 4주, 12주 중 하나여야 합니다' }),
-    })
-    .optional(),
-});
-const idParam = z.object({ id: z.string().regex(/^\d{1,18}$/, '루틴 번호가 올바르지 않습니다') });
+const listQuery = z.object({ cadence: routineCadence.optional() });
+export const routineId = z.string().regex(/^\d{1,18}$/, '루틴 번호가 올바르지 않습니다');
+const idParam = z.object({ id: routineId });
 const renameInput = z.object({ name: routineName });
 const moveInput = z.object({
   direction: z.enum(['up', 'down'], {

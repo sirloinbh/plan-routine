@@ -1,4 +1,4 @@
-import type { Pool } from 'pg';
+import type { Pool, PoolClient } from 'pg';
 import { z } from 'zod';
 
 import { cadences } from './periods.js';
@@ -23,6 +23,10 @@ export const routineCategoryLabels: Record<(typeof routineCategories)[number], s
   reading: '독서',
 };
 
+export const routineCadence = z.enum(cadences, {
+  errorMap: () => ({ message: '루틴 주기는 매일, 매주, 4주, 12주 중 하나여야 합니다' }),
+});
+
 export const routineName = z
   .string({
     required_error: '루틴 이름을 입력해 주세요',
@@ -36,9 +40,7 @@ export const routineName = z
 export const routineInput = z
   .object({
     name: routineName,
-    cadence: z.enum(cadences, {
-      errorMap: () => ({ message: '루틴 주기는 매일, 매주, 4주, 12주 중 하나여야 합니다' }),
-    }),
+    cadence: routineCadence,
     category: z
       .enum(routineCategories, {
         errorMap: () => ({ message: '하루 루틴 카테고리가 올바르지 않습니다' }),
@@ -65,8 +67,8 @@ export const anchorSettingKey = 'routine_anchor_date';
 // The first call stores today as the first-use date; later calls return the stored date.
 // The no-op DO UPDATE always returns the row, even when a concurrent first call wins the insert
 // (DO NOTHING plus a SELECT would miss that row under READ COMMITTED).
-export async function routineAnchorDate(pool: Pool, today: string) {
-  const { rows } = await pool.query<{ value: string }>(
+export async function routineAnchorDate(db: Pool | PoolClient, today: string) {
+  const { rows } = await db.query<{ value: string }>(
     `INSERT INTO app_settings (key, value) VALUES ($1, $2)
      ON CONFLICT (key) DO UPDATE SET value = app_settings.value
      RETURNING value`,

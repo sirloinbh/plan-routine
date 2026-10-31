@@ -46,6 +46,16 @@ test('each page has its own address and is marked in the main menu', async () =>
   expect(within(menu).getByRole('link', { name: '설정' })).toHaveAttribute('aria-current', 'page');
 });
 
+test('the main menu opens the daily checklist page', async () => {
+  health({ today: '2026-10-26' });
+  render(<App />);
+  const menu = screen.getByRole('navigation', { name: '주 메뉴' });
+  fireEvent.click(within(menu).getByRole('link', { name: '오늘 체크' }));
+  expect(window.location.pathname).toBe('/today');
+  expect(await screen.findByRole('heading', { level: 1, name: '오늘 체크' })).toBeInTheDocument();
+  window.history.replaceState(null, '', '/');
+});
+
 test('an unknown address falls back to the overview', async () => {
   health({ today: '2026-10-26' });
   window.history.replaceState(null, '', '/no-such-page');
