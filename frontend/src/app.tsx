@@ -1,11 +1,13 @@
-import { CalendarCheck, LayoutDashboard, ListChecks, Settings2 } from 'lucide-react';
+import { CalendarCheck, LayoutDashboard, ListChecks, NotebookPen, Settings2 } from 'lucide-react';
 import { type ReactNode, useEffect, useState } from 'react';
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
+import { BrowserRouter, Link, Navigate, Route, Routes } from 'react-router';
 
 import { AppShell, type NavItem } from './components/layout/app-shell';
+import { Button } from './components/ui/button';
 import { EmptyState } from './components/ui/empty-state';
 import { Toaster } from './components/ui/sonner';
 import { DailyChecklist } from './daily-checklist';
+import { Diary } from './diary';
 import { type Health, healthText } from './health';
 import { DailyRoutines } from './routines';
 
@@ -13,6 +15,7 @@ import { DailyRoutines } from './routines';
 const pages = {
   overview: '/',
   today: '/today',
+  diary: '/diary',
   routines: '/routines',
   settings: '/settings',
 } as const;
@@ -21,6 +24,7 @@ const pages = {
 const nav: NavItem[] = [
   { to: pages.overview, label: '대시보드', icon: LayoutDashboard },
   { to: pages.today, label: '오늘 체크', icon: CalendarCheck },
+  { to: pages.diary, label: '일기', icon: NotebookPen },
   { to: pages.routines, label: '하루 루틴', icon: ListChecks },
   { to: pages.settings, label: '설정', icon: Settings2 },
 ];
@@ -103,6 +107,21 @@ export function App() {
                 health={health}
               >
                 <DailyChecklist />
+                <Button asChild variant="outline" className="self-start">
+                  <Link to={pages.diary}>오늘 일기 쓰기</Link>
+                </Button>
+              </Page>
+            }
+          />
+          <Route
+            path={pages.diary}
+            element={
+              <Page
+                title="일기"
+                description="오늘 하루를 돌아보고 피드백을 남깁니다"
+                health={health}
+              >
+                <Diary />
               </Page>
             }
           />

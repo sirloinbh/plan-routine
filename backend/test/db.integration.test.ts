@@ -217,6 +217,140 @@ test(
     }),
 );
 
+const diaryMigration = new URL('../../database/migrations/003_diary.sql', import.meta.url);
+
+test(
+  'diary migration re-runs safely and its table enforces the limits',
+  { skip: !url, timeout: 30_000 },
+  () =>
+    withClient(async (client) => {
+      await client.query(readFileSync(diaryMigration, 'utf8'));
+      const rejects = async (values: string) => {
+        await client.query('BEGIN');
+        try {
+          await assert.rejects(
+            client.query(
+              `INSERT INTO diary_entries (entry_date, body, good_note) VALUES ${values}`,
+            ),
+            { code: '23514' },
+          );
+        } finally {
+          await client.query('ROLLBACK');
+        }
+      };
+      await rejects("('2001-02-03', '   ', NULL)");
+      await rejects("('2001-02-03', repeat('a', 5001), NULL)");
+      await rejects("('2001-02-03', 'a', repeat('a', 1001))");
+    }),
+);
+
+test(
+  'one diary entry per day: saving again updates it, also when saved at the same time',
+  { skip: !url, timeout: 30_000 },
+  () =>
+    withClient(async (client, pool) => {
+      const original = await client.query<{ value: string }>(
+        'SELECT value FROM app_settings WHERE key = $1',
+        [anchorSettingKey],
+      );
+      const created: string[] = [];
+      const dates = ['2026-10-22', '2026-10-21', '2001-02-03'];
+      try {
+        await withApi(
+          pool,
+          async (call) => {
+            const empty = await call('/api/diary?date=2026-10-22');
+            assert.equal(empty.status, 200);
+            assert.equal(empty.data.entry, null);
+
+            const path = '/api/diary/2026-10-22';
+            const first = await call(path, {
+              method: 'PUT',
+              body: { body: ' 첫 글 ', goodNote: '잘한 점', regretNote: '  ' },
+            });
+            assert.equal(first.status, 200);
+            assert.deepEqual(first.data.entry, {
+              date: '2026-10-22',
+              body: '첫 글',
+              goodNote: '잘한 점',
+              regretNote: null,
+              tomorrowNote: null,
+            });
+
+            const second = await call(path, { method: 'PUT', body: { body: '고친 글' } });
+            assert.equal(second.status, 200);
+            const reread = await call('/api/diary?date=2026-10-22');
+            assert.equal((reread.data.entry as { body: string }).body, '고친 글');
+            // Saving without a note clears the note it had.
+            assert.equal((reread.data.entry as { goodNote: unknown }).goodNote, null);
+
+            const both = await Promise.all(
+              ['동시 저장 1', '동시 저장 2'].map((text) =>
+                call(path, { method: 'PUT', body: { body: text } }),
+              ),
+            );
+            assert.deepEqual(
+              both.map((response) => response.status),
+              [200, 200],
+            );
+            const rows = await client.query('SELECT 1 FROM diary_entries WHERE entry_date = $1', [
+              '2026-10-22',
+            ]);
+            assert.equal(rows.rowCount, 1);
+
+            // Each day has its own entry, and past days have no time limit.
+            for (const date of ['2026-10-21', '2001-02-03']) {
+              const past = await call(`/api/diary/${date}`, {
+                method: 'PUT',
+                body: { body: date },
+              });
+              assert.equal(past.status, 200);
+            }
+            const yesterday = await call('/api/diary?date=2026-10-21');
+            assert.equal((yesterday.data.entry as { body: string }).body, '2026-10-21');
+
+            // The progress counts active daily routines and that day's checks only.
+            const baseline = (await call('/api/diary?date=2026-10-22')).data.progress as {
+              checked: number;
+              total: number;
+            };
+            for (const name of ['일기 진행률 1', '일기 진행률 2']) {
+              const { data } = await call('/api/routines', {
+                method: 'POST',
+                body: { name, cadence: 'daily', category: 'care' },
+              });
+              created.push((data.routine as { id: string }).id);
+            }
+            await call(`/api/routines/${created[0]}/checks/2026-10-22`, { method: 'PUT' });
+            await call(`/api/routines/${created[1]}/checks/2026-10-21`, { method: 'PUT' });
+            assert.deepEqual((await call('/api/diary?date=2026-10-22')).data.progress, {
+              checked: baseline.checked + 1,
+              total: baseline.total + 2,
+            });
+            await call(`/api/routines/${created[0]}/archive`, { method: 'POST' });
+            assert.deepEqual((await call('/api/diary?date=2026-10-22')).data.progress, {
+              checked: baseline.checked,
+              total: baseline.total + 1,
+            });
+          },
+          { today: () => '2026-10-22' },
+        );
+      } finally {
+        await client.query('DELETE FROM diary_entries WHERE entry_date = ANY($1)', [dates]);
+        await client.query('DELETE FROM routine_checks WHERE routine_id = ANY($1::bigint[])', [
+          created,
+        ]);
+        await client.query('DELETE FROM routines WHERE id = ANY($1::bigint[])', [created]);
+        await client.query('DELETE FROM app_settings WHERE key = $1', [anchorSettingKey]);
+        if (original.rows[0])
+          await client.query('INSERT INTO app_settings (key, value) VALUES ($1, $2)', [
+            anchorSettingKey,
+            original.rows[0].value,
+          ]);
+      }
+    }),
+);
+
 test(
   'daily routines are added, renamed, reordered and archived against the real DB',
   { skip: !url, timeout: 30_000 },
