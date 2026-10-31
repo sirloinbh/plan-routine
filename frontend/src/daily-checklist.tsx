@@ -29,13 +29,15 @@ export function DailyChecklist() {
   const { notice, error, clear } = useNotice();
   // Ignoring repeat clicks (instead of disabling the box) keeps keyboard focus on the box.
   const saving = useRef(new Set<string>());
-  const savesStarted = useRef(0);
+  // Counts every save's start and end, so a load overlapping either one can be recognised.
+  const saveEvents = useRef(0);
+  const loadErrorShown = useRef(false);
   const reloadAfterSaves = useRef(false);
 
   useEffect(() => {
     // A newer load supersedes this one, so a slow older response cannot overwrite it.
     let ignore = false;
-    const savesAtStart = savesStarted.current;
+    const eventsAtStart = saveEvents.current;
     requestJson<DailyChecklistData>(`/api/checklist?cadence=daily${date ? `&date=${date}` : ''}`)
       .then((loaded) => {
         if (ignore) return;
@@ -44,22 +46,26 @@ export function DailyChecklist() {
           reloadAfterSaves.current = true;
           return;
         }
-        if (savesStarted.current !== savesAtStart) {
+        if (saveEvents.current !== eventsAtStart) {
           setVersion((value) => value + 1);
           return;
         }
         setData(loaded);
         setLoadFailed(false);
+        // Only a load's own error: a failed save's message must survive the reload after it.
+        if (loadErrorShown.current) clear();
+        loadErrorShown.current = false;
       })
       .catch((cause: unknown) => {
         if (ignore) return;
         setLoadFailed(true);
+        loadErrorShown.current = true;
         error(cause);
       });
     return () => {
       ignore = true;
     };
-  }, [date, version, error]);
+  }, [date, version, error, clear]);
 
   // A page left open (an installed app, a phone tab) must not keep saving to yesterday.
   useEffect(() => {
@@ -85,7 +91,8 @@ export function DailyChecklist() {
     const saveKey = `${itemDate}/${item.id}`;
     if (saving.current.has(saveKey)) return;
     saving.current.add(saveKey);
-    savesStarted.current += 1;
+    saveEvents.current += 1;
+    loadErrorShown.current = false;
     clear();
     const checked = !item.checked;
     setChecked(itemDate, item.id, checked);
@@ -100,6 +107,7 @@ export function DailyChecklist() {
       setVersion((value) => value + 1);
     } finally {
       saving.current.delete(saveKey);
+      saveEvents.current += 1;
       if (saving.current.size === 0 && reloadAfterSaves.current) {
         reloadAfterSaves.current = false;
         setVersion((value) => value + 1);

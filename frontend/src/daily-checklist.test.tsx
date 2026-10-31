@@ -27,6 +27,8 @@ function checklistApi(seed: Seed[] = [], options: { failWrites?: string } = {}) 
   let failNextLoad = false;
   let heldWrite: (() => void) | null = null;
   let holdWrites = false;
+  let heldLoad: (() => void) | null = null;
+  let holdNextLoad = false;
   // A plain object rather than a Response: it resolves in microtasks only, so flush() is exact.
   const reply = (status: number, body: unknown) =>
     Promise.resolve({ ok: status < 400, status, json: () => Promise.resolve(body) });
@@ -41,13 +43,19 @@ function checklistApi(seed: Seed[] = [], options: { failWrites?: string } = {}) 
         }
         const date = new URL(url, 'http://localhost').searchParams.get('date') ?? serverToday;
         const index = editable.indexOf(date);
-        return reply(200, {
+        const response = reply(200, {
           date,
           today: serverToday,
           previousDate: editable[index - 1] ?? null,
           nextDate: editable[index + 1] ?? null,
           period: { start: date, end: date },
           items: routines.map((r) => ({ ...r, checked: checks.has(`${r.id}/${date}`) })),
+        });
+        if (!holdNextLoad) return response;
+        // The answer was read now but arrives only at releaseLoad(), as on a slow connection.
+        holdNextLoad = false;
+        return new Promise((resolve) => {
+          heldLoad = () => resolve(response);
         });
       }
       writes.push({ method, path: url });
@@ -73,6 +81,8 @@ function checklistApi(seed: Seed[] = [], options: { failWrites?: string } = {}) 
     setToday: (date: string) => (serverToday = date),
     failNextLoad: () => (failNextLoad = true),
     holdWrites: () => (holdWrites = true),
+    holdNextLoad: () => (holdNextLoad = true),
+    releaseLoad: () => heldLoad?.(),
     release: () => {
       holdWrites = false;
       heldWrite?.();
@@ -244,6 +254,40 @@ test('a load during a save does not undo the checked box, and the saved state is
   fireEvent.click(await box('6시 기상'));
   await flush();
   expect(api.writes.at(-1)?.method).toBe('DELETE');
+});
+
+test('a load read before the save committed is dropped even if it arrives after the save', async () => {
+  const api = checklistApi(seed);
+  render(<DailyChecklist />);
+  const target = await box('6시 기상');
+  api.holdWrites();
+  fireEvent.click(target);
+  api.holdNextLoad();
+  await showPageAgain();
+  api.release();
+  await flush();
+  api.releaseLoad();
+  await flush();
+  await flush();
+  expect(await box('6시 기상')).toBeChecked();
+  expect(screen.getByText('전체 1/3 완료')).toBeInTheDocument();
+});
+
+test('a load error goes away when a later load works, but a save error stays', async () => {
+  const api = checklistApi(seed, {});
+  render(<DailyChecklist />);
+  await box('6시 기상');
+  api.failNextLoad();
+  await showPageAgain();
+  expect(screen.getByRole('alert')).toHaveTextContent('서버 오류가 발생했습니다');
+  await showPageAgain();
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+
+  api.archiveElsewhere('2');
+  fireEvent.click(await box('물 한 잔'));
+  await flush();
+  await flush();
+  expect(screen.getByRole('alert')).toHaveTextContent('루틴을 찾을 수 없습니다');
 });
 
 test('a failed move can be retried with the same button', async () => {
