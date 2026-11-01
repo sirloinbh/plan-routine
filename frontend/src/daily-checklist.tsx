@@ -19,7 +19,8 @@ export function DailyChecklist() {
     moveTo(target);
   };
 
-  if (!data) return <ChecklistPending failed={loadFailed} notice={notice} onRetry={retry} />;
+  if (!data)
+    return <ChecklistPending failed={loadFailed} notice={notice} onRetry={retry} shape="cards" />;
 
   const groups = groupByCategory(data.items).filter((group) => group.routines.length > 0);
   const isToday = data.date === data.today;

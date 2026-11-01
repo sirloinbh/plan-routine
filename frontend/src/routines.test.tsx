@@ -480,7 +480,7 @@ function holdWrites() {
   return () => release();
 }
 
-test('only the add button that was pressed spins, and moving spins none', async () => {
+test('only the add button that was pressed spins', async () => {
   routineApi(twoRoutines);
   render(<DailyRoutines />);
   await screen.findByText('6시 기상');

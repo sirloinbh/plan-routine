@@ -27,10 +27,12 @@ export function ChecklistPending({
   failed,
   notice,
   onRetry,
+  shape = 'card',
 }: {
   failed: boolean;
   notice: NoticeValue | undefined;
   onRetry: () => void;
+  shape?: 'card' | 'cards';
 }) {
   return failed ? (
     <div className="flex flex-col items-start gap-3">
@@ -40,7 +42,7 @@ export function ChecklistPending({
       </Button>
     </div>
   ) : (
-    <LoadingRegion label="체크리스트 불러오는 중" shape="card" />
+    <LoadingRegion label="체크리스트 불러오는 중" shape={shape} />
   );
 }
 
