@@ -29,7 +29,7 @@
 
 ## 검증
 
-- 로컬: `env -u TEST_DATABASE_URL npm run check` 통과. 백엔드 92개 중 77 pass / 0 fail / 15 skip(DB 테스트), 프론트엔드 237개 중 235 pass / 0 fail / 2 skip(다크 모드 전용 공통 테스트), `test:skills` 4개 pass. 셸의 `TEST_DATABASE_URL`은 다른 프로젝트의 DB를 가리켜 DB 테스트는 로컬에서 돌리지 않았다.
+- 로컬: `env -u TEST_DATABASE_URL npm run check` 통과. 백엔드 99개 중 84 pass / 0 fail / 15 skip(DB 테스트), 프론트엔드 237개 중 235 pass / 0 fail / 2 skip(다크 모드 전용 공통 테스트), `test:skills` 4개 pass. 셸의 `TEST_DATABASE_URL`은 다른 프로젝트의 DB를 가리켜 DB 테스트는 로컬에서 돌리지 않았다.
 
 - CI: 실제 DB를 포함한 `ci / verify`와 `ci / docker-build`가 통과했다. 이 PR은 DB 쿼리를 바꾸지 않았다.
 
@@ -45,3 +45,7 @@
 
 - 1차: 동작 코드에는 결함이 없었다. 입력 1,882건을 보낸 시험에서도 영어 메시지는 없었다. 낮음 4건을 반영했다(이전 동작 설명, `npm run check` 실행, 500 유지 테스트의 범위, 테스트 제목). 오류 응답 크기는 [#70](https://github.com/sirloinbh/plan-routine/issues/70)으로 분리했다.
 - 2차: 동작 코드에는 결함이 없었다. 1차 보완의 반영을 확인했다. 테스트 제목 낮음 1건을 반영했다. 리뷰는 2회로 마친다.
+
+## main 병합
+
+#68(zod 4 문법 전환)이 먼저 병합되어 `diary-routes.ts`, `goal-routes.ts`, `routine-routes.ts`, `routines.ts`가 충돌했다. main의 코드를 기준으로 이 PR의 변경을 다시 얹었다. `badRequest`는 zod 4의 `error` 옵션을 쓴다. 병합 뒤 `npm run check`를 다시 통과했다.

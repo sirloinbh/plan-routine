@@ -3,7 +3,7 @@
 const badRequestMessage = '요청 형식이 올바르지 않습니다';
 
 /** For z.object: a body that is an array rather than an object. */
-export const badRequest = { invalid_type_error: badRequestMessage };
+export const badRequest = { error: badRequestMessage };
 
 // PostgreSQL text cannot hold a NUL character; without this check it would answer a 500.
 export const noNul = (value: string) => !value.includes('\0');

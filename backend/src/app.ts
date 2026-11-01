@@ -1,7 +1,7 @@
 import express from 'express';
 import type { Pool } from 'pg';
 import { types } from 'pg';
-import { z, ZodError } from 'zod';
+import { z, ZodError } from 'zod/v4';
 
 import { checkRoutes } from './check-routes.js';
 import { diaryRoutes } from './diary-routes.js';

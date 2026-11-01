@@ -1,5 +1,5 @@
 import type { Pool, PoolClient } from 'pg';
-import { z } from 'zod';
+import { z } from 'zod/v4';
 
 import { cadences } from './periods.js';
 import { badRequest, noNul, nulMessage } from './request-input.js';
@@ -25,17 +25,18 @@ export const routineCategoryLabels: Record<(typeof routineCategories)[number], s
 };
 
 export const routineCadence = z.enum(cadences, {
-  errorMap: () => ({ message: '루틴 주기는 매일, 매주, 4주, 12주 중 하나여야 합니다' }),
+  error: '루틴 주기는 매일, 매주, 4주, 12주 중 하나여야 합니다',
 });
 
+// Not .min()/.max(): those also run on a non-string with a length and add a second message.
 export const routineName = z
   .string({
-    required_error: '루틴 이름을 입력해 주세요',
-    invalid_type_error: '루틴 이름은 글자여야 합니다',
+    error: (issue) =>
+      issue.input === undefined ? '루틴 이름을 입력해 주세요' : '루틴 이름은 글자여야 합니다',
   })
   .trim()
-  .min(1, '루틴 이름을 입력해 주세요')
-  .max(100, '루틴 이름은 100자 이하로 입력해 주세요')
+  .refine((value) => value.length >= 1, '루틴 이름을 입력해 주세요')
+  .refine((value) => value.length <= 100, '루틴 이름은 100자 이하로 입력해 주세요')
   .refine(noNul, nulMessage);
 
 // Mirrors the routines table checks so bad input fails with a Korean message before the DB.
@@ -45,9 +46,7 @@ export const routineInput = z
       name: routineName,
       cadence: routineCadence,
       category: z
-        .enum(routineCategories, {
-          errorMap: () => ({ message: '하루 루틴 카테고리가 올바르지 않습니다' }),
-        })
+        .enum(routineCategories, { error: '하루 루틴 카테고리가 올바르지 않습니다' })
         .nullish(),
     },
     badRequest,

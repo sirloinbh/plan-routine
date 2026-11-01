@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { Pool } from 'pg';
-import { z } from 'zod';
+import { z } from 'zod/v4';
 
 import { badRequest, requestBody } from './request-input.js';
 import { anchorSettingKey, routineCadence, routineInput, routineName } from './routines.js';
@@ -13,11 +13,7 @@ export const routineId = z.string().regex(/^\d{1,18}$/, '루틴 번호가 올바
 const idParam = z.object({ id: routineId });
 const renameInput = z.object({ name: routineName }, badRequest);
 const moveInput = z.object(
-  {
-    direction: z.enum(['up', 'down'], {
-      errorMap: () => ({ message: '이동 방향은 위 또는 아래여야 합니다' }),
-    }),
-  },
+  { direction: z.enum(['up', 'down'], { error: '이동 방향은 위 또는 아래여야 합니다' }) },
   badRequest,
 );
 

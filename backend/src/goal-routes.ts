@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { Pool, PoolClient } from 'pg';
-import { z } from 'zod';
+import { z } from 'zod/v4';
 
 import { daysBetween, periodFor } from './periods.js';
 import { badRequest, noNul, nulMessage, requestBody } from './request-input.js';
@@ -12,24 +12,26 @@ const notFound = { error: '목표를 찾을 수 없습니다' };
 const pastGoal = { error: '지난 기간의 목표는 고칠 수 없습니다' };
 
 const goalIdMessage = '목표 번호가 올바르지 않습니다';
-const goalId = z
-  .string({ required_error: goalIdMessage, invalid_type_error: goalIdMessage })
-  .regex(/^\d{1,18}$/, goalIdMessage);
+const goalId = z.string({ error: goalIdMessage }).regex(/^\d{1,18}$/, goalIdMessage);
 const idParam = z.object({ id: goalId });
+// Not .min()/.max(): those also run on a non-string with a length and add a second message.
 const goalInput = z.object(
   {
     title: z
       .string({
-        required_error: '목표를 입력해 주세요',
-        invalid_type_error: '목표는 글자여야 합니다',
+        error: (issue) =>
+          issue.input === undefined ? '목표를 입력해 주세요' : '목표는 글자여야 합니다',
       })
       .trim()
-      .min(1, '목표를 입력해 주세요')
-      .max(200, '목표는 200자 이하로 입력해 주세요')
+      .refine((value) => value.length >= 1, '목표를 입력해 주세요')
+      .refine((value) => value.length <= 200, '목표는 200자 이하로 입력해 주세요')
       .refine(noNul, nulMessage),
   },
   badRequest,
 );
+// Far above any real period. Keep .max() first: zod 4.6.7 uses only leading length checks to refuse
+// an oversized array before reading its elements (GHSA-mrhx-c7xc-m3w5).
+const maxReviews = 1000;
 const reviewsInput = z.object(
   {
     reviews: z
@@ -37,26 +39,22 @@ const reviewsInput = z.object(
         z.object(
           {
             id: goalId,
-            achieved: z
-              .boolean({
-                required_error: '달성 여부가 올바르지 않습니다',
-                invalid_type_error: '달성 여부가 올바르지 않습니다',
-              })
-              .nullable(),
+            achieved: z.boolean({ error: '달성 여부가 올바르지 않습니다' }).nullable(),
             // A blank note is the same as no note.
             note: z
-              .string({ invalid_type_error: '메모는 글자여야 합니다' })
+              .string({ error: '메모는 글자여야 합니다' })
               .trim()
-              .max(1000, '메모는 1000자 이하로 입력해 주세요')
+              .refine((value) => value.length <= 1000, '메모는 1000자 이하로 입력해 주세요')
               .refine(noNul, nulMessage)
               .nullish()
               .transform((value) => value || null),
           },
-          { invalid_type_error: '회고 내용이 올바르지 않습니다' },
+          { error: '회고 내용이 올바르지 않습니다' },
         ),
-        { required_error: '회고할 목표가 없습니다', invalid_type_error: '회고할 목표가 없습니다' },
+        { error: '회고할 목표가 없습니다' },
       )
-      .min(1, '회고할 목표가 없습니다')
+      .max(maxReviews, `한 번에 회고할 수 있는 목표는 ${maxReviews}개까지입니다`)
+      .refine((reviews) => reviews.length >= 1, '회고할 목표가 없습니다')
       .refine(
         (reviews) => new Set(reviews.map((review) => review.id)).size === reviews.length,
         '같은 목표를 두 번 회고할 수 없습니다',
