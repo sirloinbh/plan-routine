@@ -10,6 +10,7 @@ import { calendarDate, periodsFor } from './periods.js';
 import { recordRoutes } from './record-routes.js';
 import { routineRoutes } from './routine-routes.js';
 import { routineAnchorDate } from './routines.js';
+import { statsRoutes } from './stats-routes.js';
 
 // DATE columns stay YYYY-MM-DD strings so the service time zone never shifts them.
 types.setTypeParser(1082, (value) => value);
@@ -48,6 +49,7 @@ export function createApp(pool: Pool, options: { today?: () => string } = {}) {
   app.use('/api/diary', diaryRoutes(pool, today));
   app.use('/api/goals', goalRoutes(pool, today));
   app.use('/api/records', recordRoutes(pool, today));
+  app.use('/api/stats', statsRoutes(pool, today));
   app.use('/api/routines', routineRoutes(pool, today));
   app.use('/api', (_req, res) => {
     res.status(404).json({ error: '요청한 API를 찾을 수 없습니다' });

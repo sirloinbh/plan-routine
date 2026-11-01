@@ -35,6 +35,13 @@ export function addDays(date: string, days: number) {
   return fromDayNumber(toDayNumber(date) + days);
 }
 
+/** A YYYY-MM month moved by whole months. */
+export function shiftMonth(month: string, months: number) {
+  const [year, number] = month.split('-').map(Number);
+  const index = year * 12 + number - 1 + months;
+  return `${String(Math.floor(index / 12)).padStart(4, '0')}-${String((index % 12) + 1).padStart(2, '0')}`;
+}
+
 export function daysBetween(from: string, to: string) {
   return toDayNumber(to) - toDayNumber(from);
 }

@@ -2,6 +2,7 @@ import {
   CalendarCheck,
   CalendarDays,
   CalendarRange,
+  ChartNoAxesColumn,
   History,
   LayoutDashboard,
   ListChecks,
@@ -23,6 +24,7 @@ import { type Health, healthText } from './health';
 import { FourWeekRoutines, WeeklyRoutines } from './period-routines';
 import { Records } from './records';
 import { DailyRoutines } from './routines';
+import { Stats } from './stats';
 import { TwelveWeek } from './twelve-week';
 
 // Every page URL lives here (central docs/directory-rules.md).
@@ -35,6 +37,7 @@ const pages = {
   fourWeek: '/four-week',
   twelveWeek: '/twelve-week',
   records: '/records',
+  stats: '/stats',
   settings: '/settings',
 } as const;
 
@@ -48,6 +51,7 @@ const nav: NavItem[] = [
   { to: pages.fourWeek, label: '4주 루틴', icon: CalendarDays },
   { to: pages.twelveWeek, label: '12주 루틴', icon: Target },
   { to: pages.records, label: '기록', icon: History },
+  { to: pages.stats, label: '달성률', icon: ChartNoAxesColumn },
   { to: pages.settings, label: '설정', icon: Settings2 },
 ];
 
@@ -205,6 +209,18 @@ export function App() {
                 health={health}
               >
                 <Records />
+              </Page>
+            }
+          />
+          <Route
+            path={pages.stats}
+            element={
+              <Page
+                title="달성률"
+                description="루틴을 얼마나 꾸준히 지켰는지 기간별로 봅니다"
+                health={health}
+              >
+                <Stats />
               </Page>
             }
           />
