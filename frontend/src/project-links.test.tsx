@@ -163,3 +163,25 @@ test('a checklist never renders an address that is not http or https', () => {
   expect(screen.queryByRole('link')).not.toBeInTheDocument();
   expect(within(screen.getByRole('region')).getByText('30분 읽기')).toBeInTheDocument();
 });
+
+test('a list that fails to load does not claim there are none, and can be retried', async () => {
+  api([books]);
+  const working = vi.mocked(fetch).getMockImplementation()!;
+  let fail = true;
+  vi.stubGlobal(
+    'fetch',
+    vi.fn((path: string, init?: RequestInit) => {
+      if (!fail) return working(path, init);
+      fail = false;
+      return reply(500, { error: '서버 오류가 발생했습니다' });
+    }),
+  );
+  render(<ProjectLinks />);
+  await flush();
+  expect(screen.getByRole('alert')).toHaveTextContent('서버 오류가 발생했습니다');
+  expect(screen.queryByText('아직 등록한 프로젝트가 없습니다')).not.toBeInTheDocument();
+  fireEvent.click(button('프로젝트 다시 불러오기'));
+  await flush();
+  expect(screen.getByText('독서 기록')).toBeInTheDocument();
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+});

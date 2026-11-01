@@ -21,6 +21,10 @@ test.describe('allowed addresses', () => {
     'http://books.tailnet.ts.net/',
     'http://[::1]:3000/',
     'http://[fd00::1]/',
+    'http://[fc12:3456::1]/',
+    'http://0x7f.1/',
+    'http://0177.0.0.1/',
+    'http://2130706433/',
   ])
     test(url, () => assert.notEqual(allowedUrl(url), null));
 });
@@ -40,6 +44,18 @@ test.describe('refused addresses', () => {
     'http://localhost.example.com/',
     'http://example.local.com/',
     'https://user:secret@example.com/',
+    'http://10.0.0.1e1/',
+    'http://10.0.0.0b1/',
+    'http://127.0.0.-1/',
+    'http://[fc::1]/',
+    'http://[fd::1]/',
+    'http://[::ffff:8.8.8.8]/',
+    'http://localhost./',
+    'http://8.8.8.8./',
+    'java\tscript:alert(1)',
+    '\u0001javascript:alert(1)',
+    'http://evil.example\\@localhost/',
+    'http://evil.example%2f.local/',
     'example.com',
     '/books',
     '',
@@ -106,6 +122,13 @@ test('bad projects are refused in Korean before the database', async () => {
     });
     assert.equal(tooLong.status, 400);
     assert.match(String(tooLong.data.error), /2048자/);
+    // Short as typed, far longer once percent-encoded for storage.
+    const encoded = await call('/api/project-links', {
+      method: 'POST',
+      body: { name: '가계부', url: `https://a.example/${'가'.repeat(1000)}` },
+    });
+    assert.equal(encoded.status, 400);
+    assert.match(String(encoded.data.error), /2048자/);
   });
   assert.equal(queries.length, 0);
 });

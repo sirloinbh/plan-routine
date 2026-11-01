@@ -64,7 +64,8 @@ export function useRoutineList(cadence: string) {
     };
   }, [cadence, version, refreshes]);
 
-  // Only offers a choice, so without it a routine simply has nothing to link to.
+  // Only offers a choice, so without it a routine simply has nothing to link to. Loaded along with
+  // the routines, since another tab may have changed the projects.
   useEffect(() => {
     let ignore = false;
     requestJson<{ projects?: ProjectLink[] }>('/api/project-links')
@@ -75,7 +76,7 @@ export function useRoutineList(cadence: string) {
     return () => {
       ignore = true;
     };
-  }, []);
+  }, [version, refreshes]);
 
   const refresh = useCallback(() => setRefreshes((value) => value + 1), []);
 
@@ -197,6 +198,8 @@ export function useRoutineList(cadence: string) {
         ? `'${routine.name}' 루틴에 프로젝트를 연결했습니다`
         : `'${routine.name}' 루틴의 연결을 해제했습니다`,
     );
+    // Disabled while saving, which drops focus.
+    requestFocus([`link-${routine.id}`, focusKeys.edit(routine.id)]);
   };
 
   return {

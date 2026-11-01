@@ -367,7 +367,8 @@ test('a reload from elsewhere does not move focus', async () => {
   const loads = vi.mocked(fetch).mock.calls.length;
   document.dispatchEvent(new Event('visibilitychange'));
   await act(() => new Promise((resolve) => setTimeout(resolve)));
-  expect(vi.mocked(fetch).mock.calls.length).toBe(loads + 1);
+  // The routines and the projects a routine can link to.
+  expect(vi.mocked(fetch).mock.calls.length).toBe(loads + 2);
   expect(add).toHaveFocus();
 });
 
@@ -386,34 +387,73 @@ test('on a touch screen no field takes focus, so no keyboard pops up unasked', a
   expect(screen.getByRole('textbox', { name: '기상 새 루틴 이름' })).not.toHaveFocus();
 });
 
-test('a routine can be linked to a registered project, or the choice stays hidden', async () => {
-  const writes = routineApi([{ id: '1', name: '30분 읽기', category: 'reading' }]);
+// Projects and project links on top of a routine fake; a save follows failLink.
+function linkApi(seed: Seed[], options: { failLink?: boolean } = {}) {
+  routineApi(seed);
   const working = vi.mocked(fetch).getMockImplementation()!;
+  const linkWrites: unknown[] = [];
   vi.stubGlobal(
     'fetch',
-    vi.fn((url: string, init?: RequestInit) =>
-      url === '/api/project-links'
-        ? Promise.resolve(
-            new Response(
-              JSON.stringify({
-                projects: [{ id: '7', name: '독서 기록', url: 'https://books.example/' }],
-              }),
-            ),
-          )
-        : url.endsWith('/project-link')
-          ? Promise.resolve(new Response(JSON.stringify({ routine: {} })))
-          : working(url, init),
-    ),
+    vi.fn((url: string, init?: RequestInit) => {
+      if (url === '/api/project-links')
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              projects: [{ id: '7', name: '독서 기록', url: 'https://books.example/' }],
+            }),
+          ),
+        );
+      if (url.endsWith('/project-link')) {
+        linkWrites.push({ url, body: JSON.parse(String(init?.body)) });
+        return Promise.resolve(
+          options.failLink
+            ? new Response(JSON.stringify({ error: '루틴이나 프로젝트를 찾을 수 없습니다' }), {
+                status: 404,
+              })
+            : new Response(JSON.stringify({ routine: {} })),
+        );
+      }
+      return working(url, init);
+    }),
   );
+  return linkWrites;
+}
+
+const linkSelect = () => screen.findByRole('combobox', { name: '30분 읽기 연결할 프로젝트' });
+
+test('a routine can be linked to a registered project, and focus stays on the choice', async () => {
+  const writes = linkApi([{ id: '1', name: '30분 읽기', category: 'reading' }]);
   render(<DailyRoutines />);
-  const select = await screen.findByRole('combobox', { name: '30분 읽기 연결할 프로젝트' });
+  const select = await linkSelect();
   expect(select).toHaveValue('');
+  select.focus();
   fireEvent.change(select, { target: { value: '7' } });
   await screen.findByText("'30분 읽기' 루틴에 프로젝트를 연결했습니다");
-  const sent = vi.mocked(fetch).mock.calls.find(([url]) => String(url).endsWith('/project-link'));
-  expect(sent?.[0]).toBe('/api/routines/1/project-link');
-  expect(JSON.parse(String(sent?.[1]?.body))).toEqual({ projectLinkId: '7' });
-  expect(writes).toBeDefined();
+  expect(writes).toEqual([{ url: '/api/routines/1/project-link', body: { projectLinkId: '7' } }]);
+  await waitFor(async () => expect(await linkSelect()).toHaveFocus());
+});
+
+test('a routine already linked shows its project, and unlinking sends null', async () => {
+  const writes = linkApi([
+    { id: '1', name: '30분 읽기', category: 'reading', projectLinkId: '7' } as Seed,
+  ]);
+  render(<DailyRoutines />);
+  const select = await linkSelect();
+  await waitFor(() => expect(select).toHaveValue('7'));
+  fireEvent.change(select, { target: { value: '' } });
+  await screen.findByText("'30분 읽기' 루틴의 연결을 해제했습니다");
+  expect(writes).toEqual([{ url: '/api/routines/1/project-link', body: { projectLinkId: null } }]);
+});
+
+test('a link that fails shows the Korean error and leaves the choice as it was', async () => {
+  linkApi([{ id: '1', name: '30분 읽기', category: 'reading' }], { failLink: true });
+  render(<DailyRoutines />);
+  const select = await linkSelect();
+  fireEvent.change(select, { target: { value: '7' } });
+  expect(await screen.findByRole('alert')).toHaveTextContent(
+    '루틴이나 프로젝트를 찾을 수 없습니다',
+  );
+  expect(await linkSelect()).toHaveValue('');
 });
 
 test('with no projects registered a routine offers no link', async () => {

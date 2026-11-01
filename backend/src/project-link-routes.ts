@@ -9,9 +9,9 @@ const columns = 'id::text AS id, name, url';
 const urlMessage = '주소는 https:// 또는 사설 접속 주소만 쓸 수 있습니다';
 
 function isPrivateIpv4(host: string) {
-  const parts = host.split('.').map(Number);
-  if (parts.length !== 4 || parts.some((part) => !Number.isInteger(part))) return false;
-  const [a, b] = parts;
+  // Number() alone would also read names like 10.0.0.1e1, which are not addresses at all.
+  if (!/^\d{1,3}(\.\d{1,3}){3}$/.test(host)) return false;
+  const [a, b] = host.split('.').map(Number);
   return (
     a === 127 ||
     a === 10 ||
@@ -28,7 +28,7 @@ function isPrivateHost(hostname: string) {
   const host = hostname.toLowerCase();
   if (host === 'localhost' || privateNames.some((suffix) => host.endsWith(suffix))) return true;
   // URL keeps the brackets on an IPv6 address.
-  if (host.startsWith('[')) return host === '[::1]' || /^\[f[cd]/.test(host);
+  if (host.startsWith('[')) return host === '[::1]' || /^\[f[cd][0-9a-f]{2}:/.test(host);
   return isPrivateIpv4(host);
 }
 
@@ -65,8 +65,12 @@ const projectInput = z.object(
       })
       .trim()
       .refine((value) => value.length >= 1, '주소를 입력해 주세요')
-      .refine((value) => value.length <= 2048, '주소는 2048자 이하로 입력해 주세요')
       .refine((value) => value.length === 0 || allowedUrl(value) !== null, urlMessage)
+      // Measured as stored: normalising percent-encodes Korean text and can make it far longer.
+      .refine(
+        (value) => (allowedUrl(value) ?? value).length <= 2048,
+        '주소는 2048자 이하로 입력해 주세요',
+      )
       .transform((value) => allowedUrl(value) ?? value),
   },
   badRequest,

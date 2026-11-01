@@ -81,7 +81,7 @@ export function Checklist({
                 {item.name}
               </Label>
               {safeLink(item.linkUrl) && (
-                <Button asChild variant="ghost" size="sm">
+                <Button asChild variant="ghost" size="icon">
                   <a
                     href={safeLink(item.linkUrl) ?? undefined}
                     target="_blank"

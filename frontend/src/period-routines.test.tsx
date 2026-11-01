@@ -29,6 +29,7 @@ function weeklyApi(seed: Seed[] = []) {
   vi.stubGlobal(
     'fetch',
     vi.fn((url: string, init?: RequestInit) => {
+      if (url === '/api/project-links') return reply(200, { projects: [] });
       const method = init?.method ?? 'GET';
       const path = url.split('?')[0];
       const serverError = () => reply(500, { error: '서버 오류가 발생했습니다' });

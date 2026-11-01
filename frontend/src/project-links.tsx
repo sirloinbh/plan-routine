@@ -23,6 +23,7 @@ export function ProjectLinks() {
   const [url, setUrl] = useState('');
   const [confirming, setConfirming] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
   const { notice, status, error, clear } = useNotice();
   const { beginChange, requestFocus } = useFocusRequest(() => !busy);
 
@@ -31,11 +32,13 @@ export function ProjectLinks() {
     let ignore = false;
     requestJson<{ projects: ProjectLink[] }>('/api/project-links')
       .then((data) => {
-        if (!ignore) setProjects(data.projects);
+        if (ignore) return;
+        setProjects(data.projects);
+        setLoadFailed(false);
       })
       .catch((cause: unknown) => {
         if (ignore) return;
-        setProjects((current) => current ?? []);
+        setLoadFailed(true);
         error(cause);
       });
     return () => {
@@ -100,10 +103,27 @@ export function ProjectLinks() {
           있습니다.
         </p>
         <Notice notice={notice} className="wrap-anywhere" />
+        {loadFailed && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="self-start"
+            onClick={() => {
+              clear();
+              setLoadFailed(false);
+              reload();
+            }}
+          >
+            프로젝트 다시 불러오기
+          </Button>
+        )}
         {projects === null ? (
-          <p role="status" className="text-body-sm text-muted-foreground">
-            프로젝트를 불러오는 중…
-          </p>
+          !loadFailed && (
+            <p role="status" className="text-body-sm text-muted-foreground">
+              프로젝트를 불러오는 중…
+            </p>
+          )
         ) : projects.length === 0 ? (
           <p className="text-body-sm text-muted-foreground">아직 등록한 프로젝트가 없습니다</p>
         ) : (
