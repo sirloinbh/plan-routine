@@ -47,7 +47,7 @@ export function checkRoutes(pool: Pool, today: () => string) {
        ) AS checked
        FROM routines
        WHERE archived_at IS NULL AND cadence = $1
-       ORDER BY category, sort_order, id`,
+       ORDER BY category, sort_order, routines.id`,
       [cadence, period.start],
     );
     // From today, not from the requested date; a period already over has none left.
