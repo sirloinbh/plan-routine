@@ -118,13 +118,15 @@ test('each routine shows its rate and history, oldest first, with every state in
   statsApi();
   render(<Stats />);
   await flush();
-  const history = within(screen.getByRole('list', { name: '6시 기상 최근 이력' }));
-  expect(history.getAllByRole('listitem').map((cell) => cell.getAttribute('aria-label'))).toEqual([
-    '2026-10-19 대상 아님',
-    '2026-10-20 완료',
-    '2026-10-21 미완료',
-    '2026-10-22 진행 중',
+  // In words, in the list that opens under the row, rather than only in a hover title.
+  const history = within(screen.getByRole('list', { name: '6시 기상 최근 이력', hidden: true }));
+  expect(history.getAllByRole('listitem', { hidden: true }).map((row) => row.textContent)).toEqual([
+    '2026-10-19대상 아님',
+    '2026-10-20완료',
+    '2026-10-21미완료',
+    '2026-10-22진행 중',
   ]);
+  expect(screen.getByText('6시 기상 기간별로 보기').tagName).toBe('SUMMARY');
   const card = within(screen.getByRole('region', { name: '기상 이력' }));
   expect(card.getByText('6시 기상')).toBeInTheDocument();
   expect(card.getByText(/^50%/)).toHaveTextContent('1/2');
@@ -154,6 +156,27 @@ test('the bar length matches the rate', async () => {
     (bar) => bar.style.width,
   );
   expect(widths).toEqual(expect.arrayContaining(['67%', '100%', '0%', '25%']));
+});
+
+test('rounding never claims all or nothing while neither is true', async () => {
+  statsApi({
+    ...full,
+    weekly: [
+      tally('2026-10-18', '2026-10-24', 216, 217),
+      tally('2026-10-11', '2026-10-17', 1, 217),
+      tally('2026-10-04', '2026-10-10', 217, 217),
+      tally('2026-09-27', '2026-10-03', 0, 217),
+    ],
+  });
+  render(<Stats />);
+  await flush();
+  const rows = within(rates('주간 루틴'))
+    .getAllByRole('listitem')
+    .map((row) => row.textContent);
+  expect(rows[0]).toContain('99%');
+  expect(rows[1]).toContain('1%');
+  expect(rows[2]).toContain('100%');
+  expect(rows[3]).toContain('0%');
 });
 
 test('this page only reads', async () => {

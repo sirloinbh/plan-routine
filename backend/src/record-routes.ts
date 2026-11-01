@@ -4,7 +4,7 @@ import { z } from 'zod';
 
 import { dailyRoutineOn } from './day-records.js';
 import { entryColumns } from './diary-routes.js';
-import { addDays, calendarDate } from './periods.js';
+import { addDays, calendarDate, shiftMonth } from './periods.js';
 
 // Same floor as the diary: PostgreSQL has no year 0000.
 const earliestDate = '2000-01-01';
@@ -16,12 +16,6 @@ const monthQuery = z.object({
     .optional(),
 });
 const dateParam = z.object({ date: calendarDate });
-
-function shiftMonth(month: string, months: number) {
-  const [year, number] = month.split('-').map(Number);
-  const index = year * 12 + number - 1 + months;
-  return `${String(Math.floor(index / 12)).padStart(4, '0')}-${String((index % 12) + 1).padStart(2, '0')}`;
-}
 
 export function recordRoutes(pool: Pool, today: () => string) {
   const router = Router();

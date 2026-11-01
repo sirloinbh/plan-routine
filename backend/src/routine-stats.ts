@@ -1,4 +1,4 @@
-import { addDays, type Cadence, type Period, periodFor, weekStart } from './periods.js';
+import { addDays, type Cadence, type Period, periodFor, shiftMonth, weekStart } from './periods.js';
 
 export type StatsRoutine = {
   id: string;
@@ -59,12 +59,6 @@ export function periodStatus(
 function addStatus(tally: Tally, status: PeriodStatus) {
   if (status === 'done') tally.checked += 1;
   if (status === 'done' || status === 'missed') tally.total += 1;
-}
-
-function shiftMonth(month: string, months: number) {
-  const [year, number] = month.split('-').map(Number);
-  const index = year * 12 + number - 1 + months;
-  return `${String(Math.floor(index / 12)).padStart(4, '0')}-${String((index % 12) + 1).padStart(2, '0')}`;
 }
 
 // Newest first, the period holding today included.

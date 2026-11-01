@@ -16,7 +16,7 @@ export function statsRoutes(pool: Pool, today: () => string) {
          (created_at AT TIME ZONE 'Asia/Seoul')::date AS "createdOn",
          (archived_at AT TIME ZONE 'Asia/Seoul')::date AS "archivedOn"
        FROM routines
-       ORDER BY cadence, category, sort_order, id`,
+       ORDER BY cadence, category, sort_order, routines.id`,
     );
     const checks = await pool.query<StatsCheck>(
       `SELECT routine_id::text AS "routineId", period_start AS "periodStart"

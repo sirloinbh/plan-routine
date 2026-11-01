@@ -930,12 +930,6 @@ test(
         'SELECT value FROM app_settings WHERE key = $1',
         [anchorSettingKey],
       );
-      await client.query('DELETE FROM app_settings WHERE key = $1', [anchorSettingKey]);
-      await client.query('INSERT INTO app_settings (key, value) VALUES ($1, $2)', [
-        anchorSettingKey,
-        '2030-01-06',
-      ]);
-      // Far in the future, so nothing else in the test DB falls in these periods.
       const created: string[] = [];
       const add = async (
         name: string,
@@ -952,35 +946,43 @@ test(
         created.push(rows[0].id);
         return rows[0].id;
       };
-      // 15:30 UTC on 01-13 is 00:30 on 01-14 in Seoul.
-      const daily = await add('통계 하루', 'daily', 'care', '2030-01-13T15:30:00Z');
-      // 15:30 UTC on 01-15 is 00:30 on 01-16 in Seoul.
-      const archived = await add(
-        '통계 보관',
-        'daily',
-        'care',
-        '2030-01-13T15:30:00Z',
-        '2030-01-15T15:30:00Z',
-      );
-      const weekly = await add('통계 주간', 'weekly', null, '2030-01-06T00:00:00Z');
-      const fourWeek = await add('통계 4주', 'four_week', null, '2030-01-06T00:00:00Z');
-      for (const [id, start] of [
-        [daily, '2030-01-14'],
-        [archived, '2030-01-15'],
-        [weekly, '2030-01-06'],
-        [fourWeek, '2030-01-06'],
-      ])
-        await client.query(
-          'INSERT INTO routine_checks (routine_id, period_start) VALUES ($1, $2)',
-          [id, start],
-        );
       try {
         await withApi(
           pool,
           async (call) => {
+            await client.query('DELETE FROM app_settings WHERE key = $1', [anchorSettingKey]);
+            await client.query('INSERT INTO app_settings (key, value) VALUES ($1, $2)', [
+              anchorSettingKey,
+              '2030-01-06',
+            ]);
+            type Tally = { start: string; end: string; checked: number; total: number };
+            // Any routines already in the DB count in these periods too, so measure the change.
+            type Stats = { daily: { weeks: Tally[] }; weekly: Tally[]; fourWeek: Tally[] };
+            const before = (await call('/api/stats')).data as Stats;
+            // 15:30 UTC on 01-13 is 00:30 on 01-14 in Seoul.
+            const daily = await add('통계 하루', 'daily', 'care', '2030-01-13T15:30:00Z');
+            // 15:30 UTC on 01-15 is 00:30 on 01-16 in Seoul.
+            const archived = await add(
+              '통계 보관',
+              'daily',
+              'care',
+              '2030-01-13T15:30:00Z',
+              '2030-01-15T15:30:00Z',
+            );
+            const weekly = await add('통계 주간', 'weekly', null, '2030-01-06T00:00:00Z');
+            const fourWeek = await add('통계 4주', 'four_week', null, '2030-01-06T00:00:00Z');
+            for (const [id, start] of [
+              [daily, '2030-01-14'],
+              [archived, '2030-01-15'],
+              [weekly, '2030-01-06'],
+              [fourWeek, '2030-01-06'],
+            ])
+              await client.query(
+                'INSERT INTO routine_checks (routine_id, period_start) VALUES ($1, $2)',
+                [id, start],
+              );
             const { status, data } = await call('/api/stats');
             assert.equal(status, 200);
-            type Tally = { start: string; end: string; checked: number; total: number };
             type Item = Tally & {
               id: string;
               archived: boolean;
@@ -1009,25 +1011,42 @@ test(
             // This week: 01-14 two routines (1 done), 01-15 two (1 done), 01-16 one, not today.
             const daySummary = (data.daily as { weeks: Tally[] }).weeks[0];
             assert.deepEqual(
-              [daySummary.start, daySummary.checked, daySummary.total],
+              [
+                daySummary.start,
+                daySummary.checked - before.daily.weeks[0].checked,
+                daySummary.total - before.daily.weeks[0].total,
+              ],
               ['2030-01-13', 2, 5],
             );
 
             // The week of 01-06 was done and this running week is not counted yet.
             const weeks = data.weekly as Tally[];
             assert.deepEqual(
-              [weeks[0].start, weeks[0].checked, weeks[0].total],
+              [
+                weeks[0].start,
+                weeks[0].checked - before.weekly[0].checked,
+                weeks[0].total - before.weekly[0].total,
+              ],
               ['2030-01-13', 0, 0],
             );
             assert.deepEqual(
-              [weeks[1].start, weeks[1].checked, weeks[1].total],
+              [
+                weeks[1].start,
+                weeks[1].checked - before.weekly[1].checked,
+                weeks[1].total - before.weekly[1].total,
+              ],
               ['2030-01-06', 1, 1],
             );
 
             // The four-week period is still running but done, so it counts.
             const fours = data.fourWeek as Tally[];
             assert.deepEqual(
-              [fours[0].start, fours[0].end, fours[0].checked, fours[0].total],
+              [
+                fours[0].start,
+                fours[0].end,
+                fours[0].checked - before.fourWeek[0].checked,
+                fours[0].total - before.fourWeek[0].total,
+              ],
               ['2030-01-06', '2030-02-02', 1, 1],
             );
             assert.equal(statusOn(item(fourWeek), '2030-01-06'), 'done');

@@ -41,7 +41,13 @@ const statusLook: Record<Status, { mark: string; word: string; className: string
   none: { mark: '', word: '대상 아님', className: 'border border-dashed border-input' },
 };
 
-const percent = ({ checked, total }: Tally) => Math.round((checked / total) * 100);
+// Rounding must not claim all or nothing while neither is true: 216/217 is not 100%.
+const percent = ({ checked, total }: Tally) => {
+  const value = Math.round((checked / total) * 100);
+  if (checked > 0 && value === 0) return 1;
+  if (checked < total && value === 100) return 99;
+  return value;
+};
 const short = (date: string) => date.slice(5).replace('-', '/');
 const periodName = ({ start, end }: { start: string; end: string }) =>
   start === end ? start : `${start} ~ ${end}`;
@@ -106,6 +112,7 @@ const periodRows = (periods: PeriodTally[]) =>
   }));
 
 function ItemRow({ item }: { item: Item }) {
+  const oldestFirst = [...item.periods].reverse();
   return (
     <li className="flex flex-col gap-2 py-3">
       <div className="flex flex-wrap items-center gap-2">
@@ -126,26 +133,36 @@ function ItemRow({ item }: { item: Item }) {
           )}
         </span>
       </div>
-      {/* Oldest on the left, so the row reads forward in time. */}
-      <ol className="flex flex-wrap gap-1" aria-label={`${item.name} 최근 이력`}>
-        {[...item.periods].reverse().map((period) => {
+      {/* Oldest on the left, so the row reads forward in time. A quick look for the eye; the
+          list below says the same in words for touch screens, keyboards and screen readers. */}
+      <ol className="flex flex-wrap gap-1" aria-hidden>
+        {oldestFirst.map((period) => {
           const look = statusLook[period.status];
-          const name = `${periodName(period)} ${look.word}`;
           return (
             <li
               key={period.start}
-              title={name}
-              aria-label={name}
+              title={`${periodName(period)} ${look.word}`}
               className={cn(
                 'flex size-5 items-center justify-center rounded-sm text-caption',
                 look.className,
               )}
             >
-              <span aria-hidden>{look.mark}</span>
+              {look.mark}
             </li>
           );
         })}
       </ol>
+      <details className="text-caption text-muted-foreground">
+        <summary className="cursor-pointer">{item.name} 기간별로 보기</summary>
+        <ul className="mt-1 flex flex-col gap-0.5" aria-label={`${item.name} 최근 이력`}>
+          {oldestFirst.map((period) => (
+            <li key={period.start} className="flex justify-between gap-2">
+              <span>{periodName(period)}</span>
+              <span>{statusLook[period.status].word}</span>
+            </li>
+          ))}
+        </ul>
+      </details>
     </li>
   );
 }
