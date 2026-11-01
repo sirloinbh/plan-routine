@@ -677,3 +677,167 @@ test('after a retry succeeds, focus is on the page rather than lost', async () =
   await flush();
   expect(screen.getByRole('region', { name: '12주 루틴' })).toHaveFocus();
 });
+
+const stubResize = () =>
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+  );
+
+test('a goal gone while its link panel is open says so and moves focus to the new goal field', async () => {
+  stubResize();
+  const api = goalsApi({ current: twoGoals() });
+  render(<TwelveWeek />);
+  await flush();
+  press('책 읽기 루틴 연결');
+  await flush();
+  api.removeElsewhere('1');
+  act(() => {
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  await flush();
+  expect(within(goalsCard()).getByRole('alert')).toHaveTextContent(
+    "'책 읽기' 목표가 이번 기간 목록에 없어 루틴 연결을 저장하지 못했습니다",
+  );
+  expect(screen.getByRole('textbox', { name: '새 목표' })).toHaveFocus();
+});
+
+test('a panel closed before its goal goes says nothing', async () => {
+  stubResize();
+  const api = goalsApi({ current: twoGoals() });
+  render(<TwelveWeek />);
+  await flush();
+  press('책 읽기 루틴 연결');
+  await flush();
+  fireEvent.click(within(goalsCard()).getByRole('button', { name: '닫기' }));
+  await flush();
+  api.removeElsewhere('1');
+  act(() => {
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  await flush();
+  expect(within(goalsCard()).queryByRole('alert')).not.toBeInTheDocument();
+});
+
+test('editing a goal\u2019s name keeps its open link panel and what was ticked', async () => {
+  stubResize();
+  goalsApi({ current: twoGoals() });
+  render(<TwelveWeek />);
+  await flush();
+  press('책 읽기 루틴 연결');
+  await flush();
+  fireEvent.click(within(goalsCard()).getByRole('checkbox', { name: '6시 기상' }));
+  press('책 읽기 수정');
+  expect(screen.getByRole('textbox', { name: '책 읽기 새 이름' })).toHaveFocus();
+  expect(within(goalsCard()).getByRole('checkbox', { name: '6시 기상' })).toBeChecked();
+});
+
+test('removing a goal with its link panel open reports the removal, not a failure', async () => {
+  stubResize();
+  goalsApi({ current: twoGoals() });
+  render(<TwelveWeek />);
+  await flush();
+  press('책 읽기 루틴 연결');
+  await flush();
+  press('책 읽기 삭제');
+  press('책 읽기 삭제 확인');
+  await flush();
+  expect(within(goalsCard()).queryByRole('alert')).not.toBeInTheDocument();
+  expect(within(goalsCard()).getByRole('status')).toHaveTextContent("'책 읽기' 목표를 지웠습니다");
+});
+
+const reloadList = async () => {
+  act(() => {
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  await flush();
+};
+
+test('several panels lost at once are all named', async () => {
+  stubResize();
+  const api = goalsApi({ current: twoGoals() });
+  render(<TwelveWeek />);
+  await flush();
+  press('책 읽기 루틴 연결');
+  await flush();
+  press('달리기 루틴 연결');
+  await flush();
+  api.removeElsewhere('1');
+  api.removeElsewhere('2');
+  await reloadList();
+  const alert = within(goalsCard()).getByRole('alert');
+  expect(alert).toHaveTextContent("'책 읽기'");
+  expect(alert).toHaveTextContent("'달리기'");
+});
+
+test('a goal lost while both editing it and linking it says both were lost', async () => {
+  stubResize();
+  const api = goalsApi({ current: twoGoals() });
+  render(<TwelveWeek />);
+  await flush();
+  press('책 읽기 루틴 연결');
+  await flush();
+  press('책 읽기 수정');
+  api.removeElsewhere('1');
+  await reloadList();
+  const alert = within(goalsCard()).getByRole('alert');
+  expect(alert).toHaveTextContent('수정을 저장하지 못했습니다');
+  expect(alert).toHaveTextContent('루틴 연결을 저장하지 못했습니다');
+});
+
+test('the notice names a goal by its current name', async () => {
+  stubResize();
+  const api = goalsApi({ current: twoGoals() });
+  render(<TwelveWeek />);
+  await flush();
+  press('책 읽기 루틴 연결');
+  await flush();
+  press('책 읽기 수정');
+  type('책 읽기 새 이름', '새 이름');
+  fireEvent.submit(screen.getByRole('form', { name: '책 읽기 수정' }));
+  await flush();
+  api.removeElsewhere('1');
+  await reloadList();
+  expect(within(goalsCard()).getByRole('alert')).toHaveTextContent("'새 이름' 목표가");
+});
+
+test('a panel closed by saving or by a failed list says nothing when its goal goes', async () => {
+  stubResize();
+  const api = goalsApi({ current: twoGoals() });
+  render(<TwelveWeek />);
+  await flush();
+  press('책 읽기 루틴 연결');
+  await flush();
+  fireEvent.submit(screen.getByRole('form', { name: '책 읽기 루틴 연결' }));
+  await flush();
+  api.removeElsewhere('1');
+  await reloadList();
+  expect(within(goalsCard()).queryByRole('alert')).not.toBeInTheDocument();
+
+  const working = vi.mocked(fetch).getMockImplementation()!;
+  vi.stubGlobal(
+    'fetch',
+    vi.fn((url: string, init?: RequestInit) =>
+      url === '/api/routines'
+        ? Promise.resolve({
+            ok: false,
+            status: 500,
+            json: () => Promise.resolve({ error: '서버 오류' }),
+          })
+        : working(url, init),
+    ),
+  );
+  press('달리기 루틴 연결');
+  await flush();
+  expect(within(goalsCard()).getByRole('alert')).toHaveTextContent('서버 오류');
+  vi.stubGlobal('fetch', vi.fn(working));
+  api.removeElsewhere('2');
+  await reloadList();
+  expect(
+    within(goalsCard()).queryByText(/루틴 연결을 저장하지 못했습니다/),
+  ).not.toBeInTheDocument();
+});

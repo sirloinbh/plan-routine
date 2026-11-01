@@ -192,12 +192,40 @@ function CurrentGoals({
   const { notice, status, error, clear } = useNotice();
   const { goals } = data.current;
   const { beginChange, requestFocus } = useFocusRequest(() => !busy);
+  // Link panels left open, whose ticks go with the goal if it disappears.
+  const openPanels = useRef(new Map<string, string>());
+
+  // One notice holds one message, so what was lost with a vanished goal is said together.
+  const lostEdit = useRef<string | null>(null);
+
+  // The period moved on, or the goal was removed elsewhere: say what became of the ticks.
+  useEffect(() => {
+    const gone: string[] = [];
+    for (const [id, title] of openPanels.current) {
+      const found = goals.find((goal) => goal.id === id);
+      if (found) {
+        openPanels.current.set(id, found.title);
+        continue;
+      }
+      openPanels.current.delete(id);
+      gone.push(`'${title}'`);
+    }
+    const messages = [
+      lostEdit.current,
+      gone.length > 0
+        ? `${gone.join(', ')} 목표가 이번 기간 목록에 없어 루틴 연결을 저장하지 못했습니다`
+        : null,
+    ].filter((message) => message !== null);
+    lostEdit.current = null;
+    if (messages.length > 0) error(messages.join('. '));
+    if (gone.length > 0) requestFocus([focusKeys.add]);
+  });
 
   // The goal being edited has gone: the period moved on, or it was removed elsewhere.
   if (editing && !goals.some((goal) => goal.id === editing.id)) {
     setEditing(null);
     requestFocus([focusKeys.add]);
-    error(`'${editing.title}' 수정을 저장하지 못했습니다. 이번 기간의 목표가 아닙니다`);
+    lostEdit.current = `'${editing.title}' 수정을 저장하지 못했습니다. 이번 기간의 목표가 아닙니다`;
   }
 
   // Reloads after failures too: a 404 usually means the list changed elsewhere, and a past-goal
@@ -272,7 +300,11 @@ function CurrentGoals({
     // The next goal, then the previous one. If this fails the row is still there, so stay on it.
     const neighbours = [goals[index + 1], goals[index - 1]].filter(Boolean);
     const ok = await run(
-      () => requestJson(`/api/goals/${goal.id}`, { method: 'DELETE' }),
+      () =>
+        requestJson(`/api/goals/${goal.id}`, { method: 'DELETE' }).then(() =>
+          // Removed on purpose, so its open panel is nothing to report once the list reloads.
+          openPanels.current.delete(goal.id),
+        ),
       `'${goal.title}' 목표를 지웠습니다`,
       `remove:${goal.id}`,
     );
@@ -379,23 +411,27 @@ function CurrentGoals({
                         </Button>
                       )}
                     </span>
-                    <GoalRoutineLinks
-                      goal={goal}
-                      disabled={busy}
-                      onBegin={clear}
-                      onSaved={(message, routines) => {
-                        status(message);
-                        // Shows at once, even if the reload that follows fails.
-                        onLinked(goal.id, routines);
-                        reload();
-                      }}
-                      onFailed={(cause) => {
-                        error(cause);
-                        reload();
-                      }}
-                    />
                   </>
                 )}
+                <GoalRoutineLinks
+                  goal={goal}
+                  disabled={busy}
+                  onBegin={clear}
+                  onSaved={(message, routines) => {
+                    status(message);
+                    // Shows at once, even if the reload that follows fails.
+                    onLinked(goal.id, routines);
+                    reload();
+                  }}
+                  onOpenChange={(open) => {
+                    if (open) openPanels.current.set(goal.id, goal.title);
+                    else openPanels.current.delete(goal.id);
+                  }}
+                  onFailed={(cause) => {
+                    error(cause);
+                    reload();
+                  }}
+                />
               </li>
             ))}
           </ul>
