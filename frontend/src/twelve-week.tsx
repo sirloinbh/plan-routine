@@ -192,6 +192,18 @@ function CurrentGoals({
   const { notice, status, error, clear } = useNotice();
   const { goals } = data.current;
   const { beginChange, requestFocus } = useFocusRequest(() => !busy);
+  // Link panels left open, whose ticks go with the goal if it disappears.
+  const openPanels = useRef(new Map<string, string>());
+
+  // The period moved on, or the goal was removed elsewhere: say what became of the ticks.
+  useEffect(() => {
+    for (const [id, title] of openPanels.current) {
+      if (goals.some((goal) => goal.id === id)) continue;
+      openPanels.current.delete(id);
+      error(`'${title}' 목표가 이번 기간 목록에 없어 루틴 연결을 저장하지 못했습니다`);
+      requestFocus([focusKeys.add]);
+    }
+  });
 
   // The goal being edited has gone: the period moved on, or it was removed elsewhere.
   if (editing && !goals.some((goal) => goal.id === editing.id)) {
@@ -379,23 +391,27 @@ function CurrentGoals({
                         </Button>
                       )}
                     </span>
-                    <GoalRoutineLinks
-                      goal={goal}
-                      disabled={busy}
-                      onBegin={clear}
-                      onSaved={(message, routines) => {
-                        status(message);
-                        // Shows at once, even if the reload that follows fails.
-                        onLinked(goal.id, routines);
-                        reload();
-                      }}
-                      onFailed={(cause) => {
-                        error(cause);
-                        reload();
-                      }}
-                    />
                   </>
                 )}
+                <GoalRoutineLinks
+                  goal={goal}
+                  disabled={busy}
+                  onBegin={clear}
+                  onSaved={(message, routines) => {
+                    status(message);
+                    // Shows at once, even if the reload that follows fails.
+                    onLinked(goal.id, routines);
+                    reload();
+                  }}
+                  onOpenChange={(open) => {
+                    if (open) openPanels.current.set(goal.id, goal.title);
+                    else openPanels.current.delete(goal.id);
+                  }}
+                  onFailed={(cause) => {
+                    error(cause);
+                    reload();
+                  }}
+                />
               </li>
             ))}
           </ul>

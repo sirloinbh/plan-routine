@@ -54,6 +54,7 @@ function show(overrides: Partial<typeof goal> = {}) {
   const onSaved = vi.fn();
   const onFailed = vi.fn();
   const onBegin = vi.fn();
+  const onOpenChange = vi.fn();
   render(
     <GoalRoutineLinks
       goal={{ ...goal, ...overrides }}
@@ -61,9 +62,10 @@ function show(overrides: Partial<typeof goal> = {}) {
       onBegin={onBegin}
       onSaved={onSaved}
       onFailed={onFailed}
+      onOpenChange={onOpenChange}
     />,
   );
-  return { onSaved, onFailed, onBegin };
+  return { onSaved, onFailed, onBegin, onOpenChange };
 }
 
 const openPanel = async () => {
@@ -81,6 +83,7 @@ test('shows what is linked, or that nothing is', () => {
       onSaved={vi.fn()}
       onBegin={vi.fn()}
       onFailed={vi.fn()}
+      onOpenChange={vi.fn()}
     />,
   );
   expect(screen.getByText('연결된 루틴: 6시 기상')).toBeInTheDocument();
@@ -216,6 +219,7 @@ test('a list that fails after the user moved on leaves their focus alone', async
         onBegin={vi.fn()}
         onSaved={vi.fn()}
         onFailed={vi.fn()}
+        onOpenChange={vi.fn()}
       />
     </>,
   );

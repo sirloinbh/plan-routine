@@ -23,12 +23,14 @@ export function GoalRoutineLinks({
   onBegin,
   onSaved,
   onFailed,
+  onOpenChange,
 }: {
   goal: { id: string; title: string; routines?: LinkedRoutine[] };
   disabled: boolean;
   onBegin: () => void;
   onSaved: (message: string, routines: LinkedRoutine[]) => void;
   onFailed: (cause: unknown) => void;
+  onOpenChange: (open: boolean) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [routines, setRoutines] = useState<Routine[] | null>(null);
@@ -48,6 +50,7 @@ export function GoalRoutineLinks({
     opening.current += 1;
     requestFocus([keys.toggle]);
     setOpen(false);
+    onOpenChange(false);
   };
 
   // A routine archived elsewhere has no box here, so it could never be unticked: drop it.
@@ -67,6 +70,7 @@ export function GoalRoutineLinks({
     setSelected(linked.map((routine) => routine.id));
     setRoutines(null);
     setOpen(true);
+    onOpenChange(true);
     try {
       await loadOptions();
       if (attempt !== opening.current) return;
@@ -98,6 +102,7 @@ export function GoalRoutineLinks({
         saved.routines,
       );
       setOpen(false);
+      onOpenChange(false);
       requestFocus([keys.toggle]);
     } catch (cause) {
       // What was ticked stays, ready to save again, less any routine that can no longer be linked.
