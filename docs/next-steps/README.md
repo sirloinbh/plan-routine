@@ -17,6 +17,7 @@
 | 5    | [#34](https://github.com/sirloinbh/plan-routine/issues/34) | 불러오는 중 표시를 공통 Skeleton·Spinner로 바꾸기  | P4       | 없음                                                            |
 | 6    | [#64](https://github.com/sirloinbh/plan-routine/issues/64) | 일기를 탭 두 개에서 쓸 때 임시 글을 잃지 않게 하기 | P4       | 없음                                                            |
 | 7    | [#66](https://github.com/sirloinbh/plan-routine/issues/66) | 다시 시도 뒤 키보드 포커스 유지                    | P4       | 없음                                                            |
+| 8    | [#70](https://github.com/sirloinbh/plan-routine/issues/70) | 입력 오류 응답의 메시지 개수에 상한 두기           | P4       | 없음                                                            |
 
 각 카드의 "확인 필요 (추천안)" 항목은 착수 전에 사용자 확인을 받아 이슈 코멘트로 기록한다.
 

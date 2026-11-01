@@ -19,7 +19,7 @@ function untouchedPool() {
 
 const refused = '요청 형식이 올바르지 않습니다';
 
-test('broken JSON gets a Korean 400 on every route that reads a body', async () => {
+test('broken JSON gets a Korean 400 whichever route it is sent to', async () => {
   await withApi(untouchedPool(), async (call) => {
     for (const [method, path] of [
       ['POST', '/api/routines'],
@@ -30,6 +30,12 @@ test('broken JSON gets a Korean 400 on every route that reads a body', async () 
       const { status, data } = await call(path, { method, raw: '{"name":' });
       assert.equal(status, 400, path);
       assert.equal(data.error, refused, path);
+    }
+    // The JSON parser takes only objects and arrays, so these are refused the same way.
+    for (const raw of ['5', 'true', '"글자"']) {
+      const { status, data } = await call('/api/routines', { method: 'POST', raw });
+      assert.equal(status, 400, raw);
+      assert.equal(data.error, refused, raw);
     }
   });
 });
@@ -97,20 +103,22 @@ test('a routine name with a NUL character gets a Korean 400', async () => {
   });
 });
 
-test('an unexpected error stays a 500', async () => {
-  const pool = {
-    query: async () => {
-      throw Object.assign(new Error('boom'), { status: 'not a number' });
-    },
-  } as unknown as Pool;
+test('an unexpected error stays a 500, whatever status it carries', async () => {
   const logged = console.error;
   console.error = () => {};
   try {
-    await withApi(pool, async (call) => {
-      const { status, data } = await call('/api/health');
-      assert.equal(status, 500);
-      assert.equal(data.error, '서버 오류가 발생했습니다');
-    });
+    for (const status of ['not a number', 500, 502]) {
+      const pool = {
+        query: async () => {
+          throw Object.assign(new Error('boom'), { status });
+        },
+      } as unknown as Pool;
+      await withApi(pool, async (call) => {
+        const response = await call('/api/health');
+        assert.equal(response.status, 500);
+        assert.equal(response.data.error, '서버 오류가 발생했습니다');
+      });
+    }
   } finally {
     console.error = logged;
   }
