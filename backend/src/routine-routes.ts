@@ -2,6 +2,7 @@ import { Router } from 'express';
 import type { Pool } from 'pg';
 import { z } from 'zod';
 
+import { badRequest, requestBody } from './request-input.js';
 import { anchorSettingKey, routineCadence, routineInput, routineName } from './routines.js';
 
 export const routineColumns = 'id::text AS id, name, cadence, category, sort_order AS "sortOrder"';
@@ -10,15 +11,15 @@ export const notFound = { error: '루틴을 찾을 수 없습니다' };
 const listQuery = z.object({ cadence: routineCadence.optional() });
 export const routineId = z.string().regex(/^\d{1,18}$/, '루틴 번호가 올바르지 않습니다');
 const idParam = z.object({ id: routineId });
-const renameInput = z.object({ name: routineName });
-const moveInput = z.object({
-  direction: z.enum(['up', 'down'], {
-    errorMap: () => ({ message: '이동 방향은 위 또는 아래여야 합니다' }),
-  }),
-});
-
-// Express leaves req.body undefined without a JSON body; parse {} so field messages stay Korean.
-const body = (value: unknown) => value ?? {};
+const renameInput = z.object({ name: routineName }, badRequest);
+const moveInput = z.object(
+  {
+    direction: z.enum(['up', 'down'], {
+      errorMap: () => ({ message: '이동 방향은 위 또는 아래여야 합니다' }),
+    }),
+  },
+  badRequest,
+);
 
 export function routineRoutes(pool: Pool, today: () => string) {
   const router = Router();
@@ -36,7 +37,7 @@ export function routineRoutes(pool: Pool, today: () => string) {
   });
 
   router.post('/', async (req, res) => {
-    const input = routineInput.parse(body(req.body));
+    const input = routineInput.parse(requestBody(req.body));
     // Creating the first routine counts as first use for four/twelve-week periods. One statement
     // keeps both writes atomic. Concurrent adds may share a sort_order; id breaks the tie and the
     // next move renumbers the group.
@@ -55,7 +56,7 @@ export function routineRoutes(pool: Pool, today: () => string) {
 
   router.patch('/:id', async (req, res) => {
     const { id } = idParam.parse(req.params);
-    const { name } = renameInput.parse(body(req.body));
+    const { name } = renameInput.parse(requestBody(req.body));
     const { rows } = await pool.query(
       `UPDATE routines SET name = $1, updated_at = now()
        WHERE id = $2 AND archived_at IS NULL RETURNING ${routineColumns}`,
@@ -71,7 +72,7 @@ export function routineRoutes(pool: Pool, today: () => string) {
   // Swaps the routine with its neighbour and renumbers the group 0..n in one transaction.
   router.post('/:id/move', async (req, res) => {
     const { id } = idParam.parse(req.params);
-    const { direction } = moveInput.parse(body(req.body));
+    const { direction } = moveInput.parse(requestBody(req.body));
     const client = await pool.connect();
     try {
       await client.query('BEGIN');

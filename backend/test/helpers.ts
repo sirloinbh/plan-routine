@@ -7,7 +7,7 @@ export async function withApi(
   run: (
     call: (
       path: string,
-      request?: { method: string; body?: unknown },
+      request?: { method: string; body?: unknown; raw?: string; contentType?: string },
     ) => Promise<{ status: number; data: Record<string, unknown> }>,
   ) => Promise<void>,
   options: { today?: () => string } = {},
@@ -23,8 +23,12 @@ export async function withApi(
     await run(async (path, request) => {
       const response = await fetch(`http://127.0.0.1:${address.port}${path}`, {
         method: request?.method,
-        headers: request?.body === undefined ? undefined : { 'Content-Type': 'application/json' },
-        body: request?.body === undefined ? undefined : JSON.stringify(request.body),
+        headers:
+          request?.body === undefined && request?.raw === undefined
+            ? undefined
+            : { 'Content-Type': request.contentType ?? 'application/json' },
+        body:
+          request?.raw ?? (request?.body === undefined ? undefined : JSON.stringify(request.body)),
       });
       return { status: response.status, data: (await response.json()) as Record<string, unknown> };
     });

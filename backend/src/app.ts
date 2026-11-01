@@ -8,6 +8,7 @@ import { diaryRoutes } from './diary-routes.js';
 import { goalRoutes } from './goal-routes.js';
 import { calendarDate, periodsFor } from './periods.js';
 import { recordRoutes } from './record-routes.js';
+import { requestFailure } from './request-input.js';
 import { routineRoutes } from './routine-routes.js';
 import { routineAnchorDate } from './routines.js';
 import { statsRoutes } from './stats-routes.js';
@@ -58,6 +59,11 @@ export function createApp(pool: Pool, options: { today?: () => string } = {}) {
     (err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
       if (err instanceof ZodError) {
         res.status(400).json({ error: err.issues.map((issue) => issue.message).join(', ') });
+        return;
+      }
+      const failure = requestFailure(err);
+      if (failure) {
+        res.status(failure.status).json({ error: failure.error });
         return;
       }
       const error = typeof err === 'object' && err !== null ? (err as { code?: unknown }) : {};

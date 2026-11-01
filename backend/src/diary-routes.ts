@@ -4,6 +4,7 @@ import { z } from 'zod';
 
 import { dailyRoutineOn } from './day-records.js';
 import { addDays, calendarDate } from './periods.js';
+import { badRequest, noNul, nulMessage, requestBody } from './request-input.js';
 
 // Past days have no limit (confirmed on issue #9), but PostgreSQL has no year 0000, so the range
 // needs a floor. A floor this early is out of the way of any real diary.
@@ -15,10 +16,6 @@ export const entryColumns = `entry_date AS date, body, good_note AS "goodNote",
 const diaryQuery = z.object({ date: calendarDate.optional() });
 const diaryParams = z.object({ date: calendarDate });
 
-// PostgreSQL text cannot hold a NUL character; without this check it would answer a 500.
-const noNul = (value: string) => !value.includes('\0');
-const nulMessage = '쓸 수 없는 문자가 들어 있습니다';
-
 // A blank note is the same as no note.
 const diaryNote = (label: string) =>
   z
@@ -29,20 +26,23 @@ const diaryNote = (label: string) =>
     .nullish()
     .transform((value) => value || null);
 
-const diaryInput = z.object({
-  body: z
-    .string({
-      required_error: '일기 본문을 입력해 주세요',
-      invalid_type_error: '일기 본문은 글자여야 합니다',
-    })
-    .trim()
-    .min(1, '일기 본문을 입력해 주세요')
-    .max(5000, '일기 본문은 5000자 이하로 입력해 주세요')
-    .refine(noNul, nulMessage),
-  goodNote: diaryNote('잘한 점'),
-  regretNote: diaryNote('아쉬운 점'),
-  tomorrowNote: diaryNote('내일 할 일'),
-});
+const diaryInput = z.object(
+  {
+    body: z
+      .string({
+        required_error: '일기 본문을 입력해 주세요',
+        invalid_type_error: '일기 본문은 글자여야 합니다',
+      })
+      .trim()
+      .min(1, '일기 본문을 입력해 주세요')
+      .max(5000, '일기 본문은 5000자 이하로 입력해 주세요')
+      .refine(noNul, nulMessage),
+    goodNote: diaryNote('잘한 점'),
+    regretNote: diaryNote('아쉬운 점'),
+    tomorrowNote: diaryNote('내일 할 일'),
+  },
+  badRequest,
+);
 
 // ISO dates compare correctly as strings.
 function dateRangeError(date: string, today: string) {
@@ -99,8 +99,7 @@ export function diaryRoutes(pool: Pool, today: () => string) {
       res.status(400).json({ error: rangeError });
       return;
     }
-    // Express leaves req.body undefined without a JSON body; parse {} so messages stay Korean.
-    const input = diaryInput.parse(req.body ?? {});
+    const input = diaryInput.parse(requestBody(req.body));
     const { rows } = await pool.query(
       `INSERT INTO diary_entries (entry_date, body, good_note, regret_note, tomorrow_note)
        VALUES ($1, $2, $3, $4, $5)

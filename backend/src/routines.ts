@@ -2,6 +2,7 @@ import type { Pool, PoolClient } from 'pg';
 import { z } from 'zod';
 
 import { cadences } from './periods.js';
+import { badRequest, noNul, nulMessage } from './request-input.js';
 
 export const routineCategories = [
   'wake',
@@ -34,19 +35,23 @@ export const routineName = z
   })
   .trim()
   .min(1, '루틴 이름을 입력해 주세요')
-  .max(100, '루틴 이름은 100자 이하로 입력해 주세요');
+  .max(100, '루틴 이름은 100자 이하로 입력해 주세요')
+  .refine(noNul, nulMessage);
 
 // Mirrors the routines table checks so bad input fails with a Korean message before the DB.
 export const routineInput = z
-  .object({
-    name: routineName,
-    cadence: routineCadence,
-    category: z
-      .enum(routineCategories, {
-        errorMap: () => ({ message: '하루 루틴 카테고리가 올바르지 않습니다' }),
-      })
-      .nullish(),
-  })
+  .object(
+    {
+      name: routineName,
+      cadence: routineCadence,
+      category: z
+        .enum(routineCategories, {
+          errorMap: () => ({ message: '하루 루틴 카테고리가 올바르지 않습니다' }),
+        })
+        .nullish(),
+    },
+    badRequest,
+  )
   .superRefine((value, ctx) => {
     if (value.cadence === 'daily' && !value.category)
       ctx.addIssue({
