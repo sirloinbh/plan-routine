@@ -33,6 +33,10 @@
 
 - CI: 실제 DB를 포함한 `ci / verify`와 `ci / docker-build`가 통과했다. 이 PR은 DB 쿼리를 바꾸지 않았다.
 
+## 테스트 도우미 수정
+
+작업 중 백엔드 테스트가 드물게 `fetch failed: bad port`로 실패했다. 병렬로 30회 돌려 1회 재현했다. `withApi`가 포트 0으로 서버를 여는데, Windows가 `fetch`가 막아 둔 낮은 포트를 줄 때 생긴다. 앱 코드와 무관하다. `backend/test/helpers.ts`가 그런 포트면 다시 열도록 고쳤다. 수정 뒤 같은 부하로 60회 돌려 실패가 없었다. 본래 드문 실패라 완전한 증명은 아니다.
+
 ## 한계·후속
 
 - 입력 오류가 많으면 응답도 함께 커진다. 이 PR이 만든 문제가 아니라 [#70](https://github.com/sirloinbh/plan-routine/issues/70)으로 분리했다.
