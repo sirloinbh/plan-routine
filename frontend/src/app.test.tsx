@@ -30,7 +30,24 @@ const emptyGoals = {
   past: [],
 };
 
+const emptyMonth = {
+  today: '2026-10-26',
+  month: '2026-10',
+  previousMonth: '2026-09',
+  nextMonth: null,
+  days: [{ date: '2026-10-26', checked: 0, total: 0, hasDiary: false }],
+};
+const emptyDay = {
+  date: '2026-10-26',
+  today: '2026-10-26',
+  progress: { checked: 0, total: 0 },
+  routines: [],
+  diary: null,
+};
+
 const pageData = (url: string) => {
+  if (url.startsWith('/api/records/')) return emptyDay;
+  if (url.startsWith('/api/records')) return emptyMonth;
   if (url.startsWith('/api/goals')) return emptyGoals;
   if (url.startsWith('/api/checklist')) return emptyChecklist;
   if (url.startsWith('/api/diary')) return emptyDiary;
@@ -164,6 +181,17 @@ test('the main menu opens the twelve-week page', async () => {
   expect(window.location.pathname).toBe('/twelve-week');
   expect(await screen.findByRole('heading', { level: 1, name: '12주 루틴' })).toBeInTheDocument();
   expect(await screen.findByText('아직 목표가 없습니다')).toBeInTheDocument();
+  window.history.replaceState(null, '', '/');
+});
+
+test('the main menu opens the records page', async () => {
+  health({ today: '2026-10-26' });
+  render(<App />);
+  const menu = screen.getByRole('navigation', { name: '주 메뉴' });
+  fireEvent.click(within(menu).getByRole('link', { name: '기록' }));
+  expect(window.location.pathname).toBe('/records');
+  expect(await screen.findByRole('heading', { level: 1, name: '기록' })).toBeInTheDocument();
+  expect(await screen.findByText('이 날의 기록이 없습니다')).toBeInTheDocument();
   window.history.replaceState(null, '', '/');
 });
 

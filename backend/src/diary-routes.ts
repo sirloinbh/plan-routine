@@ -2,13 +2,14 @@ import { Router } from 'express';
 import type { Pool } from 'pg';
 import { z } from 'zod';
 
+import { dailyRoutineOn } from './day-records.js';
 import { addDays, calendarDate } from './periods.js';
 
 // Past days have no limit (confirmed on issue #9), but PostgreSQL has no year 0000, so the range
 // needs a floor. A floor this early is out of the way of any real diary.
 const earliestDate = '2000-01-01';
 
-const entryColumns = `entry_date AS date, body, good_note AS "goodNote",
+export const entryColumns = `entry_date AS date, body, good_note AS "goodNote",
   regret_note AS "regretNote", tomorrow_note AS "tomorrowNote"`;
 
 const diaryQuery = z.object({ date: calendarDate.optional() });
@@ -66,14 +67,14 @@ export function diaryRoutes(pool: Pool, today: () => string) {
       `SELECT ${entryColumns} FROM diary_entries WHERE entry_date = $1`,
       [target],
     );
-    // Today's active daily routines against that day's checks, to help write the feedback. Counted
-    // here rather than through /api/checklist, which only answers for recent dates.
+    // The routines of that day and their checks, to help write the feedback. Counted here rather
+    // than through /api/checklist, which only answers for recent dates.
     const progress = await pool.query<{ checked: number; total: number }>(
       `SELECT count(routine_checks.routine_id)::int AS checked, count(*)::int AS total
        FROM routines
        LEFT JOIN routine_checks
          ON routine_checks.routine_id = routines.id AND routine_checks.period_start = $1
-       WHERE routines.archived_at IS NULL AND routines.cadence = 'daily'`,
+       WHERE ${dailyRoutineOn('routines', '$1::date')}`,
       [target],
     );
     const neighbour = (days: number) => {

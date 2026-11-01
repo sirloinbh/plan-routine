@@ -2,7 +2,7 @@
 
 최종 갱신일: **2026-11-01 (Asia/Seoul)**.
 
-기본 기능의 처음 카드 목록은 로드맵 [#14](https://github.com/sirloinbh/plan-routine/issues/14)에 있다. 지금 상태는 이 문서와 이슈 목록을 기준으로 본다. 끝난 기능 카드: #3, #4, #5, #6, #7, #8, #9, #44.
+기본 기능의 처음 카드 목록은 로드맵 [#14](https://github.com/sirloinbh/plan-routine/issues/14)에 있다. 지금 상태는 이 문서와 이슈 목록을 기준으로 본다. 끝난 기능 카드: #3, #4, #5, #6, #7, #8, #9, #10, #44.
 
 ## 내일 할 일
 
@@ -10,17 +10,16 @@
 
 | 순서 | 이슈                                                       | 할 일                                             | 우선순위 | 착수 전 확인                                                    |
 | ---- | ---------------------------------------------------------- | ------------------------------------------------- | -------- | --------------------------------------------------------------- |
-| 1    | [#10](https://github.com/sirloinbh/plan-routine/issues/10) | 날짜별 기록 열람                                  | P2       | 일기 진행률을 그날 있던 루틴 기준으로 집계할지 (#10 코멘트)     |
-| 2    | [#11](https://github.com/sirloinbh/plan-routine/issues/11) | 루틴별 이력과 달성률 열람                         | P2       | 카드의 확인 항목                                                |
-| 3    | [#19](https://github.com/sirloinbh/plan-routine/issues/19) | 하루 루틴 수정·보관 후 키보드 포커스 복귀         | P2       | 없음                                                            |
-| 4    | [#45](https://github.com/sirloinbh/plan-routine/issues/45) | 저장하지 않은 일기를 두고 떠날 때 안내            | P2       | 메뉴 이동을 막는 방법(라우터 구조 변경 또는 임시 저장)          |
-| 5    | [#41](https://github.com/sirloinbh/plan-routine/issues/41) | 날짜 이동 후 키보드 포커스 유지 (일기 화면 포함)  | P3       | 없음                                                            |
-| 6    | [#42](https://github.com/sirloinbh/plan-routine/issues/42) | 보관과 체크의 동시 요청 DB 테스트                 | P3       | 없음                                                            |
-| 7    | [#47](https://github.com/sirloinbh/plan-routine/issues/47) | 잘못된 요청 본문에 한국어 오류로 답하기           | P3       | 없음                                                            |
-| 8    | [#52](https://github.com/sirloinbh/plan-routine/issues/52) | 12주 목표를 하루·주간 루틴과 연결                 | P3       | 연결 방식                                                       |
-| 9    | [#12](https://github.com/sirloinbh/plan-routine/issues/12) | [후순위] 다른 프로젝트 웹앱으로 링크 이동         | P3       | 카드의 확인 항목(허용 URL). 사용자가 매우 후순위로 지정         |
-| 10   | [#13](https://github.com/sirloinbh/plan-routine/issues/13) | [후순위] 다른 프로젝트 통합 허브 설계             | P3       | [#12](https://github.com/sirloinbh/plan-routine/issues/12) 이후 |
-| 11   | [#34](https://github.com/sirloinbh/plan-routine/issues/34) | 불러오는 중 표시를 공통 Skeleton·Spinner로 바꾸기 | P4       | 없음                                                            |
+| 1    | [#11](https://github.com/sirloinbh/plan-routine/issues/11) | 루틴별 이력과 달성률 열람                         | P2       | 카드의 확인 항목                                                |
+| 2    | [#19](https://github.com/sirloinbh/plan-routine/issues/19) | 하루 루틴 수정·보관 후 키보드 포커스 복귀         | P2       | 없음                                                            |
+| 3    | [#45](https://github.com/sirloinbh/plan-routine/issues/45) | 저장하지 않은 일기를 두고 떠날 때 안내            | P2       | 메뉴 이동을 막는 방법(라우터 구조 변경 또는 임시 저장)          |
+| 4    | [#41](https://github.com/sirloinbh/plan-routine/issues/41) | 날짜 이동 후 키보드 포커스 유지 (일기 화면 포함)  | P3       | 없음                                                            |
+| 5    | [#42](https://github.com/sirloinbh/plan-routine/issues/42) | 보관과 체크의 동시 요청 DB 테스트                 | P3       | 없음                                                            |
+| 6    | [#47](https://github.com/sirloinbh/plan-routine/issues/47) | 잘못된 요청 본문에 한국어 오류로 답하기           | P3       | 없음                                                            |
+| 7    | [#52](https://github.com/sirloinbh/plan-routine/issues/52) | 12주 목표를 하루·주간 루틴과 연결                 | P3       | 연결 방식                                                       |
+| 8    | [#12](https://github.com/sirloinbh/plan-routine/issues/12) | [후순위] 다른 프로젝트 웹앱으로 링크 이동         | P3       | 카드의 확인 항목(허용 URL). 사용자가 매우 후순위로 지정         |
+| 9    | [#13](https://github.com/sirloinbh/plan-routine/issues/13) | [후순위] 다른 프로젝트 통합 허브 설계             | P3       | [#12](https://github.com/sirloinbh/plan-routine/issues/12) 이후 |
+| 10   | [#34](https://github.com/sirloinbh/plan-routine/issues/34) | 불러오는 중 표시를 공통 Skeleton·Spinner로 바꾸기 | P4       | 없음                                                            |
 
 각 카드의 "확인 필요 (추천안)" 항목은 착수 전에 사용자 확인을 받아 이슈 코멘트로 기록한다.
 
@@ -35,6 +34,7 @@
 
 - **로컬 테스트 전에 `TEST_DATABASE_URL`을 지운다.** 셸의 이 변수가 다른 프로젝트 DB(`study_test`)를 가리킨다. 2026-10-31에 테스트가 그 DB에 빈 테이블 2개를 만들어, 사용자 승인으로 지웠다. 이 프로젝트의 테스트 DB는 `plan_test`다.
 - **로컬 프론트엔드 테스트는 `--testTimeout=60000`을 붙인다.** 이 PC에서는 기본 5초 제한으로 시간 초과가 날 수 있다. CI는 기본 제한으로 통과한다. `npm run check`는 그래서 로컬에서 실패할 수 있다.
+- **"오늘 체크"와 "기록"의 지난 날짜 진행률은 다를 수 있다.** 오늘 체크는 나중에 만든 루틴도 지난 날짜에 체크할 수 있게 지금 있는 루틴을 모두 보여 주고, 기록은 그날 있던 루틴을 센다(#10).
 - **실제 DB에 연결한 화면 확인을 아직 못 했다.** 로컬에 이 프로젝트의 DB가 없어 #4 이후 브라우저 확인은 임시 API로 했다. API·DB 동작은 CI의 DB 통합 테스트로 확인한다.
 - **기존 DB에는 `003_diary.sql`, `004_twelve_week_goals.sql`을 적용해야 한다.** 절차는 [DB 문서](../../database/README.md)에 있다.
 - **간헐 실패 1건:** `diary-routes.test.ts`의 "saving trims the text"가 2026-10-31에 한 번 실패했고 이후 40회 실행에서 재현되지 않았다. 원인은 모른다. 다시 실패하면 출력을 남긴다.

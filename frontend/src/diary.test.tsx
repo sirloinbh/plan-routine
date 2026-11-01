@@ -20,6 +20,7 @@ function diaryApi(seed: Entry[] = []) {
   const writes: { path: string; body: Record<string, string> }[] = [];
   let failNextLoad = false;
   let failNextSave = false;
+  let progress = { checked: 2, total: 5 };
   let heldLoad: (() => void) | null = null;
   let holdNextLoad = false;
   let heldSave: (() => void) | null = null;
@@ -42,7 +43,7 @@ function diaryApi(seed: Entry[] = []) {
           today,
           previousDate: shift(date, -1),
           nextDate: date < today ? shift(date, 1) : null,
-          progress: { checked: 2, total: 5 },
+          progress,
           entry: entries.get(date) ?? null,
         });
         if (!holdNextLoad) return response;
@@ -81,6 +82,7 @@ function diaryApi(seed: Entry[] = []) {
     writes,
     failNextLoad: () => (failNextLoad = true),
     failNextSave: () => (failNextSave = true),
+    setProgress: (value: { checked: number; total: number }) => (progress = value),
     holdNextLoad: () => (holdNextLoad = true),
     releaseLoad: () => heldLoad?.(),
     holdNextSave: () => (holdNextSave = true),
@@ -109,6 +111,14 @@ test('shows today with its routine progress and an empty form', async () => {
   expect(screen.getByRole('heading', { level: 2, name: `오늘 (${today})` })).toBeVisible();
   expect(screen.getByText('하루 루틴 2/5 완료')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: '다음 날' })).toBeDisabled();
+});
+
+test('a day before any routine existed shows no routine progress', async () => {
+  const api = diaryApi();
+  api.setProgress({ checked: 0, total: 0 });
+  render(<Diary />);
+  await field('하루 돌아보기');
+  expect(screen.queryByText(/하루 루틴 .* 완료/)).not.toBeInTheDocument();
 });
 
 test('saving sends every field and keeps the text after a reload', async () => {
