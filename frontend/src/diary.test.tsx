@@ -535,3 +535,61 @@ test('closing the tab warns only when the draft could not be kept', async () => 
   await flush();
   expect(leaving()).toBe(false);
 });
+
+test('moving to another day puts focus on its date', async () => {
+  diaryApi();
+  render(<Diary />);
+  await field('하루 돌아보기');
+  screen.getByRole('button', { name: '이전 날' }).focus();
+  press('이전 날');
+  await flush();
+  expect(screen.getByRole('heading', { level: 2, name: '2026-10-21' })).toHaveFocus();
+  screen.getByRole('button', { name: '오늘로' }).focus();
+  press('오늘로');
+  await flush();
+  expect(screen.getByRole('heading', { level: 2, name: `오늘 (${today})` })).toHaveFocus();
+});
+
+test('a blocked move leaves focus and date where they are', async () => {
+  diaryApi();
+  render(<Diary />);
+  await type('하루 돌아보기', '아직 저장 안 함');
+  const previous = screen.getByRole('button', { name: '이전 날' });
+  previous.focus();
+  press('이전 날');
+  await flush();
+  expect(previous).toHaveFocus();
+});
+
+test('an empty body is marked and takes focus when saving fails, until it is typed in', async () => {
+  diaryApi();
+  render(<Diary />);
+  const body = await field('하루 돌아보기');
+  expect(body).not.toHaveAttribute('aria-invalid');
+  press('저장');
+  await flush();
+  expect(screen.getByRole('alert')).toHaveTextContent('일기 본문을 입력해 주세요');
+  expect(body).toHaveFocus();
+  expect(body).toHaveAttribute('aria-invalid', 'true');
+  await type('하루 돌아보기', '이제 씀');
+  expect(body).not.toHaveAttribute('aria-invalid');
+});
+
+test("a body over the limit is marked too, but a server failure is not the body's fault", async () => {
+  const api = diaryApi();
+  render(<Diary />);
+  const body = await field('하루 돌아보기');
+  await type('하루 돌아보기', '가'.repeat(5001));
+  press('저장');
+  await flush();
+  expect(body).toHaveAttribute('aria-invalid', 'true');
+
+  await type('하루 돌아보기', '괜찮은 글');
+  api.failNextSave();
+  const save = screen.getByRole('button', { name: '저장' });
+  save.focus();
+  press('저장');
+  await flush();
+  expect(body).not.toHaveAttribute('aria-invalid');
+  expect(save).toHaveFocus();
+});

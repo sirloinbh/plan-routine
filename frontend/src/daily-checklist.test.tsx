@@ -480,3 +480,65 @@ test('a failed load shows the Korean error', async () => {
   render(<DailyChecklist />);
   expect(await screen.findByRole('alert')).toHaveTextContent('서버에 연결할 수 없습니다');
 });
+
+const heading = (name: string) => screen.getByRole('heading', { level: 2, name });
+const pressDate = (name: string) => {
+  const control = screen.getByRole('button', { name });
+  control.focus();
+  fireEvent.click(control);
+};
+
+test('moving to another day puts focus on its date, also where the buttons run out', async () => {
+  checklistApi(seed);
+  render(<DailyChecklist />);
+  await box('6시 기상');
+  pressDate('이전 날');
+  await flush();
+  expect(heading('2026-10-21')).toHaveFocus();
+
+  pressDate('오늘로');
+  await flush();
+  expect(heading('오늘 (2026-10-22)')).toHaveFocus();
+
+  for (const day of editable.slice(0, -1).reverse()) {
+    pressDate('이전 날');
+    await flush();
+    expect(heading(day)).toHaveFocus();
+  }
+  expect(screen.getByRole('button', { name: '이전 날' })).toBeDisabled();
+});
+
+test('a day that fails to load leaves focus where it was', async () => {
+  const api = checklistApi(seed);
+  render(<DailyChecklist />);
+  await box('6시 기상');
+  api.failNextLoad();
+  pressDate('이전 날');
+  await flush();
+  expect(screen.getByRole('button', { name: '이전 날' })).toHaveFocus();
+});
+
+test('a slow day does not take focus back once the user has moved on', async () => {
+  const api = checklistApi(seed);
+  render(<DailyChecklist />);
+  const first = await box('6시 기상');
+  api.holdNextLoad();
+  pressDate('이전 날');
+  await flush();
+  first.focus();
+  api.releaseLoad();
+  await flush();
+  expect(heading('2026-10-21')).toBeVisible();
+  expect(await box('6시 기상')).toHaveFocus();
+});
+
+test('midnight changes the day without moving focus', async () => {
+  const api = checklistApi(seed);
+  render(<DailyChecklist />);
+  (await box('6시 기상')).focus();
+  api.setToday('2026-10-21');
+  document.dispatchEvent(new Event('visibilitychange'));
+  await flush();
+  expect(heading('오늘 (2026-10-21)')).toBeVisible();
+  expect(await box('6시 기상')).toHaveFocus();
+});
