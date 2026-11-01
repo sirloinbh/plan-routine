@@ -695,10 +695,82 @@ test('another tab changing the draft means nothing to a tab with no unsaved text
   diaryApi();
   render(<Diary />);
   await field('하루 돌아보기');
+  otherTab(null);
+  await flush();
+  expect(localStorage.getItem(draftKey)).toBeNull();
   otherTab(JSON.stringify({ date: today, form: { ...empty, body: '다른 탭' }, base: empty }));
   await flush();
   expect(leaving()).toBe(false);
   expect(screen.queryByText(/임시 저장되어 있지 않아/)).not.toBeInTheDocument();
+});
+
+const theirDraft = JSON.stringify({
+  date: today,
+  form: { ...empty, body: '다른 탭의 글' },
+  base: empty,
+});
+
+test("discarding or saving in a warned tab leaves the other tab's draft alone", async () => {
+  diaryApi();
+  const { unmount } = render(<Diary />);
+  await type('하루 돌아보기', '이 탭의 글');
+  await flush();
+  localStorage.setItem(draftKey, theirDraft);
+  otherTab(theirDraft);
+  press('버리기');
+  press('버리기 확인');
+  await flush();
+  expect(localStorage.getItem(draftKey)).toBe(theirDraft);
+
+  await type('하루 돌아보기', '다시 쓴 글');
+  await flush();
+  localStorage.setItem(draftKey, theirDraft);
+  otherTab(theirDraft);
+  press('저장');
+  await flush();
+  expect(localStorage.getItem(draftKey)).toBe(theirDraft);
+  unmount();
+});
+
+test('after a warning passes, this tab clears its own draft as usual', async () => {
+  diaryApi();
+  render(<Diary />);
+  await type('하루 돌아보기', '이 탭의 글');
+  await flush();
+  localStorage.setItem(draftKey, theirDraft);
+  otherTab(theirDraft);
+  await type('하루 돌아보기', '되찾은 글');
+  await flush();
+  press('저장');
+  await flush();
+  expect(localStorage.getItem(draftKey)).toBeNull();
+});
+
+test('clearing all of the storage counts as clearing the draft', async () => {
+  diaryApi();
+  render(<Diary />);
+  await type('하루 돌아보기', '이 탭의 글');
+  await flush();
+  localStorage.clear();
+  act(() => {
+    window.dispatchEvent(new StorageEvent('storage', { key: null, newValue: null }));
+  });
+  expect(JSON.parse(localStorage.getItem(draftKey)!)).toMatchObject({
+    form: { body: '이 탭의 글' },
+  });
+});
+
+test('putting the draft back keeps its first base, so a save elsewhere still shows', async () => {
+  diaryApi([saved]);
+  seedDraft(today, '예전 글', { ...empty, body: '더 예전 글' });
+  render(<Diary />);
+  await field('하루 돌아보기');
+  await flush();
+  localStorage.removeItem(draftKey);
+  otherTab(null);
+  expect(JSON.parse(localStorage.getItem(draftKey)!)).toMatchObject({
+    base: { body: '더 예전 글' },
+  });
 });
 
 test('a storage event for something else is ignored', async () => {

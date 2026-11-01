@@ -59,6 +59,9 @@ export function Diary() {
   const [draftFailed, setDraftFailed] = useState(false);
   const [bodyInvalid, setBodyInvalid] = useState(false);
   const [confirmingDiscard, setConfirmingDiscard] = useState(false);
+  // Another tab's text is in the draft now, so this tab must not clear it.
+  const draftTaken = useRef(false);
+  const draftBase = useRef<DiaryForm | null>(null);
   const saveButton = useRef<HTMLButtonElement>(null);
   const discardButton = useRef<HTMLButtonElement>(null);
   const confirmDiscardButton = useRef<HTMLButtonElement>(null);
@@ -125,10 +128,15 @@ export function Diary() {
       // The draft keeps its first base, or a save made elsewhere would be forgotten on the next visit.
       const kept = readDraft();
       const base = kept?.date === data.date ? kept.base : savedForm;
-      setDraftFailed(!writeDraft({ date: data.date, form, base }));
+      draftBase.current = base;
+      const written = writeDraft({ date: data.date, form, base });
+      if (written) draftTaken.current = false;
+      setDraftFailed(!written);
       return;
     }
-    clearDraft(data.date);
+    if (!draftTaken.current) clearDraft(data.date);
+    draftTaken.current = false;
+    draftBase.current = null;
     setDraftFailed(false);
   }, [data, loading, form, savedForm]);
 
@@ -137,12 +145,15 @@ export function Diary() {
   useEffect(() => {
     if (!data || loading || sameText(form, savedForm)) return;
     const othersChanged = (event: StorageEvent) => {
-      if (event.key !== draftKey) return;
+      // A null key is the whole storage being cleared.
+      if (event.key !== null && event.key !== draftKey) return;
       if (event.newValue !== null) {
+        draftTaken.current = true;
         setDraftFailed(true);
         return;
       }
-      setDraftFailed(!writeDraft({ date: data.date, form, base: savedForm }));
+      const base = draftBase.current ?? savedForm;
+      setDraftFailed(!writeDraft({ date: data.date, form, base }));
     };
     window.addEventListener('storage', othersChanged);
     return () => window.removeEventListener('storage', othersChanged);
