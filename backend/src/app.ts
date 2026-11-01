@@ -12,6 +12,7 @@ import { recordRoutes } from './record-routes.js';
 import { requestFailure } from './request-input.js';
 import { routineRoutes } from './routine-routes.js';
 import { routineAnchorDate } from './routines.js';
+import { MAX_ISSUES } from './standard/http.js';
 import { statsRoutes } from './stats-routes.js';
 
 // DATE columns stay YYYY-MM-DD strings so the service time zone never shifts them.
@@ -60,7 +61,10 @@ export function createApp(pool: Pool, options: { today?: () => string } = {}) {
   app.use(
     (err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
       if (err instanceof ZodError) {
-        res.status(400).json({ error: err.issues.map((issue) => issue.message).join(', ') });
+        // A large invalid array can raise one issue per element; the first few are enough to fix it.
+        const shown = err.issues.slice(0, MAX_ISSUES).map((issue) => issue.message);
+        if (err.issues.length > MAX_ISSUES) shown.push(`외 ${err.issues.length - MAX_ISSUES}개`);
+        res.status(400).json({ error: shown.join(', ') });
         return;
       }
       const failure = requestFailure(err);
