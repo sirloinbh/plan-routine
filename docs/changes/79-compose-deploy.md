@@ -16,7 +16,15 @@
 - web 포트를 `${WEB_BIND:-127.0.0.1}:${WEB_PORT:-8107}:80`으로. 기본값은 지금과 같아 로컬 주소가 바뀌지 않는다.
 - DB 헬스 체크에 `-h 127.0.0.1`. 첫 실행의 임시 서버는 소켓으로만 답하므로, 진짜 서버가 뜨기 전에 healthy가 되지 않는다.
 
-로컬에서 달라지는 점은 이미지 이름이 `plan-backend:local`, `plan-frontend:local`이 되는 것뿐이다.
+로컬에서 달라지는 점은 다음과 같다. 주소와 포트의 기본값은 그대로다.
+
+- 이미지 이름이 `plan-backend:local`, `plan-frontend:local`이 된다. 그래서 `--build` 없는 `docker compose up -d`도 첫 1회는 다시 빌드하며, 셸에 `NODE_AUTH_TOKEN`이 필요하다. 예전 이미지는 로컬에 남는다.
+- 빈 볼륨 첫 실행에서 api가 진짜 서버가 뜰 때까지 기다린다.
+- 로컬 `.env`에 `WEB_BIND`, `WEB_PORT`가 있으면 따른다.
+
+`docs/project-setup.md`의 compose 설명과 예시도 맞췄다.
+
+중앙 템플릿과 대조했다. 이미지와 포트는 중앙 `scaffold/app/compose.yaml`, `docs/runbooks/deploy.md`와 같다. 헬스 체크의 `-h 127.0.0.1`만 다르며, 의도한 차이다. 중앙에 넣는 일은 [project-standards#392](https://github.com/sirloinbh/project-standards/issues/392)로 등록했다. `deploy/backup.sh`의 복원 확인에 있는 같은 경합도 중앙 관리 파일이라 그 카드에 넣었다.
 
 ## 검증
 
@@ -26,4 +34,8 @@
 
 ## 한계·후속
 
-- 위의 `docker compose up` 확인이 남았다.
+- 위의 `docker compose up` 확인이 남았다. 그때 첫 초기화 소요 시간도 본다. 헬스 체크 여유는 약 75초다.
+
+## 자동 코드 리뷰
+
+- 1차: `compose.yaml`에는 결함이 없었다. 낮음 3건을 반영했다(영향 범위 기록, 중앙 템플릿 대조 결과, `docs/project-setup.md`의 예시). 기존 버그 1건은 중앙 카드로 등록했다.
