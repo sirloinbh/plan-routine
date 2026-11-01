@@ -1,9 +1,9 @@
 import { Checklist, type ChecklistItem, ChecklistPending } from './checklist';
-import { Button } from './components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
 import { EmptyState } from './components/ui/empty-state';
 import { Notice } from './components/ui/notice';
 import { LoadingRegion } from './loading-region';
+import { RetryButton } from './retry-button';
 import { RoutineAddForm, RoutineItems, RoutineNotices } from './routine-list';
 import { useChecklist } from './use-checklist';
 import { useRoutineList } from './use-routine-list';
@@ -49,15 +49,9 @@ export function PeriodRoutines({
           )}
           <Notice notice={checklist.notice} />
           {checklist.loadFailed && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="self-start"
-              onClick={checklist.retry}
-            >
+            <RetryButton className="self-start" onClick={checklist.retry}>
               다시 시도
-            </Button>
+            </RetryButton>
           )}
           {data.items.length === 0 ? (
             <EmptyState title={`${periodName}에 체크할 루틴이 없습니다`} description={emptyHint} />
@@ -83,15 +77,9 @@ export function PeriodRoutines({
         <CardContent className="flex flex-col gap-3">
           <RoutineNotices notice={list.notice} />
           {list.loadFailed && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="self-start"
-              onClick={list.refresh}
-            >
+            <RetryButton className="self-start" onClick={list.refresh}>
               목록 다시 불러오기
-            </Button>
+            </RetryButton>
           )}
           {list.routines === null ? (
             <LoadingRegion label="루틴 불러오는 중" />

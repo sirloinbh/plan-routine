@@ -9,6 +9,7 @@ import { requestJson } from './lib/api';
 import { useNotice } from './lib/use-notice';
 import { cn } from './lib/utils';
 import { LoadingRegion } from './loading-region';
+import { RetryButton } from './retry-button';
 import { groupByCategory } from './routine-groups';
 import type { Routine } from './routines';
 import { serviceDate } from './service-date';
@@ -291,9 +292,7 @@ export function Records() {
     return monthFailed ? (
       <div className="flex flex-col items-start gap-3">
         <Notice notice={monthNotice.notice} />
-        <Button type="button" variant="outline" size="sm" onClick={reload}>
-          다시 시도
-        </Button>
+        <RetryButton onClick={reload}>다시 시도</RetryButton>
       </div>
     ) : (
       <LoadingRegion label="기록 불러오는 중" shape="card" />
@@ -328,24 +327,18 @@ export function Records() {
         <CardContent className="flex flex-col gap-3">
           <Notice notice={monthNotice.notice} />
           {monthFailed && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="self-start"
-              onClick={reload}
-            >
+            <RetryButton className="self-start" onClick={reload}>
               다시 시도
-            </Button>
+            </RetryButton>
           )}
           <Calendar data={data} selected={selected} onSelect={selectDay} />
         </CardContent>
       </Card>
       <Notice notice={dayNotice.notice} />
       {dayFailed && (
-        <Button type="button" variant="outline" size="sm" className="self-start" onClick={reload}>
+        <RetryButton className="self-start" onClick={reload}>
           이 날 기록 다시 불러오기
-        </Button>
+        </RetryButton>
       )}
       {day?.date === selected ? (
         <DayDetail day={day} />

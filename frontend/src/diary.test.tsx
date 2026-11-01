@@ -872,3 +872,19 @@ test('an event older than this tab\u2019s own write is not a warning', async () 
   await flush();
   expect(localStorage.getItem(draftKey)).toBeNull();
 });
+
+test('after a retry succeeds, focus is on the page rather than lost', async () => {
+  const api = diaryApi();
+  api.failNextLoad();
+  render(
+    <section aria-labelledby="page">
+      <h1 id="page">일기</h1>
+      <Diary />
+    </section>,
+  );
+  const retry = await screen.findByRole('button', { name: '다시 시도' });
+  retry.focus();
+  fireEvent.click(retry);
+  await field('하루 돌아보기');
+  expect(screen.getByRole('region', { name: '일기' })).toHaveFocus();
+});
