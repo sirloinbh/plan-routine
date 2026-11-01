@@ -8,6 +8,7 @@ import { Spinner } from './components/ui/spinner';
 import {
   clearDraft,
   type DiaryForm,
+  draftKey,
   readDraft,
   sameForm,
   sameText,
@@ -58,6 +59,9 @@ export function Diary() {
   const [draftFailed, setDraftFailed] = useState(false);
   const [bodyInvalid, setBodyInvalid] = useState(false);
   const [confirmingDiscard, setConfirmingDiscard] = useState(false);
+  // Another tab's text is in the draft now, so this tab must not clear it.
+  const draftTaken = useRef(false);
+  const draftBase = useRef<DiaryForm | null>(null);
   const saveButton = useRef<HTMLButtonElement>(null);
   const discardButton = useRef<HTMLButtonElement>(null);
   const confirmDiscardButton = useRef<HTMLButtonElement>(null);
@@ -124,11 +128,35 @@ export function Diary() {
       // The draft keeps its first base, or a save made elsewhere would be forgotten on the next visit.
       const kept = readDraft();
       const base = kept?.date === data.date ? kept.base : savedForm;
-      setDraftFailed(!writeDraft({ date: data.date, form, base }));
+      draftBase.current = base;
+      const written = writeDraft({ date: data.date, form, base });
+      if (written) draftTaken.current = false;
+      setDraftFailed(!written);
       return;
     }
-    clearDraft(data.date);
+    if (!draftTaken.current) clearDraft(data.date);
+    draftTaken.current = false;
+    draftBase.current = null;
     setDraftFailed(false);
+  }, [data, loading, form, savedForm]);
+
+  // Another tab shares the one draft. If it took the draft, this tab's text is no longer kept, so
+  // say so until the next keystroke takes it back. If it cleared the draft, put this tab's back.
+  useEffect(() => {
+    if (!data || loading || sameText(form, savedForm)) return;
+    const othersChanged = (event: StorageEvent) => {
+      // A null key is the whole storage being cleared.
+      if (event.key !== null && event.key !== draftKey) return;
+      if (event.newValue !== null) {
+        draftTaken.current = true;
+        setDraftFailed(true);
+        return;
+      }
+      const base = draftBase.current ?? savedForm;
+      setDraftFailed(!writeDraft({ date: data.date, form, base }));
+    };
+    window.addEventListener('storage', othersChanged);
+    return () => window.removeEventListener('storage', othersChanged);
   }, [data, loading, form, savedForm]);
 
   // A draft survives closing the tab. Only when it could not be kept does leaving need a warning.
@@ -332,7 +360,7 @@ export function Diary() {
               {dirty && (
                 <span className="text-body-sm text-muted-foreground">
                   {draftFailed
-                    ? '저장하지 않은 내용이 있습니다. 이 브라우저에 임시 저장하지 못해, 떠나면 사라집니다'
+                    ? '저장하지 않은 내용이 있습니다. 임시 저장되어 있지 않아, 떠나면 사라집니다'
                     : '저장하지 않은 내용이 있습니다'}
                 </span>
               )}
