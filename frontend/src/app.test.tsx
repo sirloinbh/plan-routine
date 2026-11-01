@@ -45,7 +45,17 @@ const emptyDay = {
   diary: null,
 };
 
+const emptyStats = {
+  today: '2026-10-26',
+  daily: { weeks: [], months: [] },
+  weekly: [],
+  fourWeek: [],
+  twelveWeek: [],
+  items: [],
+};
+
 const pageData = (url: string) => {
+  if (url.startsWith('/api/stats')) return emptyStats;
   if (url.startsWith('/api/records/')) return emptyDay;
   if (url.startsWith('/api/records')) return emptyMonth;
   if (url.startsWith('/api/goals')) return emptyGoals;
@@ -192,6 +202,17 @@ test('the main menu opens the records page', async () => {
   expect(window.location.pathname).toBe('/records');
   expect(await screen.findByRole('heading', { level: 1, name: '기록' })).toBeInTheDocument();
   expect(await screen.findByText('이 날의 기록이 없습니다')).toBeInTheDocument();
+  window.history.replaceState(null, '', '/');
+});
+
+test('the main menu opens the stats page', async () => {
+  health({ today: '2026-10-26' });
+  render(<App />);
+  const menu = screen.getByRole('navigation', { name: '주 메뉴' });
+  fireEvent.click(within(menu).getByRole('link', { name: '달성률' }));
+  expect(window.location.pathname).toBe('/stats');
+  expect(await screen.findByRole('heading', { level: 1, name: '달성률' })).toBeInTheDocument();
+  expect(await screen.findByText('아직 이력이 없습니다')).toBeInTheDocument();
   window.history.replaceState(null, '', '/');
 });
 
