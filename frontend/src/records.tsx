@@ -42,8 +42,11 @@ const monthLabel = (month: string) => {
   return `${year}년 ${Number(number)}월`;
 };
 
+// Calendar dates, so the weekday does not depend on the device's time zone.
+const weekdayIndex = (date: string) => new Date(`${date}T00:00:00Z`).getUTCDay();
+
 const dayLabel = ({ date, checked, total, hasDiary }: DaySummary) =>
-  `${date} 하루 루틴 ${checked}/${total} 완료, 일기 ${hasDiary ? '있음' : '없음'}`;
+  `${date} ${weekdays[weekdayIndex(date)]}요일 하루 루틴 ${checked}/${total} 완료, 일기 ${hasDiary ? '있음' : '없음'}`;
 
 function Calendar({
   data,
@@ -54,8 +57,7 @@ function Calendar({
   selected: string | null;
   onSelect: (date: string) => void;
 }) {
-  // A calendar date, so its weekday does not depend on the device's time zone.
-  const firstWeekday = new Date(`${data.month}-01T00:00:00Z`).getUTCDay();
+  const firstWeekday = weekdayIndex(`${data.month}-01`);
   return (
     <div className="flex flex-col gap-1">
       <div
@@ -86,7 +88,8 @@ function Calendar({
             >
               <span>{Number(day.date.slice(8))}</span>
               <span className="text-caption text-muted-foreground">
-                {day.total > 0 ? `${day.checked}/${day.total}` : ' '}
+                {/* A no-break space keeps the row's height, so the dates stay level. */}
+                {day.total > 0 ? `${day.checked}/${day.total}` : '\u00a0'}
               </span>
               <span
                 aria-hidden
@@ -130,6 +133,7 @@ function DayDetail({ day }: { day: DayData }) {
         <EmptyState
           title="이 날의 기록이 없습니다"
           description="루틴도 일기도 남아 있지 않습니다."
+          headingLevel="h3"
         />
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
@@ -148,8 +152,12 @@ function DayDetail({ day }: { day: DayData }) {
                           key={routine.id}
                           className="flex flex-wrap items-center gap-2 text-body-sm"
                         >
-                          <span aria-hidden>{routine.checked ? '✓' : '·'}</span>
-                          <span className="min-w-0 wrap-anywhere">{routine.name}</span>
+                          <span aria-hidden className="shrink-0">
+                            {routine.checked ? '✓' : '·'}
+                          </span>
+                          <span className="min-w-0 flex-1 basis-40 wrap-anywhere">
+                            {routine.name}
+                          </span>
                           <span className="text-caption text-muted-foreground">
                             {routine.checked ? '완료' : '미완료'}
                           </span>
@@ -194,7 +202,8 @@ export function Records() {
   const [month, setMonth] = useState<string | null>(null);
   const [version, setVersion] = useState(0);
   const [data, setData] = useState<MonthData | null>(null);
-  const [selected, setSelected] = useState<string | null>(null);
+  // null follows the server's today, until a day is picked.
+  const [chosen, setChosen] = useState<string | null>(null);
   const [day, setDay] = useState<DayData | null>(null);
   const [monthFailed, setMonthFailed] = useState(false);
   const [dayFailed, setDayFailed] = useState(false);
@@ -215,8 +224,6 @@ export function Records() {
         setData(loaded);
         setMonthFailed(false);
         clearMonth();
-        // Opens on today; afterwards the chosen day stays while months change.
-        setSelected((current) => current ?? loaded.today);
         // The server is not on this device's date yet (a fast clock), so ask again at the next check.
         if (loaded.today !== startedOn) requestedOn.current = '';
       })
@@ -230,6 +237,8 @@ export function Records() {
       ignore = true;
     };
   }, [month, version, monthError, clearMonth]);
+
+  const selected = chosen ?? data?.today ?? null;
 
   useEffect(() => {
     if (!selected) return undefined;
@@ -263,6 +272,12 @@ export function Records() {
     return () => document.removeEventListener('visibilitychange', reloadWhenShown);
   }, [reload]);
 
+  const selectDay = (date: string) => {
+    clearDay();
+    setDayFailed(false);
+    setChosen(date);
+  };
+
   const moveMonth = (target: string) => {
     clearMonth();
     setMonth(target);
@@ -286,30 +301,28 @@ export function Records() {
   return (
     <div className="flex flex-col gap-6">
       <Card role="region" aria-label={`${monthLabel(data.month)} 달력`}>
-        <CardHeader>
-          <CardTitle asHeading="h2" className="flex flex-wrap items-center justify-between gap-2">
-            {monthLabel(data.month)}
-            <span className="flex gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={!data.previousMonth}
-                onClick={() => data.previousMonth && moveMonth(data.previousMonth)}
-              >
-                이전 달
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={!data.nextMonth}
-                onClick={() => data.nextMonth && moveMonth(data.nextMonth)}
-              >
-                다음 달
-              </Button>
-            </span>
-          </CardTitle>
+        <CardHeader className="flex flex-wrap items-center justify-between gap-2">
+          <CardTitle asHeading="h2">{monthLabel(data.month)}</CardTitle>
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={!data.previousMonth}
+              onClick={() => data.previousMonth && moveMonth(data.previousMonth)}
+            >
+              이전 달
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={!data.nextMonth}
+              onClick={() => data.nextMonth && moveMonth(data.nextMonth)}
+            >
+              다음 달
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           <Notice notice={monthNotice.notice} />
@@ -324,7 +337,7 @@ export function Records() {
               다시 시도
             </Button>
           )}
-          <Calendar data={data} selected={selected} onSelect={setSelected} />
+          <Calendar data={data} selected={selected} onSelect={selectDay} />
         </CardContent>
       </Card>
       <Notice notice={dayNotice.notice} />
@@ -333,7 +346,15 @@ export function Records() {
           이 날 기록 다시 불러오기
         </Button>
       )}
-      {day?.date === selected && <DayDetail day={day} />}
+      {day?.date === selected ? (
+        <DayDetail day={day} />
+      ) : (
+        !dayFailed && (
+          <p role="status" className="text-body-sm text-muted-foreground">
+            이 날의 기록을 불러오는 중…
+          </p>
+        )
+      )}
     </div>
   );
 }

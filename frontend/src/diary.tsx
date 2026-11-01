@@ -134,9 +134,11 @@ export function Diary() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-body font-semibold">{isToday ? `오늘 (${data.date})` : data.date}</h2>
-          <p className="text-body-sm text-muted-foreground">
-            하루 루틴 {data.progress.checked}/{data.progress.total} 완료
-          </p>
+          {data.progress.total > 0 && (
+            <p className="text-body-sm text-muted-foreground">
+              하루 루틴 {data.progress.checked}/{data.progress.total} 완료
+            </p>
+          )}
         </div>
         <div className="flex flex-wrap gap-2">
           <Button

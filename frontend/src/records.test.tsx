@@ -50,10 +50,19 @@ function recordsApi() {
     },
   };
   const calls: { method: string; url: string }[] = [];
+  let serverToday = today;
+  const held = new Map<string, () => void>();
   let failMonth = false;
   let failDay = false;
   const reply = (status: number, body: unknown) =>
     Promise.resolve({ ok: status < 400, status, json: () => Promise.resolve(body) });
+  // An answer read now that arrives only at release(), as on a slow connection.
+  const holding = (key: string, response: unknown) =>
+    held.has(key)
+      ? new Promise((resolve) => {
+          held.set(key, () => resolve(response));
+        })
+      : response;
   const serverError = () => reply(500, { error: '서버 오류가 발생했습니다' });
   vi.stubGlobal(
     'fetch',
@@ -66,11 +75,11 @@ function recordsApi() {
           return serverError();
         }
         const month = path.searchParams.get('month') ?? '2026-10';
-        return reply(200, {
-          today,
+        const response = reply(200, {
+          today: serverToday,
           month,
-          previousMonth: month === '2026-10' ? '2026-09' : null,
-          nextMonth: month === '2026-09' ? '2026-10' : null,
+          previousMonth: { '2026-10': '2026-09', '2026-09': '2026-08' }[month] ?? null,
+          nextMonth: { '2026-08': '2026-09', '2026-09': '2026-10' }[month] ?? null,
           days:
             month === '2026-10'
               ? [
@@ -78,30 +87,36 @@ function recordsApi() {
                   summary('2026-10-20', 1, 2, true),
                   summary('2026-10-21', 0, 1),
                   summary(today, 0, 1),
+                  ...(serverToday === today ? [] : [summary(serverToday)]),
                 ]
-              : [summary('2026-09-01', 1, 1)],
+              : [summary(`${month}-01`, 1, 1)],
         });
+        return holding(month, response);
       }
       if (failDay) {
         failDay = false;
         return serverError();
       }
       const date = path.pathname.split('/')[3];
-      return reply(200, {
+      const response = reply(200, {
         date,
-        today,
+        today: serverToday,
         ...(days[date] ?? {
           progress: { checked: 0, total: 0 },
           routines: [],
           diary: null,
         }),
       });
+      return holding(date, response);
     }),
   );
   return {
     calls,
     failMonth: () => (failMonth = true),
     failDay: () => (failDay = true),
+    setToday: (date: string) => (serverToday = date),
+    hold: (key: string) => held.set(key, () => {}),
+    release: (key: string) => held.get(key)?.(),
   };
 }
 
@@ -115,7 +130,7 @@ test('opens on this month and today, with each day summarised', async () => {
   await flush();
   expect(screen.getByRole('region', { name: '2026년 10월 달력' })).toBeVisible();
   expect(
-    screen.getByRole('button', { name: '2026-10-20 하루 루틴 1/2 완료, 일기 있음' }),
+    screen.getByRole('button', { name: '2026-10-20 화요일 하루 루틴 1/2 완료, 일기 있음' }),
   ).toBeInTheDocument();
   expect(dayButton(today)).toHaveAttribute('aria-current', 'date');
   expect(dayButton(today)).toHaveAttribute('aria-pressed', 'true');
@@ -158,7 +173,7 @@ test('a day with no record says so', async () => {
   await flush();
   fireEvent.click(dayButton('2026-10-01'));
   await flush();
-  expect(screen.getByText('이 날의 기록이 없습니다')).toBeInTheDocument();
+  expect(screen.getByRole('heading', { level: 3, name: '이 날의 기록이 없습니다' })).toBeVisible();
 });
 
 test('a day with routines but no diary says the diary was not written', async () => {
@@ -188,11 +203,100 @@ test('months can be moved through while the chosen day stays', async () => {
   press('이전 달');
   await flush();
   expect(screen.getByRole('region', { name: '2026년 9월 달력' })).toBeVisible();
-  expect(api.calls.at(-1)?.url).toContain('/api/records');
+  expect(api.calls.map((call) => call.url)).toContain('/api/records?month=2026-09');
   expect(screen.getByRole('region', { name: '2026-10-20 기록' })).toBeVisible();
   press('다음 달');
   await flush();
   expect(screen.getByRole('region', { name: '2026년 10월 달력' })).toBeVisible();
+});
+
+test('a slow answer for an earlier day does not replace the day chosen after it', async () => {
+  const api = recordsApi();
+  render(<Records />);
+  await flush();
+  api.hold('2026-10-20');
+  fireEvent.click(dayButton('2026-10-20'));
+  await flush();
+  // Nothing from the previous day stays on screen while the next one loads.
+  expect(screen.getByText('이 날의 기록을 불러오는 중…')).toBeInTheDocument();
+  fireEvent.click(dayButton('2026-10-01'));
+  await flush();
+  api.release('2026-10-20');
+  await flush();
+  expect(screen.getByRole('region', { name: '2026-10-01 기록' })).toBeVisible();
+  expect(screen.queryByRole('region', { name: '2026-10-20 기록' })).not.toBeInTheDocument();
+});
+
+test('a slow answer for an earlier month does not replace the month chosen after it', async () => {
+  const api = recordsApi();
+  render(<Records />);
+  await flush();
+  press('이전 달');
+  await flush();
+  api.hold('2026-08');
+  press('이전 달');
+  await flush();
+  press('다음 달');
+  await flush();
+  expect(screen.getByRole('region', { name: '2026년 10월 달력' })).toBeVisible();
+  api.release('2026-08');
+  await flush();
+  expect(screen.getByRole('region', { name: '2026년 10월 달력' })).toBeVisible();
+});
+
+const nextDay = (api: ReturnType<typeof recordsApi>) =>
+  act(async () => {
+    vi.setSystemTime(new Date('2026-10-23T03:00:00Z'));
+    api.setToday('2026-10-23');
+    vi.advanceTimersByTime(60_000);
+    await new Promise((resolve) => setTimeout(resolve));
+  });
+
+test('a window left open moves on to the new day unless a day was picked', async () => {
+  vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] });
+  vi.setSystemTime(new Date('2026-10-22T03:00:00Z'));
+  const api = recordsApi();
+  render(<Records />);
+  await flush();
+  await nextDay(api);
+  await flush();
+  expect(screen.getByRole('heading', { level: 2, name: '오늘 (2026-10-23)' })).toBeVisible();
+  expect(dayButton('2026-10-23')).toHaveAttribute('aria-pressed', 'true');
+});
+
+test('a picked day stays when the date changes', async () => {
+  vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] });
+  vi.setSystemTime(new Date('2026-10-22T03:00:00Z'));
+  const api = recordsApi();
+  render(<Records />);
+  await flush();
+  fireEvent.click(dayButton('2026-10-20'));
+  await flush();
+  await nextDay(api);
+  await flush();
+  expect(screen.getByRole('region', { name: '2026-10-20 기록' })).toBeVisible();
+  expect(dayButton('2026-10-23')).toHaveAttribute('aria-current', 'date');
+});
+
+test('picking a day clears the error of an earlier failed day', async () => {
+  const api = recordsApi();
+  render(<Records />);
+  await flush();
+  api.failDay();
+  fireEvent.click(dayButton('2026-10-20'));
+  await flush();
+  expect(screen.getByRole('alert')).toBeInTheDocument();
+  fireEvent.click(dayButton('2026-10-01'));
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  await flush();
+  expect(screen.getByRole('region', { name: '2026-10-01 기록' })).toBeVisible();
+});
+
+test('the calendar heading is only the month, without its buttons', async () => {
+  recordsApi();
+  render(<Records />);
+  await flush();
+  expect(screen.getByRole('heading', { level: 2, name: '2026년 10월' })).toBeVisible();
 });
 
 test('a failed first load offers a retry', async () => {
