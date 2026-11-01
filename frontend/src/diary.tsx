@@ -127,7 +127,13 @@ export function Diary() {
     if (!sameText(form, savedForm)) {
       // The draft keeps its first base, or a save made elsewhere would be forgotten on the next visit.
       const kept = readDraft();
-      const base = kept?.date === data.date ? kept.base : savedForm;
+      // While taken, the stored draft is another tab's, so its base says nothing about this text.
+      const base =
+        draftTaken.current && draftBase.current
+          ? draftBase.current
+          : kept?.date === data.date
+            ? kept.base
+            : savedForm;
       draftBase.current = base;
       const written = writeDraft({ date: data.date, form, base });
       if (written) draftTaken.current = false;
@@ -153,7 +159,9 @@ export function Diary() {
         return;
       }
       const base = draftBase.current ?? savedForm;
-      setDraftFailed(!writeDraft({ date: data.date, form, base }));
+      const written = writeDraft({ date: data.date, form, base });
+      if (written) draftTaken.current = false;
+      setDraftFailed(!written);
     };
     window.addEventListener('storage', othersChanged);
     return () => window.removeEventListener('storage', othersChanged);

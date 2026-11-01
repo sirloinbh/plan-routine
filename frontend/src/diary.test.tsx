@@ -783,3 +783,42 @@ test('a storage event for something else is ignored', async () => {
   });
   expect(leaving()).toBe(false);
 });
+
+test('text discarded after its draft was put back does not return', async () => {
+  diaryApi();
+  const { unmount } = render(<Diary />);
+  await type('하루 돌아보기', '버릴 글');
+  await flush();
+  localStorage.setItem(draftKey, theirDraft);
+  otherTab(theirDraft);
+  localStorage.removeItem(draftKey);
+  otherTab(null);
+  expect(JSON.parse(localStorage.getItem(draftKey)!)).toMatchObject({ form: { body: '버릴 글' } });
+  press('버리기');
+  press('버리기 확인');
+  await flush();
+  expect(localStorage.getItem(draftKey)).toBeNull();
+  unmount();
+  render(<Diary />);
+  expect(await field('하루 돌아보기')).toHaveValue('');
+});
+
+test('taking the draft back keeps the first base of this text', async () => {
+  diaryApi([saved]);
+  seedDraft(today, '예전 글', { ...empty, body: '더 예전 글' });
+  render(<Diary />);
+  await field('하루 돌아보기');
+  await flush();
+  const other = JSON.stringify({
+    date: '2026-10-20',
+    form: { ...empty, body: '다른 날' },
+    base: empty,
+  });
+  localStorage.setItem(draftKey, other);
+  otherTab(other);
+  await type('하루 돌아보기', '이어서 쓴 글');
+  await flush();
+  expect(JSON.parse(localStorage.getItem(draftKey)!)).toMatchObject({
+    base: { body: '더 예전 글' },
+  });
+});
