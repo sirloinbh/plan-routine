@@ -153,7 +153,9 @@ function ItemRow({ item }: { item: Item }) {
         })}
       </ol>
       <details className="text-caption text-muted-foreground">
-        <summary className="cursor-pointer">{item.name} 기간별로 보기</summary>
+        <summary className="cursor-pointer wrap-anywhere pointer-coarse:py-3">
+          {item.name} 기간별로 보기
+        </summary>
         <ul className="mt-1 flex flex-col gap-0.5" aria-label={`${item.name} 최근 이력`}>
           {oldestFirst.map((period) => (
             <li key={period.start} className="flex justify-between gap-2">

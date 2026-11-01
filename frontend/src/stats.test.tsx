@@ -119,14 +119,21 @@ test('each routine shows its rate and history, oldest first, with every state in
   render(<Stats />);
   await flush();
   // In words, in the list that opens under the row, rather than only in a hover title.
-  const history = within(screen.getByRole('list', { name: '6시 기상 최근 이력', hidden: true }));
-  expect(history.getAllByRole('listitem', { hidden: true }).map((row) => row.textContent)).toEqual([
+  const history = within(screen.getByRole('list', { name: '6시 기상 최근 이력' }));
+  expect(history.getAllByRole('listitem').map((row) => row.textContent)).toEqual([
     '2026-10-19대상 아님',
     '2026-10-20완료',
     '2026-10-21미완료',
     '2026-10-22진행 중',
   ]);
   expect(screen.getByText('6시 기상 기간별로 보기').tagName).toBe('SUMMARY');
+  // The strip of marks is for the eye only: its cells are not read out as list items.
+  const wakeCard = within(screen.getByRole('region', { name: '기상 이력' }));
+  expect(wakeCard.queryByRole('listitem', { name: /완료/ })).not.toBeInTheDocument();
+  expect(wakeCard.getAllByRole('list').map((list) => list.getAttribute('aria-label'))).toEqual([
+    null,
+    '6시 기상 최근 이력',
+  ]);
   const card = within(screen.getByRole('region', { name: '기상 이력' }));
   expect(card.getByText('6시 기상')).toBeInTheDocument();
   expect(card.getByText(/^50%/)).toHaveTextContent('1/2');
