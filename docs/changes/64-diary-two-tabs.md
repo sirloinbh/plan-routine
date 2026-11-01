@@ -27,7 +27,7 @@
 
 ## 검증
 
-- 로컬: `env -u TEST_DATABASE_URL npm run check` 통과. 백엔드 161개 중 142 pass, 0 fail, 19 skip(DB 테스트), 프론트엔드 283개 중 281 pass, 0 fail, 2 skip, `test:skills` 4개 pass.
+- 로컬: `env -u TEST_DATABASE_URL npm run check` 통과. 백엔드 161개 중 142 pass, 0 fail, 19 skip(DB 테스트), 프론트엔드 281개 중 279 pass, 0 fail, 2 skip, `test:skills` 4개 pass.
 - 브라우저: 임시 API와 헤드리스 Chrome의 실제 탭 두 개로 1440×900, 390×844에서 확인했다. B가 입력하면 A에 경고가 뜨고 임시 글은 B의 것이 된다. A가 다시 입력하면 A의 경고가 꺼지고 B에 경고가 뜬다. B가 임시 글을 지우면 A가 다시 보관한다. 가로 스크롤은 없었다. 경고 뒤 버리기와 저장은 화면 테스트로만 확인했다. 실제 탭 닫기 경고 창은 확인하지 못했다. 경고가 켜지고 꺼지는 것은 `beforeunload` 화면 테스트로 확인했다.
 
 ## 한계·후속

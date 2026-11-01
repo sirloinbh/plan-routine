@@ -86,6 +86,8 @@ export function Diary() {
           setDate(null);
           return;
         }
+        // Read only here: a stored draft may by now be another tab's, with a base of its own.
+        draftBase.current = draft?.base ?? null;
         setData(loaded);
         setForm(draft?.form ?? server);
         setSavedForm(server);
@@ -126,14 +128,7 @@ export function Diary() {
     if (!data || loading) return;
     if (!sameText(form, savedForm)) {
       // The draft keeps its first base, or a save made elsewhere would be forgotten on the next visit.
-      const kept = readDraft();
-      // While taken, the stored draft is another tab's, so its base says nothing about this text.
-      const base =
-        draftTaken.current && draftBase.current
-          ? draftBase.current
-          : kept?.date === data.date
-            ? kept.base
-            : savedForm;
+      const base = draftBase.current ?? savedForm;
       draftBase.current = base;
       const written = writeDraft({ date: data.date, form, base });
       if (written) draftTaken.current = false;
@@ -154,6 +149,13 @@ export function Diary() {
       // A null key is the whole storage being cleared.
       if (event.key !== null && event.key !== draftKey) return;
       if (event.newValue !== null) {
+        // With three tabs this event can be older than this tab's own write.
+        const stored = readDraft();
+        if (stored?.date === data.date && sameForm(stored.form, form)) {
+          draftTaken.current = false;
+          setDraftFailed(false);
+          return;
+        }
         draftTaken.current = true;
         setDraftFailed(true);
         return;
