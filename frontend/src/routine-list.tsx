@@ -39,7 +39,7 @@ export function RoutineItems({
               aria-label={`${routine.name} 이름 수정`}
               onSubmit={(event) => {
                 event.preventDefault();
-                void list.rename();
+                void list.rename(draftKey);
               }}
             >
               <Input
@@ -70,7 +70,7 @@ export function RoutineItems({
                   aria-label={`${routine.name} 위로 이동`}
                   data-focus-key={`up-${routine.id}`}
                   disabled={busy || index === 0}
-                  onClick={() => void list.move(routine, 'up')}
+                  onClick={() => void list.move(routine, 'up', draftKey)}
                 >
                   위로
                 </Button>
@@ -81,7 +81,7 @@ export function RoutineItems({
                   aria-label={`${routine.name} 아래로 이동`}
                   data-focus-key={`down-${routine.id}`}
                   disabled={busy || index === routines.length - 1}
-                  onClick={() => void list.move(routine, 'down')}
+                  onClick={() => void list.move(routine, 'down', draftKey)}
                 >
                   아래로
                 </Button>

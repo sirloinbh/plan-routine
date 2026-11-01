@@ -32,7 +32,14 @@ export function useRoutineList(cadence: string) {
   // request waits for the reload after the change, because moving a row also moves its buttons.
   const changesMade = useRef(0);
   const [loadedVersion, setLoadedVersion] = useState(0);
-  const focusRequest = useRef<{ keys: string[]; afterVersion: number } | null>(null);
+  const focusRequest = useRef<{
+    keys: string[];
+    afterVersion: number;
+    origin: Element | null;
+  } | null>(null);
+  // Where focus was when the change began. Anywhere else by the time it ends means the user has
+  // moved on, and taking focus back would send their typing to the wrong place.
+  const changeOrigin = useRef<Element | null>(null);
 
   useEffect(() => {
     // A newer reload supersedes this one, so a slow older response cannot overwrite it.
@@ -64,6 +71,8 @@ export function useRoutineList(cadence: string) {
     const request = focusRequest.current;
     if (!request || busy || loadedVersion < request.afterVersion) return;
     focusRequest.current = null;
+    const current = document.activeElement;
+    if (current && current !== document.body && current !== request.origin) return;
     for (const key of request.keys) {
       const control = document.querySelector<HTMLElement & { disabled?: boolean }>(
         `[data-focus-key="${key}"]`,
@@ -76,7 +85,13 @@ export function useRoutineList(cadence: string) {
   });
 
   const requestFocus = (keys: string[]) => {
-    focusRequest.current = { keys, afterVersion: changesMade.current };
+    // On a touch screen, focusing a field pops up the keyboard nobody asked for.
+    const touch = window.matchMedia('(pointer: coarse)').matches;
+    focusRequest.current = {
+      keys: touch ? keys.filter((key) => !key.startsWith('add-')) : keys,
+      afterVersion: changesMade.current,
+      origin: changeOrigin.current,
+    };
   };
 
   const refresh = useCallback(() => setRefreshes((value) => value + 1), []);
@@ -92,6 +107,7 @@ export function useRoutineList(cadence: string) {
 
   const run = async (action: () => Promise<unknown>, done: string) => {
     setBusy(true);
+    changeOrigin.current = document.activeElement;
     loadErrorShown.current = false;
     try {
       await action();
@@ -128,7 +144,7 @@ export function useRoutineList(cadence: string) {
     if (ok) setDrafts((current) => ({ ...current, [draftKey]: '' }));
   };
 
-  const rename = async () => {
+  const rename = async (draftKey: string) => {
     if (!editing) return;
     const name = editing.name.trim();
     if (!name) {
@@ -139,16 +155,22 @@ export function useRoutineList(cadence: string) {
       () => requestJson(`/api/routines/${editing.id}`, { method: 'PATCH', body: { name } }),
       `루틴 이름을 '${name}'(으)로 바꿨습니다`,
     );
-    requestFocus(ok ? [focusKeys.edit(editing.id)] : [focusKeys.renameInput]);
+    // A failure keeps the form, unless the routine has gone or the edit was cancelled meanwhile.
+    requestFocus([
+      ...(ok ? [] : [focusKeys.renameInput]),
+      focusKeys.edit(editing.id),
+      focusKeys.add(draftKey),
+    ]);
     if (ok) setEditing(null);
   };
 
   const cancelEditing = () => {
+    changeOrigin.current = document.activeElement;
     if (editing) requestFocus([focusKeys.edit(editing.id)]);
     setEditing(null);
   };
 
-  const move = async (routine: Routine, direction: 'up' | 'down') => {
+  const move = async (routine: Routine, direction: 'up' | 'down', draftKey: string) => {
     await run(
       () =>
         requestJson(`/api/routines/${routine.id}/move`, { method: 'POST', body: { direction } }),
@@ -159,18 +181,19 @@ export function useRoutineList(cadence: string) {
       direction === 'up'
         ? [focusKeys.up(routine.id), focusKeys.down(routine.id)]
         : [focusKeys.down(routine.id), focusKeys.up(routine.id)];
-    requestFocus([same, other, focusKeys.edit(routine.id)]);
+    requestFocus([same, other, focusKeys.edit(routine.id), focusKeys.add(draftKey)]);
   };
 
   // `neighbours` are the next places to land, because the routine's own row is about to go.
   const archive = async (routine: Routine, neighbours: string[], draftKey: string) => {
-    await run(
+    const ok = await run(
       () => requestJson(`/api/routines/${routine.id}/archive`, { method: 'POST' }),
       `'${routine.name}' 루틴을 보관했습니다. 지난 기록은 남아 있습니다`,
     );
+    // If it failed the row is still there, so stay on it.
     requestFocus([
+      ...(ok ? [] : [focusKeys.edit(routine.id)]),
       ...neighbours.map(focusKeys.edit),
-      focusKeys.edit(routine.id),
       focusKeys.add(draftKey),
     ]);
     setConfirmArchive(null);
