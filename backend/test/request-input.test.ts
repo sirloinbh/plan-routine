@@ -123,3 +123,29 @@ test('an unexpected error stays a 500 unless it carries a 4xx status', async () 
     console.error = logged;
   }
 });
+
+test('a request with many errors gets at most ten messages and a count of the rest', async () => {
+  await withApi(untouchedPool(), async (call) => {
+    const { status, data } = await call('/api/goals/reviews', {
+      method: 'PUT',
+      body: { reviews: Array.from({ length: 15 }, () => 1) },
+    });
+    assert.equal(status, 400);
+    const parts = String(data.error).split(', ');
+    assert.equal(parts.length, 11);
+    assert.equal(parts.at(-1), '외 5개');
+  });
+});
+
+test('ten errors are shown in full, with no count', async () => {
+  await withApi(untouchedPool(), async (call) => {
+    const { status, data } = await call('/api/goals/reviews', {
+      method: 'PUT',
+      body: { reviews: Array.from({ length: 10 }, () => 1) },
+    });
+    assert.equal(status, 400);
+    const parts = String(data.error).split(', ');
+    assert.equal(parts.length, 10);
+    assert.doesNotMatch(String(data.error), /외 /);
+  });
+});
