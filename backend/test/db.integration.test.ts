@@ -569,6 +569,210 @@ test(
     }),
 );
 
+const goalsMigration = new URL(
+  '../../database/migrations/004_twelve_week_goals.sql',
+  import.meta.url,
+);
+
+test(
+  'goals migration re-runs safely, enforces its limits and adds the checklist item once',
+  { skip: !url, timeout: 30_000 },
+  () =>
+    withClient(async (client) => {
+      await client.query(readFileSync(goalsMigration, 'utf8'));
+      await client.query(readFileSync(goalsMigration, 'utf8'));
+      const seeded = await client.query(
+        "SELECT 1 FROM routines WHERE cadence = 'twelve_week' AND name = '목표 재설정'",
+      );
+      assert.equal(seeded.rowCount, 1);
+      // Archiving it sticks when the migration runs again. Rolled back to keep the shared row.
+      await client.query('BEGIN');
+      try {
+        await client.query(
+          "UPDATE routines SET archived_at = now() WHERE cadence = 'twelve_week' AND name = '목표 재설정'",
+        );
+        await client.query(readFileSync(goalsMigration, 'utf8'));
+        const active = await client.query(
+          "SELECT 1 FROM routines WHERE cadence = 'twelve_week' AND name = '목표 재설정' AND archived_at IS NULL",
+        );
+        assert.equal(active.rowCount, 0);
+      } finally {
+        await client.query('ROLLBACK');
+      }
+      const rejects = async (values: string) => {
+        await client.query('BEGIN');
+        try {
+          await assert.rejects(
+            client.query(
+              `INSERT INTO twelve_week_goals (period_start, title, review_note) VALUES ${values}`,
+            ),
+            { code: '23514' },
+          );
+        } finally {
+          await client.query('ROLLBACK');
+        }
+      };
+      await rejects("('2001-02-04', '   ', NULL)");
+      await rejects("('2001-02-04', repeat('a', 201), NULL)");
+      await rejects("('2001-02-04', 'a', repeat('a', 1001))");
+    }),
+);
+
+test(
+  'goals stay with their period, move to review when it ends, and reviews save all or nothing',
+  { skip: !url, timeout: 30_000 },
+  () =>
+    withClient(async (client, pool) => {
+      const original = await client.query<{ value: string }>(
+        'SELECT value FROM app_settings WHERE key = $1',
+        [anchorSettingKey],
+      );
+      await client.query('DELETE FROM app_settings WHERE key = $1', [anchorSettingKey]);
+      const created: string[] = [];
+      let today = '2026-10-22';
+      try {
+        await withApi(
+          pool,
+          async (call) => {
+            type Period = {
+              period: { start: string };
+              goals: {
+                id: string;
+                title: string;
+                achieved: boolean | null;
+                reviewNote: string | null;
+                reviewedAt: unknown;
+              }[];
+            };
+            const page = async () => (await call('/api/goals')).data;
+            const add = async (title: string) => {
+              const { status, data } = await call('/api/goals', {
+                method: 'POST',
+                body: { title },
+              });
+              assert.equal(status, 201);
+              const { id } = data.goal as { id: string };
+              created.push(id);
+              return id;
+            };
+            // Thursday first use, so the period counts from Sunday 10-18.
+            const first = await add('책 읽기');
+            const second = await add('달리기');
+            const before = await page();
+            assert.equal(before.remainingWeeks, 12);
+            const current = before.current as Period;
+            assert.deepEqual(current.period, { start: '2026-10-18', end: '2027-01-09' });
+            assert.deepEqual(
+              current.goals.map((goal) => goal.id),
+              [first, second],
+            );
+
+            const renamed = await call(`/api/goals/${second}`, {
+              method: 'PATCH',
+              body: { title: '5km 달리기' },
+            });
+            assert.equal(renamed.status, 200);
+            const removable = await add('지울 목표');
+            const removed = await call(`/api/goals/${removable}`, { method: 'DELETE' });
+            assert.equal(removed.status, 200);
+
+            // A running period cannot be reviewed.
+            const tooEarly = await call('/api/goals/reviews', {
+              method: 'PUT',
+              body: { reviews: [{ id: first, achieved: true }] },
+            });
+            assert.equal(tooEarly.status, 400);
+
+            // The next period: the goals become past ones, with nothing reviewed yet.
+            today = '2027-01-10';
+            const later = await page();
+            assert.deepEqual((later.current as Period).goals, []);
+            const past = later.past as Period[];
+            const last = past.find((entry) => entry.period.start === '2026-10-18')!;
+            assert.deepEqual(
+              last.goals.map((goal) => [goal.title, goal.reviewedAt]),
+              [
+                ['책 읽기', null],
+                ['5km 달리기', null],
+              ],
+            );
+            const next = await add('새 목표');
+
+            // A past goal keeps its text.
+            const pastEdit = await call(`/api/goals/${first}`, {
+              method: 'PATCH',
+              body: { title: '다른 이름' },
+            });
+            assert.equal(pastEdit.status, 400);
+            assert.equal((await call(`/api/goals/${first}`, { method: 'DELETE' })).status, 400);
+
+            // One goal of the running period cancels the whole request.
+            const mixed = await call('/api/goals/reviews', {
+              method: 'PUT',
+              body: {
+                reviews: [
+                  { id: first, achieved: true, note: '남으면 안 됨' },
+                  { id: next, achieved: true },
+                ],
+              },
+            });
+            assert.equal(mixed.status, 400);
+            const untouched = await client.query(
+              'SELECT achieved, review_note, reviewed_at FROM twelve_week_goals WHERE id = $1',
+              [first],
+            );
+            assert.deepEqual(untouched.rows[0], {
+              achieved: null,
+              review_note: null,
+              reviewed_at: null,
+            });
+
+            const saved = await call('/api/goals/reviews', {
+              method: 'PUT',
+              body: {
+                reviews: [
+                  { id: first, achieved: true, note: ' 10권 읽음 ' },
+                  { id: second, achieved: false },
+                ],
+              },
+            });
+            assert.equal(saved.status, 200);
+            const reviewedPast = (await page()).past as Period[];
+            const reviewed = reviewedPast.find((entry) => entry.period.start === '2026-10-18')!;
+            assert.deepEqual(
+              reviewed.goals.map((goal) => [goal.achieved, goal.reviewNote, !!goal.reviewedAt]),
+              [
+                [true, '10권 읽음', true],
+                [false, null, true],
+              ],
+            );
+
+            // Clearing both answers takes a goal back to "not reviewed yet".
+            const cleared = await call('/api/goals/reviews', {
+              method: 'PUT',
+              body: { reviews: [{ id: second, achieved: null, note: '' }] },
+            });
+            assert.equal(cleared.status, 200);
+            const row = await client.query(
+              'SELECT reviewed_at FROM twelve_week_goals WHERE id = $1',
+              [second],
+            );
+            assert.equal(row.rows[0].reviewed_at, null);
+          },
+          { today: () => today },
+        );
+      } finally {
+        await client.query('DELETE FROM twelve_week_goals WHERE id = ANY($1::bigint[])', [created]);
+        await client.query('DELETE FROM app_settings WHERE key = $1', [anchorSettingKey]);
+        if (original.rows[0])
+          await client.query('INSERT INTO app_settings (key, value) VALUES ($1, $2)', [
+            anchorSettingKey,
+            original.rows[0].value,
+          ]);
+      }
+    }),
+);
+
 test(
   'daily routines are added, renamed, reordered and archived against the real DB',
   { skip: !url, timeout: 30_000 },

@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 
 import { Button } from './components/ui/button';
 import { Card, CardContent } from './components/ui/card';
-import { Label } from './components/ui/label';
 import { Notice } from './components/ui/notice';
+import { LabeledTextarea } from './labeled-textarea';
 import { requestJson } from './lib/api';
 import { useNotice } from './lib/use-notice';
 
@@ -38,51 +38,6 @@ const sameForm = (a: DiaryForm, b: DiaryForm) =>
   a.goodNote === b.goodNote &&
   a.regretNote === b.regretNote &&
   a.tomorrowNote === b.tomorrowNote;
-
-// The shared UI has no textarea yet, so this one follows the Input component's look. No maxLength
-// attribute: the browser would silently cut pasted text, so the count warns and the server rejects.
-function DiaryField({
-  id,
-  label,
-  value,
-  rows,
-  limit,
-  readOnly,
-  onChange,
-}: {
-  id: string;
-  label: string;
-  value: string;
-  rows: number;
-  limit: number;
-  readOnly: boolean;
-  onChange: (value: string) => void;
-}) {
-  return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-center justify-between gap-2">
-        <Label htmlFor={id}>{label}</Label>
-        <span
-          className={
-            value.length > limit
-              ? 'text-caption text-destructive'
-              : 'text-caption text-muted-foreground'
-          }
-        >
-          {value.length}/{limit}
-        </span>
-      </div>
-      <textarea
-        id={id}
-        className="w-full min-w-0 rounded-md border border-input bg-transparent px-3 py-2 text-base shadow-xs transition-[color,box-shadow] outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 md:text-body-sm dark:bg-input/30"
-        rows={rows}
-        readOnly={readOnly}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-      />
-    </div>
-  );
-}
 
 export function Diary() {
   // null follows the server's today.
@@ -222,7 +177,7 @@ export function Diary() {
               void save(data.date);
             }}
           >
-            <DiaryField
+            <LabeledTextarea
               id="diary-body"
               label="하루 돌아보기"
               value={form.body}
@@ -231,7 +186,7 @@ export function Diary() {
               readOnly={readOnly}
               onChange={setField('body')}
             />
-            <DiaryField
+            <LabeledTextarea
               id="diary-good"
               label="잘한 점 (선택)"
               value={form.goodNote}
@@ -240,7 +195,7 @@ export function Diary() {
               readOnly={readOnly}
               onChange={setField('goodNote')}
             />
-            <DiaryField
+            <LabeledTextarea
               id="diary-regret"
               label="아쉬운 점 (선택)"
               value={form.regretNote}
@@ -249,7 +204,7 @@ export function Diary() {
               readOnly={readOnly}
               onChange={setField('regretNote')}
             />
-            <DiaryField
+            <LabeledTextarea
               id="diary-tomorrow"
               label="내일 할 일 (선택)"
               value={form.tomorrowNote}

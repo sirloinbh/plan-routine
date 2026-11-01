@@ -1,13 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import type { ChecklistItem } from './checklist';
-import { RequestError, requestJson } from './lib/api';
+import { requestJson } from './lib/api';
 import { useNotice } from './lib/use-notice';
 import { serviceDate } from './service-date';
-
-// How often an open page looks at the clock. A request follows only if the date has changed, the
-// last load failed for a passing reason, or the server is on another date than this device.
-const dateCheckMs = 60_000;
+import { isPassingFailure, useReloadOnDateChange } from './use-date-change';
 
 export type ChecklistData<T> = {
   date: string;
@@ -77,8 +74,7 @@ export function useChecklist<T extends ChecklistItem>(
         loadErrorShown.current = true;
         // Try again at the next check: the network may just not be back yet after sleep. A 4xx (say,
         // a chosen day that has left the editable range) would only fail the same way again.
-        const status = cause instanceof RequestError ? cause.status : undefined;
-        if (status === undefined || status >= 500) requestedOn.current = '';
+        if (isPassingFailure(cause)) requestedOn.current = '';
         error(cause);
       });
     return () => {
@@ -95,18 +91,8 @@ export function useChecklist<T extends ChecklistItem>(
     return () => document.removeEventListener('visibilitychange', reloadWhenShown);
   }, []);
 
-  // A window left open may never fire visibilitychange, so also look at the clock while it is open.
-  useEffect(() => {
-    const reloadIfDateChanged = () => {
-      if (serviceDate() !== requestedOn.current) setVersion((value) => value + 1);
-    };
-    const timer = setInterval(reloadIfDateChanged, dateCheckMs);
-    window.addEventListener('focus', reloadIfDateChanged);
-    return () => {
-      clearInterval(timer);
-      window.removeEventListener('focus', reloadIfDateChanged);
-    };
-  }, []);
+  const reloadNow = useCallback(() => setVersion((value) => value + 1), []);
+  useReloadOnDateChange(requestedOn, reloadNow);
 
   const setChecked = (itemDate: string, id: string, checked: boolean) =>
     // The user may have moved to another day while this request was running.

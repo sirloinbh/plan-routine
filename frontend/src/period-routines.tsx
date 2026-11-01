@@ -18,7 +18,7 @@ type PeriodPage = {
   showRemaining?: boolean;
 };
 
-function PeriodRoutines({
+export function PeriodRoutines({
   cadence,
   name,
   periodName,
