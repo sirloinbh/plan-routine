@@ -2,6 +2,7 @@ import {
   CalendarCheck,
   CalendarDays,
   CalendarRange,
+  History,
   LayoutDashboard,
   ListChecks,
   NotebookPen,
@@ -20,6 +21,7 @@ import { Diary } from './diary';
 import { FourWeekDue } from './four-week-due';
 import { type Health, healthText } from './health';
 import { FourWeekRoutines, WeeklyRoutines } from './period-routines';
+import { Records } from './records';
 import { DailyRoutines } from './routines';
 import { TwelveWeek } from './twelve-week';
 
@@ -32,6 +34,7 @@ const pages = {
   weekly: '/weekly',
   fourWeek: '/four-week',
   twelveWeek: '/twelve-week',
+  records: '/records',
   settings: '/settings',
 } as const;
 
@@ -44,6 +47,7 @@ const nav: NavItem[] = [
   { to: pages.weekly, label: '주간 루틴', icon: CalendarRange },
   { to: pages.fourWeek, label: '4주 루틴', icon: CalendarDays },
   { to: pages.twelveWeek, label: '12주 루틴', icon: Target },
+  { to: pages.records, label: '기록', icon: History },
   { to: pages.settings, label: '설정', icon: Settings2 },
 ];
 
@@ -189,6 +193,18 @@ export function App() {
                 health={health}
               >
                 <TwelveWeek />
+              </Page>
+            }
+          />
+          <Route
+            path={pages.records}
+            element={
+              <Page
+                title="기록"
+                description="지난 날의 하루 루틴 체크와 일기를 다시 봅니다"
+                health={health}
+              >
+                <Records />
               </Page>
             }
           />
