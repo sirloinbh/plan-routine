@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { expect, test, vi } from 'vitest';
 
 import { groupByCategory } from './routine-groups';
@@ -183,4 +183,114 @@ test('a routine changed elsewhere shows the Korean 404 and the list reloads', as
   fireEvent.click(screen.getByRole('button', { name: '물 한 잔 위로 이동' }));
   expect(await screen.findByRole('alert')).toHaveTextContent('루틴을 찾을 수 없습니다');
   await waitFor(() => expect(names('기상')).toEqual(['6시 기상']));
+});
+
+const twoRoutines = [
+  { id: '1', name: '6시 기상', category: 'wake' },
+  { id: '2', name: '물 한 잔', category: 'wake' },
+];
+const button = (name: string) => screen.getByRole('button', { name });
+
+test('saving a rename returns focus to its edit button', async () => {
+  routineApi(twoRoutines);
+  render(<DailyRoutines />);
+  await screen.findByText('6시 기상');
+  fireEvent.click(button('6시 기상 이름 수정'));
+  const input = screen.getByRole('textbox', { name: '6시 기상 새 이름' });
+  expect(input).toHaveFocus();
+  fireEvent.change(input, { target: { value: '일찍 기상' } });
+  fireEvent.click(button('저장'));
+  await waitFor(() => expect(button('일찍 기상 이름 수정')).toHaveFocus());
+});
+
+test('cancelling a rename returns focus to its edit button', async () => {
+  routineApi(twoRoutines);
+  render(<DailyRoutines />);
+  await screen.findByText('6시 기상');
+  fireEvent.click(button('6시 기상 이름 수정'));
+  fireEvent.click(button('취소'));
+  await waitFor(() => expect(button('6시 기상 이름 수정')).toHaveFocus());
+});
+
+test('a rename that fails keeps the form and returns focus to its field', async () => {
+  const api = routineApi(twoRoutines);
+  render(<DailyRoutines />);
+  await screen.findByText('6시 기상');
+  fireEvent.click(button('6시 기상 이름 수정'));
+  api.archiveElsewhere('1');
+  fireEvent.click(button('저장'));
+  await screen.findByRole('alert');
+  // The routine has gone, so its row and form go too; focus must not be left on a removed field.
+  await waitFor(() => expect(screen.queryByText('6시 기상')).not.toBeInTheDocument());
+  expect(screen.queryByRole('textbox', { name: '6시 기상 새 이름' })).not.toBeInTheDocument();
+});
+
+test('moving a routine keeps focus on the same button', async () => {
+  routineApi([...twoRoutines, { id: '3', name: '스트레칭', category: 'wake' }]);
+  render(<DailyRoutines />);
+  await screen.findByText('스트레칭');
+  button('스트레칭 위로 이동').focus();
+  fireEvent.click(button('스트레칭 위로 이동'));
+  await waitFor(() => expect(names('기상')).toEqual(['6시 기상', '스트레칭', '물 한 잔']));
+  await waitFor(() => expect(button('스트레칭 위로 이동')).toHaveFocus());
+});
+
+test('a routine moved to the end of its group hands focus to the other direction', async () => {
+  routineApi(twoRoutines);
+  render(<DailyRoutines />);
+  await screen.findByText('물 한 잔');
+  fireEvent.click(button('물 한 잔 위로 이동'));
+  await waitFor(() => expect(names('기상')).toEqual(['물 한 잔', '6시 기상']));
+  expect(button('물 한 잔 위로 이동')).toBeDisabled();
+  await waitFor(() => expect(button('물 한 잔 아래로 이동')).toHaveFocus());
+});
+
+test('archiving moves focus to the next routine, then the previous one', async () => {
+  routineApi([...twoRoutines, { id: '3', name: '스트레칭', category: 'wake' }]);
+  render(<DailyRoutines />);
+  await screen.findByText('스트레칭');
+  fireEvent.click(button('물 한 잔 보관'));
+  fireEvent.click(button('물 한 잔 보관 확인'));
+  await waitFor(() => expect(button('스트레칭 이름 수정')).toHaveFocus());
+
+  fireEvent.click(button('스트레칭 보관'));
+  fireEvent.click(button('스트레칭 보관 확인'));
+  await waitFor(() => expect(button('6시 기상 이름 수정')).toHaveFocus());
+});
+
+test('archiving the last routine of a group moves focus to the add field', async () => {
+  routineApi([{ id: '1', name: '6시 기상', category: 'wake' }]);
+  render(<DailyRoutines />);
+  await screen.findByText('6시 기상');
+  fireEvent.click(button('6시 기상 보관'));
+  fireEvent.click(button('6시 기상 보관 확인'));
+  await waitFor(() =>
+    expect(screen.getByRole('textbox', { name: '기상 새 루틴 이름' })).toHaveFocus(),
+  );
+});
+
+test('adding a routine returns focus to the add field, ready for the next one', async () => {
+  routineApi();
+  render(<DailyRoutines />);
+  const reading = await screen.findByRole('region', { name: '독서 루틴' });
+  fireEvent.change(within(reading).getByRole('textbox', { name: '독서 새 루틴 이름' }), {
+    target: { value: '10쪽 읽기' },
+  });
+  fireEvent.click(within(reading).getByRole('button', { name: '추가' }));
+  await screen.findByText('10쪽 읽기');
+  await waitFor(() =>
+    expect(screen.getByRole('textbox', { name: '독서 새 루틴 이름' })).toHaveFocus(),
+  );
+});
+
+test('a reload from elsewhere does not move focus', async () => {
+  routineApi(twoRoutines);
+  render(<DailyRoutines />);
+  await screen.findByText('6시 기상');
+  const add = screen.getByRole('textbox', { name: '운동 새 루틴 이름' });
+  add.focus();
+  document.dispatchEvent(new Event('visibilitychange'));
+  await screen.findByText('6시 기상');
+  await act(() => new Promise((resolve) => setTimeout(resolve)));
+  expect(add).toHaveFocus();
 });

@@ -38,7 +38,7 @@ export function DailyRoutines() {
               {group.routines.length === 0 ? (
                 <p className="text-body-sm text-muted-foreground">아직 루틴이 없습니다</p>
               ) : (
-                <RoutineItems list={list} routines={group.routines} />
+                <RoutineItems list={list} routines={group.routines} draftKey={group.key} />
               )}
               <RoutineAddForm
                 list={list}

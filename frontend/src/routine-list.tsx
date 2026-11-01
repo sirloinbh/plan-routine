@@ -19,7 +19,15 @@ export function RoutineNotices({ notice }: { notice: RoutineNotice }) {
   );
 }
 
-export function RoutineItems({ list, routines }: { list: RoutineList; routines: Routine[] }) {
+export function RoutineItems({
+  list,
+  routines,
+  draftKey,
+}: {
+  list: RoutineList;
+  routines: Routine[];
+  draftKey: string;
+}) {
   const { editing, confirmArchive, busy } = list;
   return (
     <ol className="flex flex-col divide-y">
@@ -37,6 +45,7 @@ export function RoutineItems({ list, routines }: { list: RoutineList; routines: 
               <Input
                 className="min-w-0 flex-1"
                 aria-label={`${routine.name} 새 이름`}
+                data-focus-key="rename-input"
                 // eslint-disable-next-line jsx-a11y-x/no-autofocus -- the rename field opens on a click, so focus follows that action.
                 autoFocus
                 value={editing.name}
@@ -46,7 +55,7 @@ export function RoutineItems({ list, routines }: { list: RoutineList; routines: 
               <Button type="submit" disabled={busy}>
                 저장
               </Button>
-              <Button type="button" variant="ghost" onClick={() => list.setEditing(null)}>
+              <Button type="button" variant="ghost" onClick={list.cancelEditing}>
                 취소
               </Button>
             </form>
@@ -59,6 +68,7 @@ export function RoutineItems({ list, routines }: { list: RoutineList; routines: 
                   variant="ghost"
                   size="sm"
                   aria-label={`${routine.name} 위로 이동`}
+                  data-focus-key={`up-${routine.id}`}
                   disabled={busy || index === 0}
                   onClick={() => void list.move(routine, 'up')}
                 >
@@ -69,6 +79,7 @@ export function RoutineItems({ list, routines }: { list: RoutineList; routines: 
                   variant="ghost"
                   size="sm"
                   aria-label={`${routine.name} 아래로 이동`}
+                  data-focus-key={`down-${routine.id}`}
                   disabled={busy || index === routines.length - 1}
                   onClick={() => void list.move(routine, 'down')}
                 >
@@ -79,6 +90,7 @@ export function RoutineItems({ list, routines }: { list: RoutineList; routines: 
                   variant="ghost"
                   size="sm"
                   aria-label={`${routine.name} 이름 수정`}
+                  data-focus-key={`edit-${routine.id}`}
                   disabled={busy}
                   onClick={() => {
                     list.setConfirmArchive(null);
@@ -94,7 +106,15 @@ export function RoutineItems({ list, routines }: { list: RoutineList; routines: 
                     size="sm"
                     aria-label={`${routine.name} 보관 확인`}
                     disabled={busy}
-                    onClick={() => void list.archive(routine)}
+                    onClick={() =>
+                      void list.archive(
+                        routine,
+                        [routines[index + 1], routines[index - 1]]
+                          .filter(Boolean)
+                          .map((neighbour) => neighbour.id),
+                        draftKey,
+                      )
+                    }
                   >
                     보관 확인
                   </Button>
@@ -144,6 +164,7 @@ export function RoutineAddForm({
       <Input
         className="min-w-0 flex-1"
         aria-label={`${label} 새 루틴 이름`}
+        data-focus-key={`add-${draftKey}`}
         placeholder={placeholder}
         value={list.drafts[draftKey] ?? ''}
         maxLength={100}

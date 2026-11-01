@@ -5,6 +5,15 @@ import type { Routine } from './routines';
 
 export type RoutineNotice = { kind: 'status' | 'alert'; text: string } | null;
 
+/** Which control to focus: the first of these that exists and is enabled. */
+const focusKeys = {
+  up: (id: string) => `up-${id}`,
+  down: (id: string) => `down-${id}`,
+  edit: (id: string) => `edit-${id}`,
+  renameInput: 'rename-input',
+  add: (draftKey: string) => `add-${draftKey}`,
+};
+
 // Loads one cadence's routines and changes them. All state lives here (not in child components)
 // so per-item editing survives re-renders. `version` changes after every change made here;
 // `refresh` only loads again, so it does not tell other lists on the page that something changed.
@@ -19,6 +28,11 @@ export function useRoutineList(cadence: string) {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<RoutineNotice>(null);
   const loadErrorShown = useRef(false);
+  // Changes re-render or disable the control that was pressed, which drops keyboard focus. The
+  // request waits for the reload after the change, because moving a row also moves its buttons.
+  const changesMade = useRef(0);
+  const [loadedVersion, setLoadedVersion] = useState(0);
+  const focusRequest = useRef<{ keys: string[]; afterVersion: number } | null>(null);
 
   useEffect(() => {
     // A newer reload supersedes this one, so a slow older response cannot overwrite it.
@@ -27,6 +41,7 @@ export function useRoutineList(cadence: string) {
       .then((data) => {
         if (ignore) return;
         setRoutines(data.routines);
+        setLoadedVersion(version);
         setLoadFailed(false);
         // Only a load's own error: the message of a failed change must survive the reload after it.
         if (loadErrorShown.current) setNotice(null);
@@ -35,6 +50,7 @@ export function useRoutineList(cadence: string) {
       .catch((error: Error) => {
         if (ignore) return;
         setRoutines((current) => current ?? []);
+        setLoadedVersion(version);
         setLoadFailed(true);
         loadErrorShown.current = true;
         setNotice({ kind: 'alert', text: error.message });
@@ -43,6 +59,25 @@ export function useRoutineList(cadence: string) {
       ignore = true;
     };
   }, [cadence, version, refreshes]);
+
+  useEffect(() => {
+    const request = focusRequest.current;
+    if (!request || busy || loadedVersion < request.afterVersion) return;
+    focusRequest.current = null;
+    for (const key of request.keys) {
+      const control = document.querySelector<HTMLElement & { disabled?: boolean }>(
+        `[data-focus-key="${key}"]`,
+      );
+      if (control && !control.disabled) {
+        control.focus();
+        return;
+      }
+    }
+  });
+
+  const requestFocus = (keys: string[]) => {
+    focusRequest.current = { keys, afterVersion: changesMade.current };
+  };
 
   const refresh = useCallback(() => setRefreshes((value) => value + 1), []);
 
@@ -69,7 +104,8 @@ export function useRoutineList(cadence: string) {
       // A load that failed during this change must not make the next load clear its message.
       loadErrorShown.current = false;
       // Reload after failures too: a 404 usually means the list is stale (changed elsewhere).
-      setVersion((value) => value + 1);
+      changesMade.current += 1;
+      setVersion(changesMade.current);
       setBusy(false);
     }
   };
@@ -88,6 +124,7 @@ export function useRoutineList(cadence: string) {
         }),
       `${label}에 '${name}' 루틴을 추가했습니다`,
     );
+    requestFocus([focusKeys.add(draftKey)]);
     if (ok) setDrafts((current) => ({ ...current, [draftKey]: '' }));
   };
 
@@ -102,21 +139,40 @@ export function useRoutineList(cadence: string) {
       () => requestJson(`/api/routines/${editing.id}`, { method: 'PATCH', body: { name } }),
       `루틴 이름을 '${name}'(으)로 바꿨습니다`,
     );
+    requestFocus(ok ? [focusKeys.edit(editing.id)] : [focusKeys.renameInput]);
     if (ok) setEditing(null);
   };
 
-  const move = (routine: Routine, direction: 'up' | 'down') =>
-    run(
+  const cancelEditing = () => {
+    if (editing) requestFocus([focusKeys.edit(editing.id)]);
+    setEditing(null);
+  };
+
+  const move = async (routine: Routine, direction: 'up' | 'down') => {
+    await run(
       () =>
         requestJson(`/api/routines/${routine.id}/move`, { method: 'POST', body: { direction } }),
       `'${routine.name}' 루틴을 ${direction === 'up' ? '위로' : '아래로'} 옮겼습니다`,
     );
+    // The same button again, or the other one once the row has reached the end of its group.
+    const [same, other] =
+      direction === 'up'
+        ? [focusKeys.up(routine.id), focusKeys.down(routine.id)]
+        : [focusKeys.down(routine.id), focusKeys.up(routine.id)];
+    requestFocus([same, other, focusKeys.edit(routine.id)]);
+  };
 
-  const archive = async (routine: Routine) => {
+  // `neighbours` are the next places to land, because the routine's own row is about to go.
+  const archive = async (routine: Routine, neighbours: string[], draftKey: string) => {
     await run(
       () => requestJson(`/api/routines/${routine.id}/archive`, { method: 'POST' }),
       `'${routine.name}' 루틴을 보관했습니다. 지난 기록은 남아 있습니다`,
     );
+    requestFocus([
+      ...neighbours.map(focusKeys.edit),
+      focusKeys.edit(routine.id),
+      focusKeys.add(draftKey),
+    ]);
     setConfirmArchive(null);
   };
 
@@ -139,6 +195,7 @@ export function useRoutineList(cadence: string) {
     archive,
     setDraft,
     setEditing,
+    cancelEditing,
     setConfirmArchive,
   };
 }

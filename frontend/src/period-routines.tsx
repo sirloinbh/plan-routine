@@ -95,7 +95,7 @@ export function PeriodRoutines({
           {list.routines === null ? (
             <p className="text-body-sm text-muted-foreground">루틴을 불러오는 중…</p>
           ) : list.routines.length > 0 ? (
-            <RoutineItems list={list} routines={list.routines} />
+            <RoutineItems list={list} routines={list.routines} draftKey={cadence} />
           ) : (
             !list.loadFailed && (
               <p className="text-body-sm text-muted-foreground">아직 루틴이 없습니다</p>
