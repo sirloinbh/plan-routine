@@ -60,7 +60,14 @@ function diaryApi(seed: Entry[] = []) {
         failNextSave = false;
         return reply(500, { error: '서버 오류가 발생했습니다' });
       }
-      if (!body.body.trim()) return reply(400, { error: '일기 본문을 입력해 주세요' });
+      if (!body.body.trim()) {
+        const refusal = reply(400, { error: '일기 본문을 입력해 주세요' });
+        if (!holdNextSave) return refusal;
+        holdNextSave = false;
+        return new Promise((resolve) => {
+          heldSave = () => resolve(refusal);
+        });
+      }
       if (body.body.length > 5000)
         return reply(400, { error: '일기 본문은 5000자 이하로 입력해 주세요' });
       const date = url.split('/')[3];
@@ -534,4 +541,84 @@ test('closing the tab warns only when the draft could not be kept', async () => 
   press('버리기 확인');
   await flush();
   expect(leaving()).toBe(false);
+});
+
+test('moving to another day puts focus on its date', async () => {
+  diaryApi();
+  render(<Diary />);
+  await field('하루 돌아보기');
+  screen.getByRole('button', { name: '이전 날' }).focus();
+  press('이전 날');
+  await flush();
+  expect(screen.getByRole('heading', { level: 2, name: '2026-10-21' })).toHaveFocus();
+  screen.getByRole('button', { name: '오늘로' }).focus();
+  press('오늘로');
+  await flush();
+  expect(screen.getByRole('heading', { level: 2, name: `오늘 (${today})` })).toHaveFocus();
+});
+
+test('a blocked move leaves focus and date where they are', async () => {
+  diaryApi();
+  render(<Diary />);
+  await type('하루 돌아보기', '아직 저장 안 함');
+  const previous = screen.getByRole('button', { name: '이전 날' });
+  previous.focus();
+  press('이전 날');
+  await flush();
+  expect(previous).toHaveFocus();
+});
+
+test('an empty body is marked and takes focus when saving fails, until it is typed in', async () => {
+  diaryApi();
+  render(<Diary />);
+  const body = await field('하루 돌아보기');
+  expect(body).not.toHaveAttribute('aria-invalid');
+  // What a screen reader finds at the moment focus arrives.
+  let onArrival = '';
+  body.addEventListener('focus', () => {
+    onArrival = `${String(body.hasAttribute('readonly'))} ${String(body.getAttribute('aria-invalid'))}`;
+  });
+  press('저장');
+  await flush();
+  expect(screen.getByRole('alert')).toHaveTextContent('일기 본문을 입력해 주세요');
+  expect(body).toHaveFocus();
+  expect(onArrival).toBe('false true');
+  expect(body).toHaveAttribute('aria-invalid', 'true');
+  await type('하루 돌아보기', '이제 씀');
+  expect(body).not.toHaveAttribute('aria-invalid');
+});
+
+test("a body over the limit is marked too, but a server failure is not the body's fault", async () => {
+  const api = diaryApi();
+  render(<Diary />);
+  const body = await field('하루 돌아보기');
+  await type('하루 돌아보기', '가'.repeat(5001));
+  press('저장');
+  await flush();
+  expect(body).toHaveAttribute('aria-invalid', 'true');
+
+  await type('하루 돌아보기', '괜찮은 글');
+  api.failNextSave();
+  const save = screen.getByRole('button', { name: '저장' });
+  save.focus();
+  press('저장');
+  await flush();
+  expect(body).not.toHaveAttribute('aria-invalid');
+  expect(save).toHaveFocus();
+});
+
+test('a refused body is marked but does not take focus once the user has moved on', async () => {
+  const api = diaryApi();
+  render(<Diary />);
+  const body = await field('하루 돌아보기');
+  screen.getByRole('button', { name: '저장' }).focus();
+  api.holdNextSave();
+  press('저장');
+  await flush();
+  const note = await field('잘한 점 (선택)');
+  note.focus();
+  api.releaseSave();
+  await flush();
+  expect(body).toHaveAttribute('aria-invalid', 'true');
+  expect(note).toHaveFocus();
 });

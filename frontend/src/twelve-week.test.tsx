@@ -36,6 +36,7 @@ function goalsApi(seed: { current?: Goal[]; last?: Goal[]; older?: Goal[] } = {}
   let nextId = 100;
   let failNextLoad = false;
   let failNextReview = false;
+  let failNextWrite = false;
   const writes: { method: string; path: string; body?: unknown }[] = [];
   const routines = [
     { id: '50', name: '목표 재설정', cadence: 'twelve_week', category: null, sortOrder: 0 },
@@ -103,6 +104,10 @@ function goalsApi(seed: { current?: Goal[]; last?: Goal[]; older?: Goal[] } = {}
           heldReview = () => resolve(response);
         });
       }
+      if (failNextWrite) {
+        failNextWrite = false;
+        return reply(500, { error: '서버 오류가 발생했습니다' });
+      }
       if (url === '/api/goals') {
         const goal = pending(String(nextId++), String(body!.title));
         current = [...current, goal];
@@ -120,6 +125,7 @@ function goalsApi(seed: { current?: Goal[]; last?: Goal[]; older?: Goal[] } = {}
     writes,
     failNextLoad: () => (failNextLoad = true),
     failNextReview: () => (failNextReview = true),
+    failNextWrite: () => (failNextWrite = true),
     removeElsewhere: (id: string) => (current = current.filter((g) => g.id !== id)),
     goalLoads: () => goalLoads,
     holdNextReview: () => (holdNextReview = true),
@@ -441,4 +447,150 @@ test('a failed load offers a retry', async () => {
   await flush();
   expect(within(goalsCard()).getByText('아직 목표가 없습니다')).toBeInTheDocument();
   expect(screen.queryByText('서버 오류가 발생했습니다')).not.toBeInTheDocument();
+});
+
+const button = (name: string) => screen.getByRole('button', { name });
+const pressFocused = (name: string) => {
+  button(name).focus();
+  press(name);
+};
+const twoGoals = () => [pending('1', '책 읽기'), pending('2', '달리기')];
+
+test("renaming or cancelling returns focus to the goal's edit button", async () => {
+  goalsApi({ current: twoGoals() });
+  render(<TwelveWeek />);
+  await flush();
+  press('책 읽기 수정');
+  expect(screen.getByRole('textbox', { name: '책 읽기 새 이름' })).toHaveFocus();
+  pressFocused('취소');
+  await flush();
+  expect(button('책 읽기 수정')).toHaveFocus();
+
+  press('책 읽기 수정');
+  type('책 읽기 새 이름', '책 12권 읽기');
+  pressFocused('저장');
+  await flush();
+  expect(button('책 12권 읽기 수정')).toHaveFocus();
+});
+
+test('renaming a goal gone elsewhere moves focus to the new goal field', async () => {
+  const api = goalsApi({ current: twoGoals() });
+  render(<TwelveWeek />);
+  await flush();
+  press('책 읽기 수정');
+  api.removeElsewhere('1');
+  fireEvent.submit(screen.getByRole('form', { name: '책 읽기 수정' }));
+  await flush();
+  expect(screen.getByRole('textbox', { name: '새 목표' })).toHaveFocus();
+});
+
+test('an empty new name keeps focus on its field', async () => {
+  goalsApi({ current: twoGoals() });
+  render(<TwelveWeek />);
+  await flush();
+  press('책 읽기 수정');
+  type('책 읽기 새 이름', ' ');
+  within(goalsCard()).getByRole('button', { name: '저장' }).focus();
+  fireEvent.submit(screen.getByRole('form', { name: '책 읽기 수정' }));
+  await flush();
+  expect(within(goalsCard()).getByRole('alert')).toHaveTextContent('목표를 입력해 주세요');
+  expect(screen.getByRole('textbox', { name: '책 읽기 새 이름' })).toHaveFocus();
+});
+
+test('removing a goal moves focus to the next, then the previous, then the new goal field', async () => {
+  goalsApi({ current: [...twoGoals(), pending('3', '저축')] });
+  render(<TwelveWeek />);
+  await flush();
+  press('달리기 삭제');
+  pressFocused('달리기 삭제 확인');
+  await flush();
+  expect(button('저축 수정')).toHaveFocus();
+
+  press('저축 삭제');
+  pressFocused('저축 삭제 확인');
+  await flush();
+  expect(button('책 읽기 수정')).toHaveFocus();
+
+  press('책 읽기 삭제');
+  pressFocused('책 읽기 삭제 확인');
+  await flush();
+  expect(screen.getByRole('textbox', { name: '새 목표' })).toHaveFocus();
+});
+
+test('adding a goal by its button returns focus to the field', async () => {
+  goalsApi();
+  render(<TwelveWeek />);
+  await flush();
+  type('새 목표', '책 읽기');
+  within(goalsCard()).getByRole('button', { name: '추가' }).focus();
+  fireEvent.submit(screen.getByRole('form', { name: '새 목표 추가' }));
+  await flush();
+  expect(screen.getByRole('textbox', { name: '새 목표' })).toHaveFocus();
+});
+
+test('a finished review moves its card, focus and message together', async () => {
+  goalsApi({ last: [pending('1', '책 읽기')] });
+  render(<TwelveWeek />);
+  await flush();
+  typeMemo('책 읽기', '다 읽음');
+  button('회고 저장').focus();
+  saveLastReview();
+  await flush();
+  expect(screen.getByRole('heading', { level: 2, name: '2026-07-26 ~ 2026-10-17' })).toHaveFocus();
+  expect(within(lastReview()).getByRole('status')).toHaveTextContent('회고를 저장했습니다');
+  expect(screen.getAllByText('회고를 저장했습니다')).toHaveLength(1);
+});
+
+test('a review staying in its list keeps focus on its button', async () => {
+  const reviewed: Goal = { ...pending('1', '책 읽기'), achieved: true, reviewedAt: 'then' };
+  goalsApi({ last: [reviewed] });
+  render(<TwelveWeek />);
+  await flush();
+  typeMemo('책 읽기', '다시 쓴 메모');
+  button('회고 저장').focus();
+  saveLastReview();
+  await flush();
+  expect(button('회고 저장')).toHaveFocus();
+});
+
+test('a slow review does not take focus back once the user has moved on', async () => {
+  const api = goalsApi({ last: [pending('1', '책 읽기')] });
+  render(<TwelveWeek />);
+  await flush();
+  typeMemo('책 읽기', '다 읽음');
+  button('회고 저장').focus();
+  api.holdNextReview();
+  saveLastReview();
+  await flush();
+  const goal = screen.getByRole('textbox', { name: '새 목표' });
+  goal.focus();
+  api.releaseReview();
+  await flush();
+  expect(goal).toHaveFocus();
+});
+
+test('a rename that fails keeps its form and returns focus to the field', async () => {
+  const api = goalsApi({ current: twoGoals() });
+  render(<TwelveWeek />);
+  await flush();
+  press('책 읽기 수정');
+  type('책 읽기 새 이름', '책 12권 읽기');
+  api.failNextWrite();
+  pressFocused('저장');
+  await flush();
+  expect(within(goalsCard()).getByRole('alert')).toHaveTextContent('서버 오류가 발생했습니다');
+  expect(screen.getByRole('textbox', { name: '책 읽기 새 이름' })).toHaveFocus();
+  expect(screen.getByRole('textbox', { name: '책 읽기 새 이름' })).toHaveValue('책 12권 읽기');
+});
+
+test('a removal that fails stays on its own row', async () => {
+  const api = goalsApi({ current: twoGoals() });
+  render(<TwelveWeek />);
+  await flush();
+  press('책 읽기 삭제');
+  api.failNextWrite();
+  pressFocused('책 읽기 삭제 확인');
+  await flush();
+  expect(within(goalsCard()).getByRole('alert')).toHaveTextContent('서버 오류가 발생했습니다');
+  expect(button('책 읽기 삭제')).toHaveFocus();
 });

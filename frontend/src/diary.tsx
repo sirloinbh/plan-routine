@@ -12,6 +12,7 @@ import {
   sameText,
   writeDraft,
 } from './diary-draft';
+import { isFocusFree, useDateHeading } from './focus-moves';
 import { LabeledTextarea } from './labeled-textarea';
 import { RequestError, requestJson } from './lib/api';
 import { useNotice } from './lib/use-notice';
@@ -53,11 +54,13 @@ export function Diary() {
   const [noticeAtSave, setNoticeAtSave] = useState(false);
   const openedForDraft = useRef(date !== null);
   const [draftFailed, setDraftFailed] = useState(false);
+  const [bodyInvalid, setBodyInvalid] = useState(false);
   const [confirmingDiscard, setConfirmingDiscard] = useState(false);
   const saveButton = useRef<HTMLButtonElement>(null);
   const discardButton = useRef<HTMLButtonElement>(null);
   const confirmDiscardButton = useRef<HTMLButtonElement>(null);
   const { notice, status, error, clear } = useNotice();
+  const { heading, expectMove } = useDateHeading(data?.date);
 
   useEffect(() => {
     // A newer load supersedes this one, so a slow older response cannot overwrite it.
@@ -137,6 +140,7 @@ export function Diary() {
 
   const setField = (field: keyof DiaryForm) => (value: string) => {
     setConfirmingDiscard(false);
+    if (field === 'body') setBodyInvalid(false);
     setForm((current) => ({ ...current, [field]: value }));
   };
 
@@ -149,6 +153,8 @@ export function Diary() {
       return;
     }
     clear();
+    setBodyInvalid(false);
+    expectMove();
     setLoading(true);
     setDate(target);
     setVersion((value) => value + 1);
@@ -156,7 +162,9 @@ export function Diary() {
 
   const save = async (target: string) => {
     if (saving || loading) return;
+    const origin = document.activeElement;
     setSaving(true);
+    setBodyInvalid(false);
     setConfirmingDiscard(false);
     setNoticeAtSave(true);
     clear();
@@ -172,6 +180,17 @@ export function Diary() {
       status(`${target} 일기를 저장했습니다`);
     } catch (cause) {
       error(cause);
+      // What the server refuses is the body when it is empty or too long, so take the user there.
+      const body = form.body.trim();
+      if (cause instanceof RequestError && cause.status === 400 && (!body || body.length > 5000)) {
+        // Drawn first, so the field is read out as editable and invalid when focus reaches it.
+        const free = isFocusFree(origin);
+        flushSync(() => {
+          setSaving(false);
+          setBodyInvalid(true);
+        });
+        if (free) document.getElementById('diary-body')?.focus();
+      }
     } finally {
       setSaving(false);
     }
@@ -186,6 +205,7 @@ export function Diary() {
   const discard = () => {
     flushSync(() => {
       setForm(savedForm);
+      setBodyInvalid(false);
       setConfirmingDiscard(false);
       setNoticeAtSave(true);
       status('저장하지 않은 내용을 버렸습니다');
@@ -214,7 +234,13 @@ export function Diary() {
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-body font-semibold">{isToday ? `오늘 (${data.date})` : data.date}</h2>
+          <h2
+            ref={heading}
+            tabIndex={-1}
+            className="scroll-mt-[calc(env(safe-area-inset-top)+5rem)] text-body font-semibold"
+          >
+            {isToday ? `오늘 (${data.date})` : data.date}
+          </h2>
           {data.progress.total > 0 && (
             <p className="text-body-sm text-muted-foreground">
               하루 루틴 {data.progress.checked}/{data.progress.total} 완료
@@ -267,6 +293,7 @@ export function Diary() {
               rows={8}
               limit={5000}
               readOnly={readOnly}
+              invalid={bodyInvalid}
               onChange={setField('body')}
             />
             <LabeledTextarea

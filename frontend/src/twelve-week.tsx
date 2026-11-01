@@ -5,9 +5,10 @@ import { Button } from './components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
 import { Input } from './components/ui/input';
 import { Notice } from './components/ui/notice';
+import { useFocusRequest } from './focus-moves';
 import { LabeledTextarea } from './labeled-textarea';
 import { requestJson } from './lib/api';
-import { useNotice } from './lib/use-notice';
+import { type NoticeValue, useNotice } from './lib/use-notice';
 import { PeriodRoutines } from './period-routines';
 import { serviceDate } from './service-date';
 import { isPassingFailure, useReloadOnDateChange } from './use-date-change';
@@ -36,12 +37,23 @@ const answers: { value: boolean | null; label: string }[] = [
 
 const needsReview = ({ goals }: GoalPeriod) => goals.some((goal) => !goal.reviewedAt);
 
+const focusKeys = {
+  period: (start: string) => `period-${start}`,
+  edit: (id: string) => `goal-edit-${id}`,
+  remove: (id: string) => `goal-remove-${id}`,
+  renameInput: 'goal-rename-input',
+  add: 'add-goal',
+};
+
 function PastPeriod({
   past,
+  movedNotice,
   onSaving,
   onSaved,
 }: {
   past: GoalPeriod;
+  // A card that changed lists mounted anew, so its message comes from above.
+  movedNotice: NoticeValue | undefined;
   onSaving: () => void;
   onSaved: (goals: Goal[]) => void;
 }) {
@@ -92,12 +104,19 @@ function PastPeriod({
   return (
     <Card role="region" aria-label={`${label} 회고`}>
       <CardHeader>
-        <CardTitle asHeading="h2" className="flex flex-wrap items-center gap-2">
+        <CardTitle
+          asHeading="h2"
+          tabIndex={-1}
+          data-focus-key={focusKeys.period(past.period.start)}
+          // Keeps the focused heading clear of the fixed bar at the top of the page.
+          className="flex scroll-mt-[calc(env(safe-area-inset-top)+5rem)] flex-wrap items-center gap-2"
+        >
           {label}
           {needsReview(past) && <Badge variant="secondary">회고 필요</Badge>}
         </CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex flex-col gap-4">
+        <Notice notice={movedNotice} />
         <form
           className="flex flex-col gap-4"
           aria-label={`${label} 회고 저장`}
@@ -155,10 +174,12 @@ function CurrentGoals({ data, reload }: { data: GoalsData; reload: () => void })
   const [busy, setBusy] = useState(false);
   const { notice, status, error, clear } = useNotice();
   const { goals } = data.current;
+  const { beginChange, requestFocus } = useFocusRequest(() => !busy);
 
   // The goal being edited has gone: the period moved on, or it was removed elsewhere.
   if (editing && !goals.some((goal) => goal.id === editing.id)) {
     setEditing(null);
+    requestFocus([focusKeys.add]);
     error(`'${editing.title}' 수정을 저장하지 못했습니다. 이번 기간의 목표가 아닙니다`);
   }
 
@@ -166,6 +187,7 @@ function CurrentGoals({ data, reload }: { data: GoalsData; reload: () => void })
   // refusal means the period has moved on.
   const run = async (action: () => Promise<unknown>, done: string) => {
     setBusy(true);
+    beginChange();
     clear();
     try {
       await action();
@@ -184,12 +206,15 @@ function CurrentGoals({ data, reload }: { data: GoalsData; reload: () => void })
     const title = draft.trim();
     if (!title) {
       error('목표를 입력해 주세요');
+      beginChange();
+      requestFocus([focusKeys.add]);
       return;
     }
     const ok = await run(
       () => requestJson('/api/goals', { method: 'POST', body: { title } }),
       `'${title}' 목표를 추가했습니다`,
     );
+    requestFocus([focusKeys.add]);
     // Anything typed while this was saving is the next goal; keep it.
     if (ok) setDraft((current) => (current.trim() === title ? '' : current));
   };
@@ -199,6 +224,8 @@ function CurrentGoals({ data, reload }: { data: GoalsData; reload: () => void })
     const title = editing.title.trim();
     if (!title) {
       error('목표를 입력해 주세요');
+      beginChange();
+      requestFocus([focusKeys.renameInput]);
       return;
     }
     const ok = await run(
@@ -206,14 +233,33 @@ function CurrentGoals({ data, reload }: { data: GoalsData; reload: () => void })
       `목표를 '${title}'(으)로 바꿨습니다`,
     );
     if (ok) setEditing(null);
+    requestFocus([
+      ...(ok ? [] : [focusKeys.renameInput]),
+      focusKeys.edit(editing.id),
+      focusKeys.add,
+    ]);
+  };
+
+  const cancelEditing = (id: string) => {
+    beginChange();
+    requestFocus([focusKeys.edit(id)]);
+    setEditing(null);
   };
 
   const remove = async (goal: Goal) => {
-    await run(
+    const index = goals.indexOf(goal);
+    // The next goal, then the previous one. If this fails the row is still there, so stay on it.
+    const neighbours = [goals[index + 1], goals[index - 1]].filter(Boolean);
+    const ok = await run(
       () => requestJson(`/api/goals/${goal.id}`, { method: 'DELETE' }),
       `'${goal.title}' 목표를 지웠습니다`,
     );
     setConfirmDelete(null);
+    requestFocus([
+      ...(ok ? [] : [focusKeys.remove(goal.id)]),
+      ...neighbours.map((neighbour) => focusKeys.edit(neighbour.id)),
+      focusKeys.add,
+    ]);
   };
 
   return (
@@ -248,6 +294,7 @@ function CurrentGoals({ data, reload }: { data: GoalsData; reload: () => void })
                     <Input
                       className="min-w-0 flex-1"
                       aria-label={`${goal.title} 새 이름`}
+                      data-focus-key={focusKeys.renameInput}
                       // eslint-disable-next-line jsx-a11y-x/no-autofocus -- the field opens on a click, so focus follows that action.
                       autoFocus
                       value={editing.title}
@@ -257,7 +304,7 @@ function CurrentGoals({ data, reload }: { data: GoalsData; reload: () => void })
                     <Button type="submit" disabled={busy}>
                       저장
                     </Button>
-                    <Button type="button" variant="ghost" onClick={() => setEditing(null)}>
+                    <Button type="button" variant="ghost" onClick={() => cancelEditing(goal.id)}>
                       취소
                     </Button>
                   </form>
@@ -272,6 +319,7 @@ function CurrentGoals({ data, reload }: { data: GoalsData; reload: () => void })
                         variant="ghost"
                         size="sm"
                         aria-label={`${goal.title} 수정`}
+                        data-focus-key={focusKeys.edit(goal.id)}
                         disabled={busy}
                         onClick={() => {
                           setConfirmDelete(null);
@@ -297,6 +345,7 @@ function CurrentGoals({ data, reload }: { data: GoalsData; reload: () => void })
                           variant="ghost"
                           size="sm"
                           aria-label={`${goal.title} 삭제`}
+                          data-focus-key={focusKeys.remove(goal.id)}
                           disabled={busy}
                           onClick={() => setConfirmDelete(goal.id)}
                         >
@@ -321,6 +370,7 @@ function CurrentGoals({ data, reload }: { data: GoalsData; reload: () => void })
           <Input
             className="min-w-0 flex-1"
             aria-label="새 목표"
+            data-focus-key={focusKeys.add}
             placeholder="이번 12주에 이룰 일"
             value={draft}
             maxLength={200}
@@ -342,6 +392,8 @@ export function TwelveWeek() {
   const { notice, error, clear } = useNotice();
   // Kept here: a finished review's card moves down the page and mounts anew.
   const reviewNotice = useNotice();
+  const [movedCard, setMovedCard] = useState<string | null>(null);
+  const { beginChange, requestFocus } = useFocusRequest(() => true);
   const requestedOn = useRef('');
 
   useEffect(() => {
@@ -393,23 +445,37 @@ export function TwelveWeek() {
           })),
         },
     );
-    // A card that changes lists mounts anew and loses its own message, so say it up here.
+    // A card that changes lists mounts anew: its message and keyboard focus go with it from here.
     const stillOpen = saved.some((goal) => !goal.reviewedAt);
-    if (needsReview(past) !== stillOpen)
+    if (needsReview(past) !== stillOpen) {
       reviewNotice.status(
         stillOpen
           ? '저장했습니다. 달성 여부나 메모를 남기면 회고가 끝납니다'
           : '회고를 저장했습니다',
       );
+      setMovedCard(past.period.start);
+      requestFocus([focusKeys.period(past.period.start)]);
+    }
     reload();
   };
+  const pastCard = (past: GoalPeriod) => (
+    <PastPeriod
+      key={past.period.start}
+      past={past}
+      movedNotice={movedCard === past.period.start ? reviewNotice.notice : undefined}
+      onSaving={() => {
+        beginChange();
+        reviewNotice.clear();
+      }}
+      onSaved={(saved) => reviewSaved(past, saved)}
+    />
+  );
   const toReview = data?.past.filter(needsReview) ?? [];
   const reviewed = data?.past.filter((past) => !needsReview(past)) ?? [];
 
   return (
     <div className="flex flex-col gap-6">
       <Notice notice={notice} />
-      <Notice notice={reviewNotice.notice} />
       {loadFailed && (
         <Button type="button" variant="outline" size="sm" className="self-start" onClick={reload}>
           목표 다시 불러오기
@@ -423,14 +489,7 @@ export function TwelveWeek() {
       {toReview.length > 0 && (
         <p className="text-body font-semibold">지난 기간의 목표를 돌아보고 새 목표를 세워 보세요</p>
       )}
-      {toReview.map((past) => (
-        <PastPeriod
-          key={past.period.start}
-          past={past}
-          onSaving={reviewNotice.clear}
-          onSaved={(saved) => reviewSaved(past, saved)}
-        />
-      ))}
+      {toReview.map(pastCard)}
       {data && <CurrentGoals data={data} reload={reload} />}
       <PeriodRoutines
         cadence="twelve_week"
@@ -439,14 +498,7 @@ export function TwelveWeek() {
         examples="예: 목표 재설정"
         emptyHint="아래에서 12주에 한 번 할 일을 추가해 주세요."
       />
-      {reviewed.map((past) => (
-        <PastPeriod
-          key={past.period.start}
-          past={past}
-          onSaving={reviewNotice.clear}
-          onSaved={(saved) => reviewSaved(past, saved)}
-        />
-      ))}
+      {reviewed.map(pastCard)}
     </div>
   );
 }

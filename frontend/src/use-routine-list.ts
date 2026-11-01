@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { requestJson } from './api';
+import { useFocusRequest } from './focus-moves';
 import type { Routine } from './routines';
 
 export type RoutineNotice = { kind: 'status' | 'alert'; text: string } | null;
@@ -28,18 +29,12 @@ export function useRoutineList(cadence: string) {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<RoutineNotice>(null);
   const loadErrorShown = useRef(false);
-  // Changes re-render or disable the control that was pressed, which drops keyboard focus. The
-  // request waits for the reload after the change, because moving a row also moves its buttons.
+  // Focus waits for the reload after a change, because moving a row also moves its buttons.
   const changesMade = useRef(0);
   const [loadedVersion, setLoadedVersion] = useState(0);
-  const focusRequest = useRef<{
-    keys: string[];
-    afterVersion: number;
-    origin: Element | null;
-  } | null>(null);
-  // Where focus was when the change began. Anywhere else by the time it ends means the user has
-  // moved on, and taking focus back would send their typing to the wrong place.
-  const changeOrigin = useRef<Element | null>(null);
+  const { beginChange, requestFocus } = useFocusRequest(
+    () => !busy && loadedVersion >= changesMade.current,
+  );
 
   useEffect(() => {
     // A newer reload supersedes this one, so a slow older response cannot overwrite it.
@@ -67,34 +62,6 @@ export function useRoutineList(cadence: string) {
     };
   }, [cadence, version, refreshes]);
 
-  useEffect(() => {
-    const request = focusRequest.current;
-    if (!request || busy || loadedVersion < request.afterVersion) return;
-    focusRequest.current = null;
-    const current = document.activeElement;
-    if (current && current !== document.body && current !== request.origin) return;
-    for (const key of request.keys) {
-      const control = document.querySelector<HTMLElement & { disabled?: boolean }>(
-        `[data-focus-key="${key}"]`,
-      );
-      if (control && !control.disabled) {
-        control.focus();
-        return;
-      }
-    }
-  });
-
-  const requestFocus = (keys: string[]) => {
-    // On a touch screen, focusing the add field pops up a keyboard nobody asked for. A failed rename
-    // still returns to its field: the name needs fixing, so the keyboard is wanted there.
-    const touch = window.matchMedia('(pointer: coarse)').matches;
-    focusRequest.current = {
-      keys: touch ? keys.filter((key) => !key.startsWith('add-')) : keys,
-      afterVersion: changesMade.current,
-      origin: changeOrigin.current,
-    };
-  };
-
   const refresh = useCallback(() => setRefreshes((value) => value + 1), []);
 
   // Picks up changes made elsewhere when the page is shown again.
@@ -108,7 +75,7 @@ export function useRoutineList(cadence: string) {
 
   const run = async (action: () => Promise<unknown>, done: string) => {
     setBusy(true);
-    changeOrigin.current = document.activeElement;
+    beginChange();
     loadErrorShown.current = false;
     try {
       await action();
@@ -166,7 +133,7 @@ export function useRoutineList(cadence: string) {
   };
 
   const cancelEditing = () => {
-    changeOrigin.current = document.activeElement;
+    beginChange();
     if (editing) requestFocus([focusKeys.edit(editing.id)]);
     setEditing(null);
   };

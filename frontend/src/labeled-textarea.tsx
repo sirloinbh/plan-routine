@@ -9,6 +9,7 @@ export function LabeledTextarea({
   rows,
   limit,
   readOnly,
+  invalid = false,
   onChange,
 }: {
   id: string;
@@ -17,6 +18,7 @@ export function LabeledTextarea({
   rows: number;
   limit: number;
   readOnly: boolean;
+  invalid?: boolean;
   onChange: (value: string) => void;
 }) {
   return (
@@ -37,9 +39,10 @@ export function LabeledTextarea({
       </div>
       <textarea
         id={id}
-        className="w-full min-w-0 rounded-md border border-input bg-transparent px-3 py-2 text-base shadow-xs transition-[color,box-shadow] outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 md:text-body-sm dark:bg-input/30"
+        className="w-full min-w-0 rounded-md border border-input bg-transparent px-3 py-2 text-base shadow-xs transition-[color,box-shadow] outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 aria-invalid:border-destructive md:text-body-sm dark:bg-input/30"
         rows={rows}
         readOnly={readOnly}
+        aria-invalid={invalid || undefined}
         value={value}
         onChange={(event) => onChange(event.target.value)}
       />
