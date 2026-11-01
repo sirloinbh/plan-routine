@@ -60,8 +60,8 @@ export function Diary() {
   const [draftFailed, setDraftFailed] = useState(false);
   const [bodyInvalid, setBodyInvalid] = useState(false);
   const [confirmingDiscard, setConfirmingDiscard] = useState(false);
-  // Another tab's text is in the draft now, so this tab must not clear it.
-  const draftTaken = useRef(false);
+  // What this tab last stored. Only that may be cleared: a draft may be another tab's by now.
+  const lastWritten = useRef<DiaryForm | null>(null);
   const draftBase = useRef<DiaryForm | null>(null);
   const saveButton = useRef<HTMLButtonElement>(null);
   const discardButton = useRef<HTMLButtonElement>(null);
@@ -87,8 +87,12 @@ export function Diary() {
           setDate(null);
           return;
         }
+        // A draft saying what is already saved has nothing left to keep.
+        if (stored?.date === loaded.date && !draft) clearDraft(loaded.date);
         // Read only here: a stored draft may by now be another tab's, with a base of its own.
         draftBase.current = draft?.base ?? null;
+        // A restored draft is this tab's now, even if storing it again is refused.
+        lastWritten.current = draft?.form ?? null;
         setData(loaded);
         setForm(draft?.form ?? server);
         setSavedForm(server);
@@ -132,12 +136,12 @@ export function Diary() {
       const base = draftBase.current ?? savedForm;
       draftBase.current = base;
       const written = writeDraft({ date: data.date, form, base });
-      if (written) draftTaken.current = false;
+      if (written) lastWritten.current = form;
       setDraftFailed(!written);
       return;
     }
-    if (!draftTaken.current) clearDraft(data.date);
-    draftTaken.current = false;
+    if (lastWritten.current) clearDraft(data.date, lastWritten.current);
+    lastWritten.current = null;
     draftBase.current = null;
     setDraftFailed(false);
   }, [data, loading, form, savedForm]);
@@ -152,18 +156,12 @@ export function Diary() {
       if (event.newValue !== null) {
         // This event can be older than this tab's own write, when tabs write at nearly the same time.
         const stored = readDraft();
-        if (stored?.date === data.date && sameForm(stored.form, form)) {
-          draftTaken.current = false;
-          setDraftFailed(false);
-          return;
-        }
-        draftTaken.current = true;
-        setDraftFailed(true);
+        setDraftFailed(!(stored?.date === data.date && sameForm(stored.form, form)));
         return;
       }
       const base = draftBase.current ?? savedForm;
       const written = writeDraft({ date: data.date, form, base });
-      if (written) draftTaken.current = false;
+      if (written) lastWritten.current = form;
       setDraftFailed(!written);
     };
     window.addEventListener('storage', othersChanged);

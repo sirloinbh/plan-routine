@@ -888,3 +888,68 @@ test('after a retry succeeds, focus is on the page rather than lost', async () =
   await field('하루 돌아보기');
   expect(screen.getByRole('region', { name: '일기' })).toHaveFocus();
 });
+
+test('a tab with nothing unsaved leaves another tab\u2019s draft alone', async () => {
+  diaryApi([saved]);
+  render(<Diary />);
+  await field('하루 돌아보기');
+  await flush();
+  // Another tab, since closed, left its text here.
+  localStorage.setItem(draftKey, theirDraft);
+  press('저장');
+  await flush();
+  expect(localStorage.getItem(draftKey)).toBe(theirDraft);
+  // Spaces alone are nothing unsaved either.
+  await type('하루 돌아보기', `${saved.body} `);
+  await flush();
+  expect(localStorage.getItem(draftKey)).toBe(theirDraft);
+});
+
+test('text taken back to what is saved clears this tab\u2019s own draft', async () => {
+  diaryApi([saved]);
+  render(<Diary />);
+  await type('하루 돌아보기', '잠깐 쓴 글');
+  await flush();
+  expect(localStorage.getItem(draftKey)).not.toBeNull();
+  await type('하루 돌아보기', saved.body);
+  await flush();
+  expect(localStorage.getItem(draftKey)).toBeNull();
+});
+
+test('a restored draft that cannot be stored again is still cleared when discarded', async () => {
+  diaryApi();
+  seedDraft(today, '복원된 글');
+  vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+    throw new DOMException('blocked', 'QuotaExceededError');
+  });
+  const { unmount } = render(<Diary />);
+  expect(await field('하루 돌아보기')).toHaveValue('복원된 글');
+  await flush();
+  press('버리기');
+  press('버리기 확인');
+  await flush();
+  expect(localStorage.getItem(draftKey)).toBeNull();
+  unmount();
+  render(<Diary />);
+  expect(await field('하루 돌아보기')).toHaveValue('');
+});
+
+test('moving to a day whose draft matches what is saved clears that draft', async () => {
+  const yesterday = '2026-10-21';
+  diaryApi([{ ...saved, date: yesterday }]);
+  render(<Diary />);
+  await field('하루 돌아보기');
+  await flush();
+  seedDraft(yesterday, saved.body);
+  localStorage.setItem(
+    draftKey,
+    JSON.stringify({
+      date: yesterday,
+      form: { ...empty, body: saved.body, goodNote: saved.goodNote },
+      base: empty,
+    }),
+  );
+  press('이전 날');
+  await screen.findByRole('heading', { level: 2, name: yesterday });
+  expect(localStorage.getItem(draftKey)).toBeNull();
+});
