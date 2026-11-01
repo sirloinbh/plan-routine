@@ -8,13 +8,14 @@
 
 순서는 우선순위, 그다음 이슈 번호다(`std-backlog` 5장). 예외로 사용자가 매우 후순위로 지정한 #13은 같은 P3 안에서 뒤로 뺐다. 다른 지시가 없으면 1번부터 진행한다.
 
-| 순서 | 이슈                                                       | 할 일                                            | 우선순위 | 착수 전 확인                                                    |
-| ---- | ---------------------------------------------------------- | ------------------------------------------------ | -------- | --------------------------------------------------------------- |
-| 1    | [#79](https://github.com/sirloinbh/plan-routine/issues/79) | compose 변경 뒤 `docker compose up` 확인만 남음  | P3       | Docker 필요                                                     |
-| 2    | [#13](https://github.com/sirloinbh/plan-routine/issues/13) | [후순위] 다른 프로젝트 통합 허브 설계            | P3       | [#12](https://github.com/sirloinbh/plan-routine/issues/12) 이후 |
-| 3    | [#66](https://github.com/sirloinbh/plan-routine/issues/66) | 다시 시도 뒤 키보드 포커스 유지                  | P4       | 없음                                                            |
-| 4    | [#70](https://github.com/sirloinbh/plan-routine/issues/70) | 입력 오류 응답의 메시지 개수에 상한 두기         | P4       | 없음                                                            |
-| 5    | [#76](https://github.com/sirloinbh/plan-routine/issues/76) | 루틴 연결 패널이 열린 채 목표가 바뀔 때 안내하기 | P4       | 없음                                                            |
+| 순서 | 이슈                                                       | 할 일                                                 | 우선순위 | 착수 전 확인                                                    |
+| ---- | ---------------------------------------------------------- | ----------------------------------------------------- | -------- | --------------------------------------------------------------- |
+| 1    | [#79](https://github.com/sirloinbh/plan-routine/issues/79) | compose 변경 뒤 `docker compose up` 확인만 남음       | P3       | Docker 필요                                                     |
+| 2    | [#13](https://github.com/sirloinbh/plan-routine/issues/13) | [후순위] 다른 프로젝트 통합 허브 설계                 | P3       | [#12](https://github.com/sirloinbh/plan-routine/issues/12) 이후 |
+| 3    | [#66](https://github.com/sirloinbh/plan-routine/issues/66) | 다시 시도 뒤 키보드 포커스 유지                       | P4       | 없음                                                            |
+| 4    | [#70](https://github.com/sirloinbh/plan-routine/issues/70) | 입력 오류 응답의 메시지 개수에 상한 두기              | P4       | 없음                                                            |
+| 5    | [#76](https://github.com/sirloinbh/plan-routine/issues/76) | 루틴 연결 패널이 열린 채 목표가 바뀔 때 안내하기      | P4       | 없음                                                            |
+| 6    | [#87](https://github.com/sirloinbh/plan-routine/issues/87) | 깨끗한 일기 탭이 다른 탭의 임시 글을 지우지 않게 하기 | P4       | 없음                                                            |
 
 각 카드의 "확인 필요 (추천안)" 항목은 착수 전에 사용자 확인을 받아 이슈 코멘트로 기록한다.
 

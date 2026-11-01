@@ -783,3 +783,92 @@ test('a storage event for something else is ignored', async () => {
   });
   expect(leaving()).toBe(false);
 });
+
+test('text discarded after its draft was put back does not return', async () => {
+  diaryApi();
+  const { unmount } = render(<Diary />);
+  await type('하루 돌아보기', '버릴 글');
+  await flush();
+  localStorage.setItem(draftKey, theirDraft);
+  otherTab(theirDraft);
+  localStorage.removeItem(draftKey);
+  otherTab(null);
+  expect(JSON.parse(localStorage.getItem(draftKey)!)).toMatchObject({ form: { body: '버릴 글' } });
+  press('버리기');
+  press('버리기 확인');
+  await flush();
+  expect(localStorage.getItem(draftKey)).toBeNull();
+  unmount();
+  render(<Diary />);
+  expect(await field('하루 돌아보기')).toHaveValue('');
+});
+
+test('taking the draft back keeps the first base of this text', async () => {
+  diaryApi([saved]);
+  seedDraft(today, '예전 글', { ...empty, body: '더 예전 글' });
+  render(<Diary />);
+  await field('하루 돌아보기');
+  await flush();
+  const other = JSON.stringify({
+    date: '2026-10-20',
+    form: { ...empty, body: '다른 날' },
+    base: empty,
+  });
+  localStorage.setItem(draftKey, other);
+  otherTab(other);
+  await type('하루 돌아보기', '이어서 쓴 글');
+  await flush();
+  expect(JSON.parse(localStorage.getItem(draftKey)!)).toMatchObject({
+    base: { body: '더 예전 글' },
+  });
+});
+
+test('saving, then typing with another tab\u2019s draft stored, gives no false warning of a change', async () => {
+  diaryApi();
+  const { unmount } = render(<Diary />);
+  await type('하루 돌아보기', '이 탭의 글');
+  await flush();
+  localStorage.setItem(draftKey, theirDraft);
+  otherTab(theirDraft);
+  press('저장');
+  await flush();
+  expect(localStorage.getItem(draftKey)).toBe(theirDraft);
+  await type('하루 돌아보기', '이 탭의 글 더');
+  await flush();
+  unmount();
+  render(<Diary />);
+  expect(await field('하루 돌아보기')).toHaveValue('이 탭의 글 더');
+  expect(screen.getByRole('status')).toHaveTextContent('저장해야 기록에 남습니다');
+});
+
+test('typing over what this tab loaded keeps that as the base, whatever another tab stored', async () => {
+  diaryApi([saved]);
+  render(<Diary />);
+  await field('하루 돌아보기');
+  localStorage.setItem(
+    draftKey,
+    JSON.stringify({
+      date: today,
+      form: { ...empty, body: '다른 탭' },
+      base: { ...empty, body: '다른 기준' },
+    }),
+  );
+  await type('하루 돌아보기', '이 탭의 글');
+  await flush();
+  expect(JSON.parse(localStorage.getItem(draftKey)!)).toMatchObject({ base: { body: saved.body } });
+});
+
+test('an event older than this tab\u2019s own write is not a warning', async () => {
+  diaryApi();
+  render(<Diary />);
+  await type('하루 돌아보기', '이 탭의 글');
+  await flush();
+  // The event says another tab wrote, but what is stored now is this tab's.
+  otherTab(theirDraft);
+  await flush();
+  expect(leaving()).toBe(false);
+  press('버리기');
+  press('버리기 확인');
+  await flush();
+  expect(localStorage.getItem(draftKey)).toBeNull();
+});
