@@ -149,3 +149,23 @@ test('ten errors are shown in full, with no count', async () => {
     assert.doesNotMatch(String(data.error), /외 /);
   });
 });
+
+test('every route that reads a body answers broken JSON and bare values with the Korean 400', async () => {
+  await withApi(untouchedPool(), async (call) => {
+    for (const [method, path] of [
+      ['POST', '/api/routines'],
+      ['PATCH', '/api/routines/1'],
+      ['POST', '/api/routines/1/move'],
+      ['POST', '/api/goals'],
+      ['PATCH', '/api/goals/1'],
+      ['PUT', '/api/goals/reviews'],
+      ['PUT', '/api/diary/2026-10-22'],
+    ]) {
+      for (const raw of ['{', 'null', '1', '"x"', 'true']) {
+        const { status, data } = await call(path, { method, raw });
+        assert.equal(status, 400, `${path} ${raw}`);
+        assert.equal(data.error, refused, `${path} ${raw}`);
+      }
+    }
+  });
+});
