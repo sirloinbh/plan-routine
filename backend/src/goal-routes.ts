@@ -33,6 +33,9 @@ const goalInput = z.object(
   },
   badRequest,
 );
+// Far above any real period. Keep .max() first: zod 4.6.7 uses only leading length checks to refuse
+// an oversized array before reading its elements (GHSA-mrhx-c7xc-m3w5).
+const maxReviews = 1000;
 const reviewsInput = z.object(
   {
     reviews: z
@@ -54,6 +57,7 @@ const reviewsInput = z.object(
         ),
         { error: '회고할 목표가 없습니다' },
       )
+      .max(maxReviews, `한 번에 회고할 수 있는 목표는 ${maxReviews}개까지입니다`)
       .refine((reviews) => reviews.length >= 1, '회고할 목표가 없습니다')
       .refine(
         (reviews) => new Set(reviews.map((review) => review.id)).size === reviews.length,
