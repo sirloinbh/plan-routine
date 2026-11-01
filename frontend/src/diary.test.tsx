@@ -573,10 +573,16 @@ test('an empty body is marked and takes focus when saving fails, until it is typ
   render(<Diary />);
   const body = await field('하루 돌아보기');
   expect(body).not.toHaveAttribute('aria-invalid');
+  // What a screen reader finds at the moment focus arrives.
+  let onArrival = '';
+  body.addEventListener('focus', () => {
+    onArrival = `${String(body.hasAttribute('readonly'))} ${String(body.getAttribute('aria-invalid'))}`;
+  });
   press('저장');
   await flush();
   expect(screen.getByRole('alert')).toHaveTextContent('일기 본문을 입력해 주세요');
   expect(body).toHaveFocus();
+  expect(onArrival).toBe('false true');
   expect(body).toHaveAttribute('aria-invalid', 'true');
   await type('하루 돌아보기', '이제 씀');
   expect(body).not.toHaveAttribute('aria-invalid');

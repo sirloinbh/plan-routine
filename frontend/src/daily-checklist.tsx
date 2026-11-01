@@ -28,7 +28,11 @@ export function DailyChecklist() {
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 ref={heading} tabIndex={-1} className="scroll-mt-20 text-body font-semibold">
+          <h2
+            ref={heading}
+            tabIndex={-1}
+            className="scroll-mt-[calc(env(safe-area-inset-top)+5rem)] text-body font-semibold"
+          >
             {isToday ? `오늘 (${data.date})` : data.date}
           </h2>
           <p className="text-body-sm text-muted-foreground">전체 {progressText(data.items)} 완료</p>

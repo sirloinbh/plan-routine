@@ -109,7 +109,7 @@ function PastPeriod({
           tabIndex={-1}
           data-focus-key={focusKeys.period(past.period.start)}
           // Keeps the focused heading clear of the fixed bar at the top of the page.
-          className="flex scroll-mt-20 flex-wrap items-center gap-2"
+          className="flex scroll-mt-[calc(env(safe-area-inset-top)+5rem)] flex-wrap items-center gap-2"
         >
           {label}
           {needsReview(past) && <Badge variant="secondary">회고 필요</Badge>}

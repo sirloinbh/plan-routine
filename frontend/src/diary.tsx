@@ -183,8 +183,13 @@ export function Diary() {
       // What the server refuses is the body when it is empty or too long, so take the user there.
       const body = form.body.trim();
       if (cause instanceof RequestError && cause.status === 400 && (!body || body.length > 5000)) {
-        setBodyInvalid(true);
-        if (isFocusFree(origin)) document.getElementById('diary-body')?.focus();
+        // Drawn first, so the field is read out as editable and invalid when focus reaches it.
+        const free = isFocusFree(origin);
+        flushSync(() => {
+          setSaving(false);
+          setBodyInvalid(true);
+        });
+        if (free) document.getElementById('diary-body')?.focus();
       }
     } finally {
       setSaving(false);
@@ -229,7 +234,11 @@ export function Diary() {
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 ref={heading} tabIndex={-1} className="scroll-mt-20 text-body font-semibold">
+          <h2
+            ref={heading}
+            tabIndex={-1}
+            className="scroll-mt-[calc(env(safe-area-inset-top)+5rem)] text-body font-semibold"
+          >
             {isToday ? `오늘 (${data.date})` : data.date}
           </h2>
           {data.progress.total > 0 && (
