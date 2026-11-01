@@ -149,7 +149,7 @@ export function Diary() {
       // A null key is the whole storage being cleared.
       if (event.key !== null && event.key !== draftKey) return;
       if (event.newValue !== null) {
-        // With three tabs this event can be older than this tab's own write.
+        // This event can be older than this tab's own write, when tabs write at nearly the same time.
         const stored = readDraft();
         if (stored?.date === data.date && sameForm(stored.form, form)) {
           draftTaken.current = false;
