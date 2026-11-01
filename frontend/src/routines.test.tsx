@@ -463,3 +463,60 @@ test('with no projects registered a routine offers no link', async () => {
   await act(() => new Promise((resolve) => setTimeout(resolve)));
   expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
 });
+
+// Writes wait until released, as on a slow connection.
+function holdWrites() {
+  const working = vi.mocked(fetch).getMockImplementation()!;
+  let release = () => {};
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  vi.stubGlobal(
+    'fetch',
+    vi.fn((url: string, init?: RequestInit) =>
+      (init?.method ?? 'GET') === 'GET' ? working(url, init) : gate.then(() => working(url, init)),
+    ),
+  );
+  return () => release();
+}
+
+test('only the add button that was pressed spins, and moving spins none', async () => {
+  routineApi(twoRoutines);
+  render(<DailyRoutines />);
+  await screen.findByText('6시 기상');
+  const release = holdWrites();
+  fireEvent.change(screen.getByRole('textbox', { name: '기상 새 루틴 이름' }), {
+    target: { value: '기지개' },
+  });
+  fireEvent.click(within(region('기상')).getByRole('button', { name: '추가' }));
+  await act(() => new Promise((resolve) => setTimeout(resolve)));
+  expect(screen.getAllByRole('status', { name: '저장하는 중' })).toHaveLength(1);
+  expect(within(region('기상')).getByRole('status', { name: '저장하는 중' })).toBeInTheDocument();
+  release();
+  await screen.findByText('기지개');
+  await waitFor(() =>
+    expect(screen.queryByRole('status', { name: '저장하는 중' })).not.toBeInTheDocument(),
+  );
+});
+
+test('moving a routine spins nothing, and an archive spins only its own row', async () => {
+  routineApi(twoRoutines);
+  render(<DailyRoutines />);
+  await screen.findByText('6시 기상');
+  const release = holdWrites();
+  fireEvent.click(button('물 한 잔 위로 이동'));
+  await act(() => new Promise((resolve) => setTimeout(resolve)));
+  expect(screen.queryByRole('status', { name: /하는 중/ })).not.toBeInTheDocument();
+  release();
+  await waitFor(() => expect(button('물 한 잔 이름 수정')).not.toBeDisabled());
+
+  const again = holdWrites();
+  fireEvent.click(button('6시 기상 보관'));
+  fireEvent.click(button('6시 기상 보관 확인'));
+  await act(() => new Promise((resolve) => setTimeout(resolve)));
+  expect(
+    within(button('6시 기상 보관 확인')).getByRole('status', { name: '처리하는 중' }),
+  ).toBeInTheDocument();
+  expect(screen.getAllByRole('status', { name: /하는 중/ })).toHaveLength(1);
+  again();
+});

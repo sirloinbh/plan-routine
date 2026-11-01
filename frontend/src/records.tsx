@@ -296,7 +296,7 @@ export function Records() {
         </Button>
       </div>
     ) : (
-      <LoadingRegion label="기록 불러오는 중" />
+      <LoadingRegion label="기록 불러오는 중" shape="card" />
     );
 
   return (
@@ -350,7 +350,7 @@ export function Records() {
       {day?.date === selected ? (
         <DayDetail day={day} />
       ) : (
-        !dayFailed && <LoadingRegion label="이 날의 기록 불러오는 중" rows={2} />
+        !dayFailed && <LoadingRegion label="이 날의 기록 불러오는 중" shape="cards" />
       )}
     </div>
   );

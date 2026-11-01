@@ -17,7 +17,7 @@ export type Routine = {
 export function DailyRoutines() {
   const list = useRoutineList('daily');
 
-  if (list.routines === null) return <LoadingRegion label="루틴 불러오는 중" />;
+  if (list.routines === null) return <LoadingRegion label="루틴 불러오는 중" shape="cards" />;
 
   return (
     <div className="flex flex-col gap-4">

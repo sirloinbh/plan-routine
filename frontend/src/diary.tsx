@@ -217,7 +217,7 @@ export function Diary() {
 
   if (!data)
     return loading ? (
-      <LoadingRegion label="일기 불러오는 중" rows={2} />
+      <LoadingRegion label="일기 불러오는 중" shape="card" />
     ) : (
       <div className="flex flex-col items-start gap-3">
         <Notice notice={notice} />

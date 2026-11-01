@@ -40,7 +40,7 @@ export function ChecklistPending({
       </Button>
     </div>
   ) : (
-    <LoadingRegion label="체크리스트 불러오는 중" />
+    <LoadingRegion label="체크리스트 불러오는 중" shape="card" />
   );
 }
 

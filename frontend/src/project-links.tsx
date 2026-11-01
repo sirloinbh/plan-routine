@@ -26,6 +26,8 @@ export function ProjectLinks() {
   const [url, setUrl] = useState('');
   const [confirming, setConfirming] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Which button started the change: busy disables them all, only this one shows it is working.
+  const [pending, setPending] = useState<string | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const { notice, status, error, clear } = useNotice();
   const { beginChange, requestFocus } = useFocusRequest(() => !busy);
@@ -51,8 +53,9 @@ export function ProjectLinks() {
 
   const reload = useCallback(() => setVersion((value) => value + 1), []);
 
-  const run = async (action: () => Promise<unknown>, done: string) => {
+  const run = async (action: () => Promise<unknown>, done: string, started: string) => {
     setBusy(true);
+    setPending(started);
     beginChange();
     clear();
     try {
@@ -64,6 +67,7 @@ export function ProjectLinks() {
       return false;
     } finally {
       setBusy(false);
+      setPending(null);
       reload();
     }
   };
@@ -72,6 +76,7 @@ export function ProjectLinks() {
     const ok = await run(
       () => requestJson('/api/project-links', { method: 'POST', body: { name, url } }),
       `'${name.trim()}' 프로젝트를 추가했습니다`,
+      'add',
     );
     if (ok) {
       setName('');
@@ -87,6 +92,7 @@ export function ProjectLinks() {
     const ok = await run(
       () => requestJson(`/api/project-links/${project.id}`, { method: 'DELETE' }),
       `'${project.name}' 프로젝트를 지웠습니다. 연결했던 루틴은 그대로입니다`,
+      `remove:${project.id}`,
     );
     setConfirming(null);
     requestFocus([
@@ -145,7 +151,9 @@ export function ProjectLinks() {
                     disabled={busy}
                     onClick={() => void remove(project)}
                   >
-                    {busy && <Spinner size="sm" label="처리하는 중" />}
+                    {pending === `remove:${project.id}` && (
+                      <Spinner size="sm" label="처리하는 중" />
+                    )}
                     삭제 확인
                   </Button>
                 ) : (
@@ -193,7 +201,7 @@ export function ProjectLinks() {
             onChange={(event) => setUrl(event.target.value)}
           />
           <Button type="submit" disabled={busy}>
-            {busy && <Spinner size="sm" label="저장하는 중" />}
+            {pending === 'add' && <Spinner size="sm" label="저장하는 중" />}
             추가
           </Button>
         </form>

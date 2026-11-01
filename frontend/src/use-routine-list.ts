@@ -28,6 +28,8 @@ export function useRoutineList(cadence: string) {
   const [editing, setEditing] = useState<{ id: string; name: string } | null>(null);
   const [confirmArchive, setConfirmArchive] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Which button started the change: busy disables them all, only this one shows it is working.
+  const [pending, setPending] = useState<string | null>(null);
   const [notice, setNotice] = useState<RoutineNotice>(null);
   const [projects, setProjects] = useState<ProjectLink[]>([]);
   const loadErrorShown = useRef(false);
@@ -89,8 +91,13 @@ export function useRoutineList(cadence: string) {
     return () => document.removeEventListener('visibilitychange', reloadWhenShown);
   }, [refresh]);
 
-  const run = async (action: () => Promise<unknown>, done: string) => {
+  const run = async (
+    action: () => Promise<unknown>,
+    done: string,
+    started: string | null = null,
+  ) => {
     setBusy(true);
+    setPending(started);
     beginChange();
     loadErrorShown.current = false;
     try {
@@ -107,6 +114,7 @@ export function useRoutineList(cadence: string) {
       changesMade.current += 1;
       setVersion(changesMade.current);
       setBusy(false);
+      setPending(null);
     }
   };
 
@@ -123,6 +131,7 @@ export function useRoutineList(cadence: string) {
           body: { name, cadence, category },
         }),
       `${label}에 '${name}' 루틴을 추가했습니다`,
+      `add:${draftKey}`,
     );
     requestFocus([focusKeys.add(draftKey)]);
     if (ok) setDrafts((current) => ({ ...current, [draftKey]: '' }));
@@ -138,6 +147,7 @@ export function useRoutineList(cadence: string) {
     const ok = await run(
       () => requestJson(`/api/routines/${editing.id}`, { method: 'PATCH', body: { name } }),
       `루틴 이름을 '${name}'(으)로 바꿨습니다`,
+      'rename',
     );
     // A failure keeps the form, unless the routine has gone or the edit was cancelled meanwhile.
     requestFocus([
@@ -173,6 +183,7 @@ export function useRoutineList(cadence: string) {
     const ok = await run(
       () => requestJson(`/api/routines/${routine.id}/archive`, { method: 'POST' }),
       `'${routine.name}' 루틴을 보관했습니다. 지난 기록은 남아 있습니다`,
+      `archive:${routine.id}`,
     );
     // If it failed the row is still there, so stay on it.
     requestFocus([
@@ -204,6 +215,7 @@ export function useRoutineList(cadence: string) {
 
   return {
     routines,
+    pending,
     projects,
     setProjectLink,
     version,

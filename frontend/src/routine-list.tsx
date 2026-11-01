@@ -54,7 +54,7 @@ export function RoutineItems({
                 onChange={(event) => list.setEditing({ id: routine.id, name: event.target.value })}
               />
               <Button type="submit" disabled={busy}>
-                {busy && <Spinner size="sm" label="저장하는 중" />}
+                {list.pending === 'rename' && <Spinner size="sm" label="저장하는 중" />}
                 저장
               </Button>
               <Button type="button" variant="ghost" onClick={list.cancelEditing}>
@@ -118,7 +118,9 @@ export function RoutineItems({
                       )
                     }
                   >
-                    {busy && <Spinner size="sm" label="처리하는 중" />}
+                    {list.pending === `archive:${routine.id}` && (
+                      <Spinner size="sm" label="처리하는 중" />
+                    )}
                     보관 확인
                   </Button>
                 ) : (
@@ -196,7 +198,7 @@ export function RoutineAddForm({
         onChange={(event) => list.setDraft(draftKey, event.target.value)}
       />
       <Button type="submit" disabled={list.busy}>
-        {list.busy && <Spinner size="sm" label="저장하는 중" />}
+        {list.pending === `add:${draftKey}` && <Spinner size="sm" label="저장하는 중" />}
         추가
       </Button>
     </form>

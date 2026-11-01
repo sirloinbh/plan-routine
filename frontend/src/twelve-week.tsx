@@ -186,6 +186,8 @@ function CurrentGoals({
   const [editing, setEditing] = useState<{ id: string; title: string } | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Which button started the change: busy disables them all, only this one shows it is working.
+  const [pending, setPending] = useState<string | null>(null);
   const { notice, status, error, clear } = useNotice();
   const { goals } = data.current;
   const { beginChange, requestFocus } = useFocusRequest(() => !busy);
@@ -199,8 +201,9 @@ function CurrentGoals({
 
   // Reloads after failures too: a 404 usually means the list changed elsewhere, and a past-goal
   // refusal means the period has moved on.
-  const run = async (action: () => Promise<unknown>, done: string) => {
+  const run = async (action: () => Promise<unknown>, done: string, started: string) => {
     setBusy(true);
+    setPending(started);
     beginChange();
     clear();
     try {
@@ -212,6 +215,7 @@ function CurrentGoals({
       return false;
     } finally {
       setBusy(false);
+      setPending(null);
       reload();
     }
   };
@@ -227,6 +231,7 @@ function CurrentGoals({
     const ok = await run(
       () => requestJson('/api/goals', { method: 'POST', body: { title } }),
       `'${title}' 목표를 추가했습니다`,
+      'add',
     );
     requestFocus([focusKeys.add]);
     // Anything typed while this was saving is the next goal; keep it.
@@ -245,6 +250,7 @@ function CurrentGoals({
     const ok = await run(
       () => requestJson(`/api/goals/${editing.id}`, { method: 'PATCH', body: { title } }),
       `목표를 '${title}'(으)로 바꿨습니다`,
+      'rename',
     );
     if (ok) setEditing(null);
     requestFocus([
@@ -267,6 +273,7 @@ function CurrentGoals({
     const ok = await run(
       () => requestJson(`/api/goals/${goal.id}`, { method: 'DELETE' }),
       `'${goal.title}' 목표를 지웠습니다`,
+      `remove:${goal.id}`,
     );
     setConfirmDelete(null);
     requestFocus([
@@ -316,7 +323,7 @@ function CurrentGoals({
                       onChange={(event) => setEditing({ id: goal.id, title: event.target.value })}
                     />
                     <Button type="submit" disabled={busy}>
-                      {busy && <Spinner size="sm" label="저장하는 중" />}
+                      {pending === 'rename' && <Spinner size="sm" label="저장하는 중" />}
                       저장
                     </Button>
                     <Button type="button" variant="ghost" onClick={() => cancelEditing(goal.id)}>
@@ -352,7 +359,9 @@ function CurrentGoals({
                           disabled={busy}
                           onClick={() => void remove(goal)}
                         >
-                          {busy && <Spinner size="sm" label="처리하는 중" />}
+                          {pending === `remove:${goal.id}` && (
+                            <Spinner size="sm" label="처리하는 중" />
+                          )}
                           삭제 확인
                         </Button>
                       ) : (
@@ -408,7 +417,7 @@ function CurrentGoals({
             onChange={(event) => setDraft(event.target.value)}
           />
           <Button type="submit" disabled={busy}>
-            {busy && <Spinner size="sm" label="저장하는 중" />}
+            {pending === 'add' && <Spinner size="sm" label="저장하는 중" />}
             추가
           </Button>
         </form>
@@ -526,7 +535,7 @@ export function TwelveWeek() {
           목표 다시 불러오기
         </Button>
       )}
-      {!data && !loadFailed && <LoadingRegion label="목표 불러오는 중" />}
+      {!data && !loadFailed && <LoadingRegion label="목표 불러오는 중" shape="card" />}
       {toReview.length > 0 && (
         <p className="text-body font-semibold">지난 기간의 목표를 돌아보고 새 목표를 세워 보세요</p>
       )}

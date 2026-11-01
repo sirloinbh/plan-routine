@@ -229,7 +229,7 @@ export function Stats() {
     return loadFailed ? (
       <div className="flex flex-col items-start gap-3">{failure}</div>
     ) : (
-      <LoadingRegion label="달성률 불러오는 중" />
+      <LoadingRegion label="달성률 불러오는 중" shape="cards" />
     );
 
   const itemsOf = (cadence: string) => data.items.filter((item) => item.cadence === cadence);
