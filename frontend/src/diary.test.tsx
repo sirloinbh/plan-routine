@@ -888,3 +888,30 @@ test('after a retry succeeds, focus is on the page rather than lost', async () =
   await field('하루 돌아보기');
   expect(screen.getByRole('region', { name: '일기' })).toHaveFocus();
 });
+
+test('a tab with nothing unsaved leaves another tab\u2019s draft alone', async () => {
+  diaryApi([saved]);
+  render(<Diary />);
+  await field('하루 돌아보기');
+  await flush();
+  // Another tab, since closed, left its text here.
+  localStorage.setItem(draftKey, theirDraft);
+  press('저장');
+  await flush();
+  expect(localStorage.getItem(draftKey)).toBe(theirDraft);
+  // Spaces alone are nothing unsaved either.
+  await type('하루 돌아보기', `${saved.body} `);
+  await flush();
+  expect(localStorage.getItem(draftKey)).toBe(theirDraft);
+});
+
+test('text taken back to what is saved clears this tab\u2019s own draft', async () => {
+  diaryApi([saved]);
+  render(<Diary />);
+  await type('하루 돌아보기', '잠깐 쓴 글');
+  await flush();
+  expect(localStorage.getItem(draftKey)).not.toBeNull();
+  await type('하루 돌아보기', saved.body);
+  await flush();
+  expect(localStorage.getItem(draftKey)).toBeNull();
+});
