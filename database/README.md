@@ -2,7 +2,18 @@
 
 PostgreSQL 17. 마이그레이션 원본은 `migrations/NNN_<설명>.sql` 한 곳뿐이다. 빈 Docker 볼륨에서는 최초 실행 시 모든 파일이 이름순으로 자동 적용되고, CI도 모든 파일을 순서대로 적용한다.
 
-기존 DB에는 새 마이그레이션을 컨테이너에 마운트된 파일로 직접 적용한다.
+빈 볼륨을 처음 띄운 직후에는 `npm run db:migrate`를 한 번 돌려 기록을 남긴다. 그래야 나중에 첫 실행이 모든 파일을 다시 적용하지 않는다.
+
+기존 DB에는 실행기로 적용한다. 규칙의 원본은 `sirloinbh/project-standards`의 `docs/conventions/database.md`다.
+
+```powershell
+npm run db:migrate             # 대기 중인 파일 적용
+npm run db:migrate -- --status # 적용됨·대기 목록만 확인
+```
+
+실행기는 `schema_migrations` 표에 적용한 파일과 체크섬을 기록한다. 이미 적용한 파일은 다시 실행하지 않으며, 내용이 바뀌었으면 멈춘다. 그래서 **적용한 파일은 고치지 않고** 새 번호의 파일로 바꾼다. 기록 표가 없는 DB에서는 처음 한 번 001부터 모두 다시 적용한다. `deploy/remote-deploy.sh`는 배포 때 `dist/migrate.js`로 같은 실행기를 돌린다. 파일 안에 psql 메타 명령, `BEGIN`·`COMMIT`, `CREATE INDEX CONCURRENTLY`를 쓰지 않는다.
+
+실행기를 쓸 수 없을 때만 컨테이너에 마운트된 파일로 직접 적용한다. 이 경우 기록이 남지 않는다.
 
 ```powershell
 docker compose exec -T db psql -U plan -d plan -v ON_ERROR_STOP=1 -f /docker-entrypoint-initdb.d/NNN_<설명>.sql
