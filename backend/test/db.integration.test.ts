@@ -217,6 +217,80 @@ test(
     }),
 );
 
+// Returns once a request on another connection is waiting for this connection's lock, so the test
+// does not depend on timing. A request that never waits is what the test is there to catch.
+async function waitUntilBlockedBy(pool: Pool, pid: number) {
+  const deadline = Date.now() + 10_000;
+  while (Date.now() < deadline) {
+    const { rowCount } = await pool.query(
+      'SELECT 1 FROM pg_stat_activity WHERE $1 = ANY(pg_blocking_pids(pid))',
+      [pid],
+    );
+    if (rowCount) return;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  assert.fail('The check request did not wait for the uncommitted archive');
+}
+
+test(
+  'a check waiting for an uncommitted archive gets a 404 and stores nothing',
+  { skip: !url, timeout: 30_000 },
+  () =>
+    withClient(async (client, pool) => {
+      const original = await client.query<{ value: string }>(
+        'SELECT value FROM app_settings WHERE key = $1',
+        [anchorSettingKey],
+      );
+      const created: string[] = [];
+      try {
+        await withApi(
+          pool,
+          async (call) => {
+            const { data } = await call('/api/routines', {
+              method: 'POST',
+              body: { name: '보관과 체크 경합', cadence: 'daily', category: 'care' },
+            });
+            const id = (data.routine as { id: string }).id;
+            created.push(id);
+            const { rows } = await client.query<{ pid: number }>('SELECT pg_backend_pid() AS pid');
+
+            await client.query('BEGIN');
+            let answer: ReturnType<typeof call> | undefined;
+            try {
+              await client.query('UPDATE routines SET archived_at = now() WHERE id = $1', [id]);
+              answer = call(`/api/routines/${id}/checks/2026-10-22`, { method: 'PUT' });
+              await waitUntilBlockedBy(pool, rows[0].pid);
+              await client.query('COMMIT');
+            } catch (error) {
+              await client.query('ROLLBACK').catch(() => {});
+              await answer?.catch(() => {});
+              throw error;
+            }
+
+            assert.equal((await answer).status, 404);
+            const checks = await client.query(
+              'SELECT 1 FROM routine_checks WHERE routine_id = $1',
+              [id],
+            );
+            assert.equal(checks.rowCount, 0);
+          },
+          { today: () => '2026-10-22' },
+        );
+      } finally {
+        await client.query('DELETE FROM routine_checks WHERE routine_id = ANY($1::bigint[])', [
+          created,
+        ]);
+        await client.query('DELETE FROM routines WHERE id = ANY($1::bigint[])', [created]);
+        await client.query('DELETE FROM app_settings WHERE key = $1', [anchorSettingKey]);
+        if (original.rows[0])
+          await client.query('INSERT INTO app_settings (key, value) VALUES ($1, $2)', [
+            anchorSettingKey,
+            original.rows[0].value,
+          ]);
+      }
+    }),
+);
+
 const diaryMigration = new URL('../../database/migrations/003_diary.sql', import.meta.url);
 
 test(
