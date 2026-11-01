@@ -103,7 +103,7 @@ test('a routine name with a NUL character gets a Korean 400', async () => {
   });
 });
 
-test('an unexpected error stays a 500, whatever status it carries', async () => {
+test('an unexpected error stays a 500 unless it carries a 4xx status', async () => {
   const logged = console.error;
   console.error = () => {};
   try {
