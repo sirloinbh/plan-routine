@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
+import { fileURLToPath } from 'node:url';
 
 import { Pool, type PoolClient } from 'pg';
 
+import { applyMigrations } from '../src/migrate.js';
 import { anchorSettingKey, routineAnchorDate } from '../src/routines.js';
 import { withApi } from './helpers.js';
 
@@ -1407,4 +1409,48 @@ test(
           ]);
       }
     }),
+);
+
+const migrationsDirectory = fileURLToPath(new URL('../../database/migrations', import.meta.url));
+
+test(
+  'the migration runner fills an empty database and runs again over an existing one',
+  { skip: !url, timeout: 60_000 },
+  async () => {
+    // A schema of its own is an empty database as far as the migrations can tell.
+    const schema = 'migrate_runner_test';
+    const admin = new Pool({ connectionString: url, max: 1 });
+    await admin.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);
+    await admin.query(`CREATE SCHEMA ${schema}`);
+    const pool = new Pool({ connectionString: url, max: 2, options: `-c search_path=${schema}` });
+    try {
+      const tables = async () =>
+        (
+          await admin.query<{ table_name: string }>(
+            'SELECT table_name FROM information_schema.tables WHERE table_schema = $1 ORDER BY 1',
+            [schema],
+          )
+        ).rows.map((row) => row.table_name);
+      assert.deepEqual(await tables(), []);
+
+      const files = await applyMigrations(pool, migrationsDirectory);
+      assert.ok(files.includes('005_goal_routines.sql'));
+      const created = await tables();
+      for (const table of ['app_settings', 'routines', 'twelve_week_goal_routines'])
+        assert.ok(created.includes(table), table);
+
+      // Over an existing database: nothing is lost and the seeded item stays single.
+      await pool.query("INSERT INTO routines (name, cadence) VALUES ('남는 루틴', 'weekly')");
+      await applyMigrations(pool, migrationsDirectory);
+      assert.deepEqual(await tables(), created);
+      const kept = await pool.query("SELECT 1 FROM routines WHERE name = '남는 루틴'");
+      assert.equal(kept.rowCount, 1);
+      const seeded = await pool.query("SELECT 1 FROM routines WHERE name = '목표 재설정'");
+      assert.equal(seeded.rowCount, 1);
+    } finally {
+      await pool.end();
+      await admin.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);
+      await admin.end();
+    }
+  },
 );
