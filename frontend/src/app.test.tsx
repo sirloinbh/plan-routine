@@ -224,3 +224,29 @@ test('an unknown address falls back to the overview', async () => {
   expect(await screen.findByRole('heading', { level: 1, name: '대시보드' })).toBeInTheDocument();
   expect(window.location.pathname).toBe('/');
 });
+
+test('the real page is an area a retry button can hand focus to', async () => {
+  let failing = true;
+  vi.stubGlobal(
+    'fetch',
+    vi.fn((url: string) => {
+      if (url === '/api/health')
+        return Promise.resolve(new Response(JSON.stringify({ today: '2026-10-26' })));
+      if (url.startsWith('/api/diary') && failing) {
+        failing = false;
+        return Promise.resolve(
+          new Response(JSON.stringify({ error: '서버 오류가 발생했습니다' }), { status: 500 }),
+        );
+      }
+      return Promise.resolve(new Response(JSON.stringify(pageData(url))));
+    }),
+  );
+  window.history.replaceState(null, '', '/diary');
+  render(<App />);
+  const retry = await screen.findByRole('button', { name: '다시 시도' });
+  retry.focus();
+  fireEvent.click(retry);
+  await screen.findByRole('textbox', { name: '하루 돌아보기' });
+  expect(screen.getByRole('region', { name: '일기' })).toHaveFocus();
+  window.history.replaceState(null, '', '/');
+});

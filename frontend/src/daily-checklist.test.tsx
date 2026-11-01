@@ -542,3 +542,19 @@ test('midnight changes the day without moving focus', async () => {
   expect(heading('오늘 (2026-10-21)')).toBeVisible();
   expect(await box('6시 기상')).toHaveFocus();
 });
+
+test('after a retry succeeds, focus is on the page rather than lost', async () => {
+  const api = checklistApi(seed);
+  api.failNextLoad();
+  render(
+    <section aria-labelledby="page">
+      <h1 id="page">오늘 체크</h1>
+      <DailyChecklist />
+    </section>,
+  );
+  const retry = await screen.findByRole('button', { name: '다시 시도' });
+  retry.focus();
+  fireEvent.click(retry);
+  await box('6시 기상');
+  expect(screen.getByRole('region', { name: '오늘 체크' })).toHaveFocus();
+});

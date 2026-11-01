@@ -660,3 +660,20 @@ test('linked routines show at once, even if the reload after saving fails', asyn
   await flush();
   expect(within(goalsCard()).getByText('연결된 루틴: 6시 기상')).toBeInTheDocument();
 });
+
+test('after a retry succeeds, focus is on the page rather than lost', async () => {
+  const api = goalsApi();
+  api.failNextLoad();
+  render(
+    <section aria-labelledby="page">
+      <h1 id="page">12주 루틴</h1>
+      <TwelveWeek />
+    </section>,
+  );
+  await flush();
+  const retry = button('목표 다시 불러오기');
+  retry.focus();
+  fireEvent.click(retry);
+  await flush();
+  expect(screen.getByRole('region', { name: '12주 루틴' })).toHaveFocus();
+});

@@ -16,7 +16,9 @@ export function RetryButton(props: ComponentProps<typeof Button>) {
       const area = element.closest<HTMLElement>('[role="region"], section[aria-labelledby]');
       if (!area) return;
       area.tabIndex = -1;
-      area.focus();
+      // A whole area needs no ring, as with the main landmark, and the screen should not jump.
+      area.style.outline = 'none';
+      area.focus({ preventScroll: true });
     };
   }, []);
 
