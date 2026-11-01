@@ -385,3 +385,41 @@ test('on a touch screen no field takes focus, so no keyboard pops up unasked', a
   await act(() => new Promise((resolve) => setTimeout(resolve)));
   expect(screen.getByRole('textbox', { name: '기상 새 루틴 이름' })).not.toHaveFocus();
 });
+
+test('a routine can be linked to a registered project, or the choice stays hidden', async () => {
+  const writes = routineApi([{ id: '1', name: '30분 읽기', category: 'reading' }]);
+  const working = vi.mocked(fetch).getMockImplementation()!;
+  vi.stubGlobal(
+    'fetch',
+    vi.fn((url: string, init?: RequestInit) =>
+      url === '/api/project-links'
+        ? Promise.resolve(
+            new Response(
+              JSON.stringify({
+                projects: [{ id: '7', name: '독서 기록', url: 'https://books.example/' }],
+              }),
+            ),
+          )
+        : url.endsWith('/project-link')
+          ? Promise.resolve(new Response(JSON.stringify({ routine: {} })))
+          : working(url, init),
+    ),
+  );
+  render(<DailyRoutines />);
+  const select = await screen.findByRole('combobox', { name: '30분 읽기 연결할 프로젝트' });
+  expect(select).toHaveValue('');
+  fireEvent.change(select, { target: { value: '7' } });
+  await screen.findByText("'30분 읽기' 루틴에 프로젝트를 연결했습니다");
+  const sent = vi.mocked(fetch).mock.calls.find(([url]) => String(url).endsWith('/project-link'));
+  expect(sent?.[0]).toBe('/api/routines/1/project-link');
+  expect(JSON.parse(String(sent?.[1]?.body))).toEqual({ projectLinkId: '7' });
+  expect(writes).toBeDefined();
+});
+
+test('with no projects registered a routine offers no link', async () => {
+  routineApi(twoRoutines);
+  render(<DailyRoutines />);
+  await screen.findByText('6시 기상');
+  await act(() => new Promise((resolve) => setTimeout(resolve)));
+  expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+});

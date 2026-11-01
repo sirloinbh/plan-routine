@@ -44,7 +44,9 @@ export function checkRoutes(pool: Pool, today: () => string) {
       `SELECT ${routineColumns}, EXISTS (
          SELECT 1 FROM routine_checks
          WHERE routine_checks.routine_id = routines.id AND routine_checks.period_start = $2
-       ) AS checked
+       ) AS checked,
+       (SELECT p.name FROM project_links p WHERE p.id = routines.project_link_id) AS "linkName",
+       (SELECT p.url FROM project_links p WHERE p.id = routines.project_link_id) AS "linkUrl"
        FROM routines
        WHERE archived_at IS NULL AND cadence = $1
        ORDER BY category, sort_order, routines.id`,

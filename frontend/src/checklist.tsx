@@ -1,3 +1,5 @@
+import { ExternalLink } from 'lucide-react';
+
 import { progressText } from './checklist-progress';
 import { Badge } from './components/ui/badge';
 import { Button } from './components/ui/button';
@@ -7,7 +9,17 @@ import { Label } from './components/ui/label';
 import { Notice } from './components/ui/notice';
 import type { NoticeValue } from './lib/use-notice';
 
-export type ChecklistItem = { id: string; name: string; checked: boolean };
+export type ChecklistItem = {
+  id: string;
+  name: string;
+  checked: boolean;
+  linkName?: string | null;
+  linkUrl?: string | null;
+};
+
+// The server refuses other addresses; this keeps a bad stored one from ever becoming a link.
+const safeLink = (url: string | null | undefined) =>
+  url && /^https?:\/\//i.test(url) ? url : null;
 
 // What a checklist page shows until its first load succeeds.
 export function ChecklistPending({
@@ -68,6 +80,18 @@ export function Checklist({
               >
                 {item.name}
               </Label>
+              {safeLink(item.linkUrl) && (
+                <Button asChild variant="ghost" size="sm">
+                  <a
+                    href={safeLink(item.linkUrl) ?? undefined}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={`${item.name}: ${item.linkName ?? '프로젝트'} 열기`}
+                  >
+                    <ExternalLink aria-hidden="true" />
+                  </a>
+                </Button>
+              )}
             </li>
           ))}
         </ul>

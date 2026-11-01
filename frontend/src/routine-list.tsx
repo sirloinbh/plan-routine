@@ -28,7 +28,7 @@ export function RoutineItems({
   routines: Routine[];
   draftKey: string;
 }) {
-  const { editing, confirmArchive, busy } = list;
+  const { editing, confirmArchive, busy, projects } = list;
   return (
     <ol className="flex flex-col divide-y">
       {routines.map((routine, index) => (
@@ -131,6 +131,26 @@ export function RoutineItems({
                   </Button>
                 )}
               </span>
+              {projects.length > 0 && (
+                <label className="flex w-full min-w-0 items-center gap-2 text-body-sm text-muted-foreground">
+                  연결
+                  <select
+                    className="h-9 min-w-0 flex-1 rounded-md border border-input bg-transparent px-2 text-base text-foreground md:text-body-sm dark:bg-input/30"
+                    aria-label={`${routine.name} 연결할 프로젝트`}
+                    value={routine.projectLinkId ?? ''}
+                    onChange={(event) =>
+                      void list.setProjectLink(routine, event.target.value || null)
+                    }
+                  >
+                    <option value="">없음</option>
+                    {projects.map((project) => (
+                      <option key={project.id} value={project.id}>
+                        {project.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
             </>
           )}
         </li>

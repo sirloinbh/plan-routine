@@ -22,6 +22,7 @@ import { Diary } from './diary';
 import { FourWeekDue } from './four-week-due';
 import { type Health, healthText } from './health';
 import { FourWeekRoutines, WeeklyRoutines } from './period-routines';
+import { ProjectLinks } from './project-links';
 import { Records } from './records';
 import { DailyRoutines } from './routines';
 import { Stats } from './stats';
@@ -226,7 +227,11 @@ export function App() {
           />
           <Route
             path={pages.settings}
-            element={<Page title="설정" description="앱 환경과 데이터 관리" health={health} />}
+            element={
+              <Page title="설정" description="앱 환경과 데이터 관리" health={health}>
+                <ProjectLinks />
+              </Page>
+            }
           />
           <Route path="*" element={<Navigate to={pages.overview} replace />} />
         </Routes>

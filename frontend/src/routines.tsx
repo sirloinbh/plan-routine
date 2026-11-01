@@ -10,6 +10,7 @@ export type Routine = {
   cadence: string;
   category: string | null;
   sortOrder: number;
+  projectLinkId?: string | null;
 };
 
 export function DailyRoutines() {
