@@ -1232,3 +1232,106 @@ test(
       }
     }),
 );
+
+const goalLinksMigration = new URL(
+  '../../database/migrations/005_goal_routines.sql',
+  import.meta.url,
+);
+
+test(
+  'goal links replace in one step, take active daily and weekly routines, and go with the goal',
+  { skip: !url, timeout: 30_000 },
+  () =>
+    withClient(async (client, pool) => {
+      await client.query(readFileSync(goalLinksMigration, 'utf8'));
+      await client.query(readFileSync(goalLinksMigration, 'utf8'));
+      const original = await client.query<{ value: string }>(
+        'SELECT value FROM app_settings WHERE key = $1',
+        [anchorSettingKey],
+      );
+      const routines: string[] = [];
+      const goals: string[] = [];
+      try {
+        await withApi(
+          pool,
+          async (call) => {
+            const addRoutine = async (name: string, cadence: string, category?: string) => {
+              const { data } = await call('/api/routines', {
+                method: 'POST',
+                body: { name, cadence, category },
+              });
+              const { id } = data.routine as { id: string };
+              routines.push(id);
+              return id;
+            };
+            const daily = await addRoutine('연결 하루', 'daily', 'care');
+            const weekly = await addRoutine('연결 주간', 'weekly');
+            const fourWeek = await addRoutine('연결 4주', 'four_week');
+            const created = await call('/api/goals', {
+              method: 'POST',
+              body: { title: '연결 목표' },
+            });
+            const goalId = (created.data.goal as { id: string }).id;
+            goals.push(goalId);
+            const path = `/api/goals/${goalId}/routines`;
+            const put = (routineIds: string[]) =>
+              call(path, { method: 'PUT', body: { routineIds } });
+            const shown = async () => {
+              const { data } = await call('/api/goals');
+              const { goals: list } = data.current as {
+                goals: { id: string; routines: { id: string; name: string }[] }[];
+              };
+              return list.find((goal) => goal.id === goalId)!.routines;
+            };
+
+            assert.deepEqual(await shown(), []);
+            const linked = await put([weekly, daily]);
+            assert.equal(linked.status, 200);
+            const both = [
+              { id: daily, name: '연결 하루' },
+              { id: weekly, name: '연결 주간' },
+            ];
+            assert.deepEqual(linked.data.routines, both);
+            assert.deepEqual(await shown(), both);
+
+            // A refused list changes nothing.
+            assert.equal((await put([daily, fourWeek])).status, 400);
+            assert.deepEqual(await shown(), both);
+
+            assert.equal((await put([weekly])).status, 200);
+            assert.deepEqual(await shown(), [{ id: weekly, name: '연결 주간' }]);
+
+            // An archived routine leaves the goal's list and cannot be linked again.
+            await call(`/api/routines/${weekly}/archive`, { method: 'POST' });
+            assert.deepEqual(await shown(), []);
+            assert.equal((await put([weekly])).status, 400);
+
+            assert.equal((await put([daily])).status, 200);
+            assert.equal((await put([])).status, 200);
+            assert.deepEqual(await shown(), []);
+
+            // Removing the goal removes its links and leaves the routine.
+            assert.equal((await put([daily])).status, 200);
+            await call(`/api/goals/${goalId}`, { method: 'DELETE' });
+            const left = await client.query(
+              'SELECT 1 FROM twelve_week_goal_routines WHERE goal_id = $1',
+              [goalId],
+            );
+            assert.equal(left.rowCount, 0);
+            const kept = await client.query('SELECT 1 FROM routines WHERE id = $1', [daily]);
+            assert.equal(kept.rowCount, 1);
+          },
+          { today: () => '2026-10-22' },
+        );
+      } finally {
+        await client.query('DELETE FROM twelve_week_goals WHERE id = ANY($1::bigint[])', [goals]);
+        await client.query('DELETE FROM routines WHERE id = ANY($1::bigint[])', [routines]);
+        await client.query('DELETE FROM app_settings WHERE key = $1', [anchorSettingKey]);
+        if (original.rows[0])
+          await client.query('INSERT INTO app_settings (key, value) VALUES ($1, $2)', [
+            anchorSettingKey,
+            original.rows[0].value,
+          ]);
+      }
+    }),
+);

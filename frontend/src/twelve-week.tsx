@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
 import { Input } from './components/ui/input';
 import { Notice } from './components/ui/notice';
 import { useFocusRequest } from './focus-moves';
+import { GoalRoutineLinks, type LinkedRoutine } from './goal-routine-links';
 import { LabeledTextarea } from './labeled-textarea';
 import { requestJson } from './lib/api';
 import { type NoticeValue, useNotice } from './lib/use-notice';
@@ -19,6 +20,8 @@ type Goal = {
   achieved: boolean | null;
   reviewNote: string | null;
   reviewedAt: string | null;
+  // Current period only.
+  routines?: LinkedRoutine[];
 };
 type GoalPeriod = { period: { start: string; end: string }; goals: Goal[] };
 type GoalsData = {
@@ -353,6 +356,18 @@ function CurrentGoals({ data, reload }: { data: GoalsData; reload: () => void })
                         </Button>
                       )}
                     </span>
+                    <GoalRoutineLinks
+                      goal={goal}
+                      disabled={busy}
+                      onSaved={(message) => {
+                        status(message);
+                        reload();
+                      }}
+                      onFailed={(cause) => {
+                        error(cause);
+                        reload();
+                      }}
+                    />
                   </>
                 )}
               </li>
