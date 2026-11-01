@@ -165,8 +165,8 @@ export function goalRoutes(pool: Pool, today: () => string) {
   });
 
   // Answers why a goal outside the current period could not be changed.
-  const refuseUnchanged = async (id: string) => {
-    const { rows } = await pool.query('SELECT 1 FROM twelve_week_goals WHERE id = $1', [id]);
+  const refuseUnchanged = async (id: string, db: Pool | PoolClient = pool) => {
+    const { rows } = await db.query('SELECT 1 FROM twelve_week_goals WHERE id = $1', [id]);
     return rows[0] ? pastGoal : notFound;
   };
 
@@ -201,7 +201,8 @@ export function goalRoutes(pool: Pool, today: () => string) {
       );
       if (!target.rows[0]) {
         await client.query('ROLLBACK');
-        const refusal = await refuseUnchanged(id);
+        // On this connection: waiting for another while holding it could stall every request.
+        const refusal = await refuseUnchanged(id, client);
         res.status(refusal === notFound ? 404 : 400).json(refusal);
         return;
       }

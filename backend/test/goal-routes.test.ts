@@ -362,7 +362,14 @@ test('linking replaces the links of a current goal in one transaction', async ()
   const steps = queries.map(({ sql }) => sql.split(' ')[0]);
   assert.equal(steps[0], 'BEGIN');
   assert.equal(steps.at(-1), 'COMMIT');
-  assert.ok(steps.indexOf('DELETE') < steps.indexOf('INSERT') || steps.includes('INSERT'));
+  const removed = queries.findIndex(({ sql }) =>
+    sql.startsWith('DELETE FROM twelve_week_goal_routines'),
+  );
+  const added = queries.findIndex(({ sql }) =>
+    sql.startsWith('INSERT INTO twelve_week_goal_routines'),
+  );
+  assert.ok(removed >= 0);
+  assert.ok(removed < added);
   assert.equal(issued(queries, 'FOR SHARE').length, 1);
   assert.deepEqual(issued(queries, 'INSERT INTO twelve_week_goal_routines')[0].params, [
     '9',

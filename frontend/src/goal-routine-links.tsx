@@ -18,12 +18,14 @@ const groups = [
 export function GoalRoutineLinks({
   goal,
   disabled,
+  onBegin,
   onSaved,
   onFailed,
 }: {
   goal: { id: string; title: string; routines?: LinkedRoutine[] };
   disabled: boolean;
-  onSaved: (message: string) => void;
+  onBegin: () => void;
+  onSaved: (message: string, routines: LinkedRoutine[]) => void;
   onFailed: (cause: unknown) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -42,23 +44,30 @@ export function GoalRoutineLinks({
 
   const close = () => {
     opening.current += 1;
-    beginChange();
     requestFocus([keys.toggle]);
     setOpen(false);
+  };
+
+  // A routine archived elsewhere has no box here, so it could never be unticked: drop it.
+  const loadOptions = async () => {
+    const data = await requestJson<{ routines: Routine[] }>('/api/routines');
+    const options = data.routines.filter(({ cadence }) =>
+      groups.some((group) => group.cadence === cadence),
+    );
+    setRoutines(options);
+    setSelected((current) => current.filter((id) => options.some((option) => option.id === id)));
   };
 
   const start = async () => {
     const attempt = ++opening.current;
     beginChange();
+    onBegin();
     setSelected(linked.map((routine) => routine.id));
     setRoutines(null);
     setOpen(true);
     try {
-      const data = await requestJson<{ routines: Routine[] }>('/api/routines');
+      await loadOptions();
       if (attempt !== opening.current) return;
-      setRoutines(
-        data.routines.filter(({ cadence }) => groups.some((group) => group.cadence === cadence)),
-      );
       requestFocus([keys.first, keys.save]);
     } catch (cause) {
       if (attempt !== opening.current) return;
@@ -71,21 +80,27 @@ export function GoalRoutineLinks({
     if (saving) return;
     setSaving(true);
     beginChange();
+    onBegin();
     try {
-      await requestJson(`/api/goals/${goal.id}/routines`, {
-        method: 'PUT',
-        body: { routineIds: selected },
-      });
+      const saved = await requestJson<{ routines: LinkedRoutine[] }>(
+        `/api/goals/${goal.id}/routines`,
+        {
+          method: 'PUT',
+          body: { routineIds: selected },
+        },
+      );
       onSaved(
         selected.length > 0
           ? `'${goal.title}' 목표에 루틴 ${selected.length}개를 연결했습니다`
           : `'${goal.title}' 목표의 루틴 연결을 모두 해제했습니다`,
+        saved.routines,
       );
       setOpen(false);
       requestFocus([keys.toggle]);
     } catch (cause) {
-      // What was ticked stays, ready to save again.
+      // What was ticked stays, ready to save again, less any routine that can no longer be linked.
       onFailed(cause);
+      await loadOptions().catch(() => {});
       requestFocus([keys.save]);
     } finally {
       setSaving(false);
@@ -152,14 +167,17 @@ export function GoalRoutineLinks({
                   {items.map((routine) => {
                     const id = `goal-${goal.id}-routine-${routine.id}`;
                     return (
-                      <div key={routine.id} className="flex items-center gap-2">
+                      <div key={routine.id} className="flex min-h-11 items-center gap-2">
                         <Checkbox
                           id={id}
                           data-focus-key={routine.id === firstId ? keys.first : undefined}
                           checked={selected.includes(routine.id)}
                           onCheckedChange={(checked) => toggle(routine.id, checked === true)}
                         />
-                        <Label htmlFor={id} className="min-w-0 wrap-anywhere">
+                        <Label
+                          htmlFor={id}
+                          className="min-w-0 leading-normal font-normal wrap-anywhere"
+                        >
                           {routine.name}
                         </Label>
                       </div>
@@ -179,7 +197,17 @@ export function GoalRoutineLinks({
             >
               연결 저장
             </Button>
-            <Button type="button" variant="ghost" size="sm" onClick={close}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                // Ignored while saving, so an answer cannot arrive for a panel already gone.
+                if (saving) return;
+                beginChange();
+                close();
+              }}
+            >
               닫기
             </Button>
           </div>

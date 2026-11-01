@@ -170,7 +170,15 @@ function PastPeriod({
   );
 }
 
-function CurrentGoals({ data, reload }: { data: GoalsData; reload: () => void }) {
+function CurrentGoals({
+  data,
+  reload,
+  onLinked,
+}: {
+  data: GoalsData;
+  reload: () => void;
+  onLinked: (goalId: string, routines: LinkedRoutine[]) => void;
+}) {
   const [draft, setDraft] = useState('');
   const [editing, setEditing] = useState<{ id: string; title: string } | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
@@ -359,8 +367,11 @@ function CurrentGoals({ data, reload }: { data: GoalsData; reload: () => void })
                     <GoalRoutineLinks
                       goal={goal}
                       disabled={busy}
-                      onSaved={(message) => {
+                      onBegin={clear}
+                      onSaved={(message, routines) => {
                         status(message);
+                        // Shows at once, even if the reload that follows fails.
+                        onLinked(goal.id, routines);
                         reload();
                       }}
                       onFailed={(cause) => {
@@ -473,6 +484,19 @@ export function TwelveWeek() {
     }
     reload();
   };
+  const routinesLinked = (goalId: string, routines: LinkedRoutine[]) =>
+    setData(
+      (current) =>
+        current && {
+          ...current,
+          current: {
+            ...current.current,
+            goals: current.current.goals.map((goal) =>
+              goal.id === goalId ? { ...goal, routines } : goal,
+            ),
+          },
+        },
+    );
   const pastCard = (past: GoalPeriod) => (
     <PastPeriod
       key={past.period.start}
@@ -505,7 +529,7 @@ export function TwelveWeek() {
         <p className="text-body font-semibold">지난 기간의 목표를 돌아보고 새 목표를 세워 보세요</p>
       )}
       {toReview.map(pastCard)}
-      {data && <CurrentGoals data={data} reload={reload} />}
+      {data && <CurrentGoals data={data} reload={reload} onLinked={routinesLinked} />}
       <PeriodRoutines
         cadence="twelve_week"
         name="12주"
