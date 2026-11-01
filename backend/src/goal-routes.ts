@@ -3,6 +3,7 @@ import type { Pool, PoolClient } from 'pg';
 import { z } from 'zod/v4';
 
 import { daysBetween, periodFor } from './periods.js';
+import { badRequest, noNul, nulMessage, requestBody } from './request-input.js';
 import { routineAnchorDate } from './routines.js';
 
 const goalColumns = `id::text AS id, period_start AS "periodStart", title, achieved,
@@ -10,13 +11,8 @@ const goalColumns = `id::text AS id, period_start AS "periodStart", title, achie
 const notFound = { error: '목표를 찾을 수 없습니다' };
 const pastGoal = { error: '지난 기간의 목표는 고칠 수 없습니다' };
 
-// PostgreSQL text cannot hold a NUL character; without this check it would answer a 500.
-const noNul = (value: string) => !value.includes('\0');
-const nulMessage = '쓸 수 없는 문자가 들어 있습니다';
-
 const goalIdMessage = '목표 번호가 올바르지 않습니다';
 const goalId = z.string({ error: goalIdMessage }).regex(/^\d{1,18}$/, goalIdMessage);
-const badRequest = { error: '요청 형식이 올바르지 않습니다' };
 const idParam = z.object({ id: goalId });
 // Not .min()/.max(): those also run on a non-string with a length and add a second message.
 const goalInput = z.object(
@@ -67,9 +63,6 @@ const reviewsInput = z.object(
   badRequest,
 );
 
-// Express leaves req.body undefined without a JSON body; parse {} so field messages stay Korean.
-const body = (value: unknown) => value ?? {};
-
 type GoalRow = {
   id: string;
   periodStart: string;
@@ -115,7 +108,7 @@ export function goalRoutes(pool: Pool, today: () => string) {
 
   // First use and the new goal commit together; the server decides which period it belongs to.
   router.post('/', async (req, res) => {
-    const { title } = goalInput.parse(body(req.body));
+    const { title } = goalInput.parse(requestBody(req.body));
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
@@ -145,7 +138,7 @@ export function goalRoutes(pool: Pool, today: () => string) {
 
   router.patch('/:id', async (req, res) => {
     const { id } = idParam.parse(req.params);
-    const { title } = goalInput.parse(body(req.body));
+    const { title } = goalInput.parse(requestBody(req.body));
     const { period } = await currentPeriod(pool);
     const { rows } = await pool.query(
       `UPDATE twelve_week_goals SET title = $1, updated_at = now()
@@ -177,7 +170,7 @@ export function goalRoutes(pool: Pool, today: () => string) {
 
   // All of a period's reviews save together: one bad goal cancels the whole request.
   router.put('/reviews', async (req, res) => {
-    const { reviews } = reviewsInput.parse(body(req.body));
+    const { reviews } = reviewsInput.parse(requestBody(req.body));
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
