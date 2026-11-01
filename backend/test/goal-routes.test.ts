@@ -282,3 +282,45 @@ test('invalid reviews are Korean 400s before any query', async () => {
   );
   assert.equal(queries.length, 0);
 });
+
+test('goal input of the wrong type answers with one message, even if it has a length', async () => {
+  const { pool, queries } = fakePool();
+  await withApi(
+    pool,
+    async (call) => {
+      const goals = await call('/api/goals', { method: 'POST', body: { title: [] } });
+      assert.equal(goals.status, 400);
+      assert.equal(goals.data.error, '목표는 글자여야 합니다');
+      const reviews = await call('/api/goals/reviews', { method: 'PUT', body: { reviews: '' } });
+      assert.equal(reviews.status, 400);
+      assert.equal(reviews.data.error, '회고할 목표가 없습니다');
+    },
+    { today },
+  );
+  assert.equal(queries.length, 0);
+});
+
+test('a review request over the limit is refused before any query, and one at the limit is not', async () => {
+  const reviews = (count: number) =>
+    Array.from({ length: count }, (_, index) => ({ id: String(index + 1), achieved: true }));
+  const { pool, queries } = fakePool();
+  await withApi(
+    pool,
+    async (call) => {
+      const over = await call('/api/goals/reviews', {
+        method: 'PUT',
+        body: { reviews: reviews(1001) },
+      });
+      assert.equal(over.status, 400);
+      assert.equal(over.data.error, '한 번에 회고할 수 있는 목표는 1000개까지입니다');
+      assert.equal(queries.length, 0);
+      // The fake pool finds none of these goals, so passing validation answers 404.
+      const atLimit = await call('/api/goals/reviews', {
+        method: 'PUT',
+        body: { reviews: reviews(1000) },
+      });
+      assert.equal(atLimit.status, 404);
+    },
+    { today },
+  );
+});

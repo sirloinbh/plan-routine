@@ -1,6 +1,6 @@
 import { type Request, type Response, Router } from 'express';
 import type { Pool } from 'pg';
-import { z } from 'zod';
+import { z } from 'zod/v4';
 
 import { addDays, type Cadence, calendarDate, daysBetween, periodFor } from './periods.js';
 import { notFound, routineColumns, routineId } from './routine-routes.js';

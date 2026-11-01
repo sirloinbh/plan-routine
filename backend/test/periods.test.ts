@@ -102,3 +102,9 @@ test('days between counts calendar days across months and years', () => {
   assert.equal(daysBetween('2026-12-31', '2027-01-01'), 1);
   assert.equal(daysBetween('2026-10-23', '2026-10-22'), -1);
 });
+
+test('a missing date and a date of the wrong type have different messages', () => {
+  const message = (input: unknown) => calendarDate.safeParse(input).error?.issues[0].message;
+  assert.equal(message(undefined), '날짜를 입력해 주세요');
+  assert.equal(message(20261022), '날짜 형식이 올바르지 않습니다');
+});

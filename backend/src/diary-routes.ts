@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { Pool } from 'pg';
-import { z } from 'zod';
+import { z } from 'zod/v4';
 
 import { dailyRoutineOn } from './day-records.js';
 import { addDays, calendarDate } from './periods.js';
@@ -19,12 +19,13 @@ const diaryParams = z.object({ date: calendarDate });
 const noNul = (value: string) => !value.includes('\0');
 const nulMessage = '쓸 수 없는 문자가 들어 있습니다';
 
+// Not .min()/.max(): those also run on a non-string with a length and add a second message.
 // A blank note is the same as no note.
 const diaryNote = (label: string) =>
   z
-    .string({ invalid_type_error: `${label}은 글자여야 합니다` })
+    .string({ error: `${label}은 글자여야 합니다` })
     .trim()
-    .max(1000, `${label}은 1000자 이하로 입력해 주세요`)
+    .refine((value) => value.length <= 1000, `${label}은 1000자 이하로 입력해 주세요`)
     .refine(noNul, nulMessage)
     .nullish()
     .transform((value) => value || null);
@@ -32,12 +33,12 @@ const diaryNote = (label: string) =>
 const diaryInput = z.object({
   body: z
     .string({
-      required_error: '일기 본문을 입력해 주세요',
-      invalid_type_error: '일기 본문은 글자여야 합니다',
+      error: (issue) =>
+        issue.input === undefined ? '일기 본문을 입력해 주세요' : '일기 본문은 글자여야 합니다',
     })
     .trim()
-    .min(1, '일기 본문을 입력해 주세요')
-    .max(5000, '일기 본문은 5000자 이하로 입력해 주세요')
+    .refine((value) => value.length >= 1, '일기 본문을 입력해 주세요')
+    .refine((value) => value.length <= 5000, '일기 본문은 5000자 이하로 입력해 주세요')
     .refine(noNul, nulMessage),
   goodNote: diaryNote('잘한 점'),
   regretNote: diaryNote('아쉬운 점'),
