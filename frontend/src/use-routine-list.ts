@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { requestJson } from './api';
 import { useFocusRequest } from './focus-moves';
+import type { ProjectLink } from './project-links';
 import type { Routine } from './routines';
 
 export type RoutineNotice = { kind: 'status' | 'alert'; text: string } | null;
@@ -28,6 +29,7 @@ export function useRoutineList(cadence: string) {
   const [confirmArchive, setConfirmArchive] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<RoutineNotice>(null);
+  const [projects, setProjects] = useState<ProjectLink[]>([]);
   const loadErrorShown = useRef(false);
   // Focus waits for the reload after a change, because moving a row also moves its buttons.
   const changesMade = useRef(0);
@@ -61,6 +63,20 @@ export function useRoutineList(cadence: string) {
       ignore = true;
     };
   }, [cadence, version, refreshes]);
+
+  // Only offers a choice, so without it a routine simply has nothing to link to. Loaded along with
+  // the routines, since another tab may have changed the projects.
+  useEffect(() => {
+    let ignore = false;
+    requestJson<{ projects?: ProjectLink[] }>('/api/project-links')
+      .then((data) => {
+        if (!ignore) setProjects(data.projects ?? []);
+      })
+      .catch(() => {});
+    return () => {
+      ignore = true;
+    };
+  }, [version, refreshes]);
 
   const refresh = useCallback(() => setRefreshes((value) => value + 1), []);
 
@@ -170,8 +186,26 @@ export function useRoutineList(cadence: string) {
   const setDraft = (draftKey: string, value: string) =>
     setDrafts((current) => ({ ...current, [draftKey]: value }));
 
+  const setProjectLink = async (routine: Routine, projectLinkId: string | null) => {
+    if (busy) return;
+    await run(
+      () =>
+        requestJson(`/api/routines/${routine.id}/project-link`, {
+          method: 'PUT',
+          body: { projectLinkId },
+        }),
+      projectLinkId
+        ? `'${routine.name}' 루틴에 프로젝트를 연결했습니다`
+        : `'${routine.name}' 루틴의 연결을 해제했습니다`,
+    );
+    // Disabled while saving, which drops focus.
+    requestFocus([`link-${routine.id}`, focusKeys.edit(routine.id)]);
+  };
+
   return {
     routines,
+    projects,
+    setProjectLink,
     version,
     loadFailed,
     refresh,

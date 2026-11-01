@@ -7,6 +7,7 @@ import { checkRoutes } from './check-routes.js';
 import { diaryRoutes } from './diary-routes.js';
 import { goalRoutes } from './goal-routes.js';
 import { calendarDate, periodsFor } from './periods.js';
+import { projectLinkRoutes } from './project-link-routes.js';
 import { recordRoutes } from './record-routes.js';
 import { requestFailure } from './request-input.js';
 import { routineRoutes } from './routine-routes.js';
@@ -49,6 +50,7 @@ export function createApp(pool: Pool, options: { today?: () => string } = {}) {
   app.use('/api', checkRoutes(pool, today));
   app.use('/api/diary', diaryRoutes(pool, today));
   app.use('/api/goals', goalRoutes(pool, today));
+  app.use('/api/project-links', projectLinkRoutes(pool));
   app.use('/api/records', recordRoutes(pool, today));
   app.use('/api/stats', statsRoutes(pool, today));
   app.use('/api/routines', routineRoutes(pool, today));

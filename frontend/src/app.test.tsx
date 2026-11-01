@@ -61,6 +61,7 @@ const pageData = (url: string) => {
   if (url.startsWith('/api/goals')) return emptyGoals;
   if (url.startsWith('/api/checklist')) return emptyChecklist;
   if (url.startsWith('/api/diary')) return emptyDiary;
+  if (url.startsWith('/api/project-links')) return { projects: [] };
   return { routines: [] };
 };
 

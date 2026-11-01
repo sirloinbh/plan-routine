@@ -58,6 +58,7 @@ function goalsApi(seed: { current?: Goal[]; last?: Goal[]; older?: Goal[] } = {}
             { id: '51', name: '6시 기상', cadence: 'daily', category: 'wake', sortOrder: 0 },
           ],
         });
+      if (url === '/api/project-links') return reply(200, { projects: [] });
       if (url.startsWith('/api/checklist'))
         return reply(200, {
           date: '2026-10-22',

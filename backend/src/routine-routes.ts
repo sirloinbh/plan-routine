@@ -6,7 +6,8 @@ import { badRequest, requestBody } from './request-input.js';
 import { anchorSettingKey, routineCadence, routineInput, routineName } from './routines.js';
 
 // routineColumns names id as text, so an ORDER BY on plain id would put 10 before 9: write routines.id.
-export const routineColumns = 'id::text AS id, name, cadence, category, sort_order AS "sortOrder"';
+export const routineColumns =
+  'id::text AS id, name, cadence, category, sort_order AS "sortOrder", project_link_id::text AS "projectLinkId"';
 export const notFound = { error: '루틴을 찾을 수 없습니다' };
 
 const listQuery = z.object({ cadence: routineCadence.optional() });
@@ -15,6 +16,16 @@ const idParam = z.object({ id: routineId });
 const renameInput = z.object({ name: routineName }, badRequest);
 const moveInput = z.object(
   { direction: z.enum(['up', 'down'], { error: '이동 방향은 위 또는 아래여야 합니다' }) },
+  badRequest,
+);
+
+const projectLinkInput = z.object(
+  {
+    projectLinkId: z
+      .string({ error: '연결할 프로젝트가 올바르지 않습니다' })
+      .regex(/^\d{1,18}$/, '연결할 프로젝트가 올바르지 않습니다')
+      .nullable(),
+  },
   badRequest,
 );
 
@@ -124,6 +135,24 @@ export function routineRoutes(pool: Pool, today: () => string) {
     } finally {
       client.release();
     }
+  });
+
+  // Null clears the link. A project removed meanwhile answers 404, not a database error.
+  router.put('/:id/project-link', async (req, res) => {
+    const { id } = idParam.parse(req.params);
+    const { projectLinkId } = projectLinkInput.parse(requestBody(req.body));
+    const { rows } = await pool.query(
+      `UPDATE routines SET project_link_id = $1::bigint, updated_at = now()
+       WHERE id = $2 AND archived_at IS NULL
+         AND ($1::bigint IS NULL OR EXISTS (SELECT 1 FROM project_links WHERE id = $1::bigint))
+       RETURNING ${routineColumns}`,
+      [projectLinkId, id],
+    );
+    if (!rows[0]) {
+      res.status(404).json({ error: '루틴이나 프로젝트를 찾을 수 없습니다' });
+      return;
+    }
+    res.json({ routine: rows[0] });
   });
 
   // "Delete" archives: the routine leaves the list but its past checks stay.
