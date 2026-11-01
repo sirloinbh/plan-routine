@@ -324,3 +324,119 @@ test('a review request over the limit is refused before any query, and one at th
     { today },
   );
 });
+
+// Answers the linking route's queries in order, like the database would.
+function linkPool(options: { goal?: boolean; goalElsewhere?: boolean; allowed?: string[] } = {}) {
+  const queries: { sql: string; params: unknown[] }[] = [];
+  const query = async (sql: string, params: unknown[] = []) => {
+    queries.push({ sql, params });
+    if (sql.includes('app_settings')) return { rows: [{ value: '2026-10-18' }] };
+    if (sql.includes('FROM twelve_week_goals WHERE id = $1 AND period_start'))
+      return { rows: options.goal === false ? [] : [{ id: params[0] }] };
+    if (sql.startsWith('SELECT 1')) return { rows: options.goalElsewhere ? [{}] : [] };
+    if (sql.includes('FROM routines'))
+      return { rows: (options.allowed ?? []).map((id) => ({ id })) };
+    if (sql.includes('JOIN routines'))
+      return { rows: (options.allowed ?? []).map((id) => ({ id, name: id, goalId: params[0] })) };
+    return { rows: [] };
+  };
+  const pool = { query, connect: async () => ({ query, release() {} }) } as unknown as Pool;
+  return { pool, queries };
+}
+const putLinks = (routineIds: unknown) => ({ method: 'PUT', body: { routineIds } });
+
+test('linking replaces the links of a current goal in one transaction', async () => {
+  const { pool, queries } = linkPool({ allowed: ['1', '2'] });
+  await withApi(
+    pool,
+    async (call) => {
+      const { status, data } = await call('/api/goals/9/routines', putLinks(['1', '2']));
+      assert.equal(status, 200);
+      assert.deepEqual(data.routines, [
+        { id: '1', name: '1' },
+        { id: '2', name: '2' },
+      ]);
+    },
+    { today },
+  );
+  const steps = queries.map(({ sql }) => sql.split(' ')[0]);
+  assert.equal(steps[0], 'BEGIN');
+  assert.equal(steps.at(-1), 'COMMIT');
+  const removed = queries.findIndex(({ sql }) =>
+    sql.startsWith('DELETE FROM twelve_week_goal_routines'),
+  );
+  const added = queries.findIndex(({ sql }) =>
+    sql.startsWith('INSERT INTO twelve_week_goal_routines'),
+  );
+  assert.ok(removed >= 0);
+  assert.ok(removed < added);
+  assert.equal(issued(queries, 'FOR SHARE').length, 1);
+  assert.deepEqual(issued(queries, 'INSERT INTO twelve_week_goal_routines')[0].params, [
+    '9',
+    ['1', '2'],
+  ]);
+});
+
+test('linking refuses a routine that cannot serve a goal and changes nothing', async () => {
+  const { pool, queries } = linkPool({ allowed: ['1'] });
+  await withApi(
+    pool,
+    async (call) => {
+      const { status, data } = await call('/api/goals/9/routines', putLinks(['1', '2']));
+      assert.equal(status, 400);
+      assert.match(String(data.error), /연결할 수 없는 루틴/);
+    },
+    { today },
+  );
+  assert.equal(issued(queries, 'DELETE').length, 0);
+  assert.equal(issued(queries, 'ROLLBACK').length, 1);
+});
+
+test('linking answers for a missing goal and for one of a past period', async () => {
+  await withApi(
+    linkPool({ goal: false }).pool,
+    async (call) => {
+      const { status, data } = await call('/api/goals/9/routines', putLinks([]));
+      assert.equal(status, 404);
+      assert.equal(data.error, '목표를 찾을 수 없습니다');
+    },
+    { today },
+  );
+  await withApi(
+    linkPool({ goal: false, goalElsewhere: true }).pool,
+    async (call) => {
+      const { status, data } = await call('/api/goals/9/routines', putLinks([]));
+      assert.equal(status, 400);
+      assert.equal(data.error, '지난 기간의 목표는 고칠 수 없습니다');
+    },
+    { today },
+  );
+});
+
+test('linking refuses bad input in Korean before touching the database', async () => {
+  const { pool, queries } = linkPool();
+  await withApi(
+    pool,
+    async (call) => {
+      for (const [body, message] of [
+        [{}, '연결할 루틴 목록이 올바르지 않습니다'],
+        [{ routineIds: 'x' }, '연결할 루틴 목록이 올바르지 않습니다'],
+        [{ routineIds: ['abc'] }, '루틴 번호가 올바르지 않습니다'],
+        [{ routineIds: [1] }, '루틴 번호가 올바르지 않습니다'],
+        [{ routineIds: ['1', '1'] }, '같은 루틴을 두 번 연결할 수 없습니다'],
+      ] as const) {
+        const { status, data } = await call('/api/goals/9/routines', { method: 'PUT', body });
+        assert.equal(status, 400);
+        assert.equal(data.error, message);
+      }
+      const many = Array.from({ length: 201 }, (_, index) => String(index));
+      const tooMany = await call('/api/goals/9/routines', putLinks(many));
+      assert.equal(tooMany.status, 400);
+      assert.match(String(tooMany.data.error), /200개까지/);
+      const badId = await call('/api/goals/abc/routines', putLinks([]));
+      assert.equal(badId.status, 400);
+    },
+    { today },
+  );
+  assert.equal(queries.length, 0);
+});

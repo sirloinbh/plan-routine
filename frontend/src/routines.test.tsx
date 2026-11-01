@@ -1,8 +1,11 @@
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, configure, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { expect, test, vi } from 'vitest';
 
 import { groupByCategory } from './routine-groups';
 import { DailyRoutines, type Routine } from './routines';
+
+// Focus follows a reload, which on a busy machine can outlast the default one second.
+configure({ asyncUtilTimeout: 10_000 });
 
 type Seed = { id: string; name: string; category: string };
 

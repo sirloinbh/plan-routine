@@ -63,6 +63,27 @@ const reviewsInput = z.object(
   badRequest,
 );
 
+const routineIdMessage = '루틴 번호가 올바르지 않습니다';
+const maxLinks = 200;
+const routineLinksInput = z.object(
+  {
+    routineIds: z
+      .array(z.string({ error: routineIdMessage }).regex(/^\d{1,18}$/, routineIdMessage), {
+        error: '연결할 루틴 목록이 올바르지 않습니다',
+      })
+      .max(maxLinks, `한 목표에 루틴을 ${maxLinks}개까지 연결할 수 있습니다`)
+      .refine((ids) => new Set(ids).size === ids.length, '같은 루틴을 두 번 연결할 수 없습니다'),
+  },
+  badRequest,
+);
+
+// Only active daily and weekly routines can serve a goal, and only those are shown.
+const linkedRoutinesSql = `SELECT r.id::text AS id, r.name, l.goal_id::text AS "goalId"
+  FROM twelve_week_goal_routines l JOIN routines r ON r.id = l.routine_id
+  WHERE l.goal_id = ANY($1::bigint[]) AND r.archived_at IS NULL
+    AND r.cadence IN ('daily', 'weekly')
+  ORDER BY CASE r.cadence WHEN 'daily' THEN 0 ELSE 1 END, r.category, r.sort_order, r.id`;
+
 type GoalRow = {
   id: string;
   periodStart: string;
@@ -89,6 +110,11 @@ export function goalRoutes(pool: Pool, today: () => string) {
        ORDER BY period_start DESC, sort_order, id`,
       [period.start],
     );
+    const currentGoals = rows.filter((row) => row.periodStart === period.start);
+    const links = await pool.query<{ id: string; name: string; goalId: string }>(
+      linkedRoutinesSql,
+      [currentGoals.map((row) => row.id)],
+    );
     // Rows arrive newest period first, so a Map keeps past periods in that order.
     const past = new Map<string, GoalRow[]>();
     for (const row of rows)
@@ -98,7 +124,15 @@ export function goalRoutes(pool: Pool, today: () => string) {
       today: current,
       // Counts the week in progress, so the last week reads as 1 rather than 0.
       remainingWeeks: Math.ceil((daysBetween(current, period.end) + 1) / 7),
-      current: { period, goals: rows.filter((row) => row.periodStart === period.start) },
+      current: {
+        period,
+        goals: currentGoals.map((row) => ({
+          ...row,
+          routines: links.rows
+            .filter((link) => link.goalId === row.id)
+            .map(({ id, name }) => ({ id, name })),
+        })),
+      },
       past: [...past].map(([start, goals]) => ({
         period: periodFor('twelve_week', start, anchorDate),
         goals,
@@ -131,8 +165,8 @@ export function goalRoutes(pool: Pool, today: () => string) {
   });
 
   // Answers why a goal outside the current period could not be changed.
-  const refuseUnchanged = async (id: string) => {
-    const { rows } = await pool.query('SELECT 1 FROM twelve_week_goals WHERE id = $1', [id]);
+  const refuseUnchanged = async (id: string, db: Pool | PoolClient = pool) => {
+    const { rows } = await db.query('SELECT 1 FROM twelve_week_goals WHERE id = $1', [id]);
     return rows[0] ? pastGoal : notFound;
   };
 
@@ -151,6 +185,57 @@ export function goalRoutes(pool: Pool, today: () => string) {
       return;
     }
     res.json({ goal: rows[0] });
+  });
+
+  // Replaces the goal's links in one step, so a failure leaves the earlier ones as they were.
+  router.put('/:id/routines', async (req, res) => {
+    const { id } = idParam.parse(req.params);
+    const { routineIds } = routineLinksInput.parse(requestBody(req.body));
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const { period } = await currentPeriod(client);
+      const target = await client.query(
+        'SELECT id FROM twelve_week_goals WHERE id = $1 AND period_start = $2 FOR UPDATE',
+        [id, period.start],
+      );
+      if (!target.rows[0]) {
+        await client.query('ROLLBACK');
+        // On this connection: waiting for another while holding it could stall every request.
+        const refusal = await refuseUnchanged(id, client);
+        res.status(refusal === notFound ? 404 : 400).json(refusal);
+        return;
+      }
+      // FOR SHARE makes a concurrent archive wait, so an archived routine cannot gain a link.
+      const allowed = await client.query(
+        `SELECT id FROM routines
+         WHERE id = ANY($1::bigint[]) AND archived_at IS NULL AND cadence IN ('daily', 'weekly')
+         ORDER BY id FOR SHARE`,
+        [routineIds],
+      );
+      if (allowed.rows.length !== routineIds.length) {
+        await client.query('ROLLBACK');
+        res.status(400).json({ error: '연결할 수 없는 루틴이 있습니다. 다시 확인해 주세요' });
+        return;
+      }
+      await client.query('DELETE FROM twelve_week_goal_routines WHERE goal_id = $1', [id]);
+      await client.query(
+        `INSERT INTO twelve_week_goal_routines (goal_id, routine_id)
+         SELECT $1, unnest($2::bigint[])`,
+        [id, routineIds],
+      );
+      const { rows } = await client.query<{ id: string; name: string; goalId: string }>(
+        linkedRoutinesSql,
+        [[id]],
+      );
+      await client.query('COMMIT');
+      res.json({ routines: rows.map((row) => ({ id: row.id, name: row.name })) });
+    } catch (error) {
+      await client.query('ROLLBACK').catch(() => {});
+      throw error;
+    } finally {
+      client.release();
+    }
   });
 
   router.delete('/:id', async (req, res) => {

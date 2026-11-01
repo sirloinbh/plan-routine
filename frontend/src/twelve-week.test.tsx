@@ -51,7 +51,13 @@ function goalsApi(seed: { current?: Goal[]; last?: Goal[]; older?: Goal[] } = {}
     'fetch',
     vi.fn((url: string, init?: RequestInit) => {
       const method = init?.method ?? 'GET';
-      if (url.startsWith('/api/routines') && method === 'GET') return reply(200, { routines });
+      if (url.startsWith('/api/routines') && method === 'GET')
+        return reply(200, {
+          routines: [
+            ...routines,
+            { id: '51', name: '6시 기상', cadence: 'daily', category: 'wake', sortOrder: 0 },
+          ],
+        });
       if (url.startsWith('/api/checklist'))
         return reply(200, {
           date: '2026-10-22',
@@ -116,6 +122,12 @@ function goalsApi(seed: { current?: Goal[]; last?: Goal[]; older?: Goal[] } = {}
       const id = url.split('/')[3];
       const found = current.find((g) => g.id === id);
       if (!found) return reply(404, { error: '목표를 찾을 수 없습니다' });
+      if (url.endsWith('/routines')) {
+        const ids = body!.routineIds as string[];
+        const linked = ids.map((value) => ({ id: value, name: '6시 기상' }));
+        (found as Goal & { routines?: unknown }).routines = linked;
+        return reply(200, { routines: linked });
+      }
       if (method === 'DELETE') current = current.filter((g) => g !== found);
       else found.title = String(body!.title);
       return reply(200, { goal: found });
@@ -593,4 +605,57 @@ test('a removal that fails stays on its own row', async () => {
   await flush();
   expect(within(goalsCard()).getByRole('alert')).toHaveTextContent('서버 오류가 발생했습니다');
   expect(button('책 읽기 삭제')).toHaveFocus();
+});
+
+test('a goal shows its routines after linking them, and goals of past periods cannot', async () => {
+  // jsdom has none; a checkbox inside a form reads it.
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+  );
+  const api = goalsApi({ current: [pending('1', '책 읽기')], last: [pending('2', '지난 목표')] });
+  render(<TwelveWeek />);
+  await flush();
+  expect(within(goalsCard()).getByText('연결된 루틴이 없습니다')).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: '지난 목표 루틴 연결' })).not.toBeInTheDocument();
+
+  press('책 읽기 루틴 연결');
+  await flush();
+  fireEvent.click(within(goalsCard()).getByRole('checkbox', { name: '6시 기상' }));
+  fireEvent.submit(screen.getByRole('form', { name: '책 읽기 루틴 연결' }));
+  await flush();
+  expect(api.writes.at(-1)).toEqual({
+    method: 'PUT',
+    path: '/api/goals/1/routines',
+    body: { routineIds: ['51'] },
+  });
+  expect(within(goalsCard()).getByRole('status')).toHaveTextContent(
+    "'책 읽기' 목표에 루틴 1개를 연결했습니다",
+  );
+  expect(within(goalsCard()).getByText('연결된 루틴: 6시 기상')).toBeInTheDocument();
+});
+
+test('linked routines show at once, even if the reload after saving fails', async () => {
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+  );
+  const api = goalsApi({ current: [pending('1', '책 읽기')] });
+  render(<TwelveWeek />);
+  await flush();
+  press('책 읽기 루틴 연결');
+  await flush();
+  fireEvent.click(within(goalsCard()).getByRole('checkbox', { name: '6시 기상' }));
+  api.failNextLoad();
+  fireEvent.submit(screen.getByRole('form', { name: '책 읽기 루틴 연결' }));
+  await flush();
+  expect(within(goalsCard()).getByText('연결된 루틴: 6시 기상')).toBeInTheDocument();
 });
