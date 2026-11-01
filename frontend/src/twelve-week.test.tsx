@@ -377,6 +377,20 @@ test('saving a reviewed period again clears the earlier message and shows it in 
   expect(screen.getAllByText('회고를 저장했습니다')).toHaveLength(1);
 });
 
+test('taking a finished review back moves its card up and still says so', async () => {
+  const reviewed: Goal = { ...pending('1', '책 읽기'), achieved: true, reviewedAt: 'then' };
+  goalsApi({ last: [reviewed] });
+  render(<TwelveWeek />);
+  await flush();
+  fireEvent.click(
+    within(screen.getByRole('group', { name: '책 읽기' })).getByRole('radio', { name: '미정' }),
+  );
+  saveLastReview();
+  await flush();
+  expect(screen.getByText('회고 필요')).toBeInTheDocument();
+  expect(screen.getByText(/달성 여부나 메모를 남기면 회고가 끝납니다/)).toBeInTheDocument();
+});
+
 test('text typed while a goal is saving stays for the next goal', async () => {
   goalsApi();
   render(<TwelveWeek />);

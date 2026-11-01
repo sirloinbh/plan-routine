@@ -393,8 +393,14 @@ export function TwelveWeek() {
           })),
         },
     );
-    if (needsReview(past) && saved.every((goal) => goal.reviewedAt))
-      reviewNotice.status('회고를 저장했습니다');
+    // A card that changes lists mounts anew and loses its own message, so say it up here.
+    const stillOpen = saved.some((goal) => !goal.reviewedAt);
+    if (needsReview(past) !== stillOpen)
+      reviewNotice.status(
+        stillOpen
+          ? '저장했습니다. 달성 여부나 메모를 남기면 회고가 끝납니다'
+          : '회고를 저장했습니다',
+      );
     reload();
   };
   const toReview = data?.past.filter(needsReview) ?? [];
