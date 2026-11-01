@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 
 import { Button } from './components/ui/button';
 import { Card, CardContent } from './components/ui/card';
 import { Notice } from './components/ui/notice';
+import { clearDraft, type DiaryForm, readDraft, sameForm, writeDraft } from './diary-draft';
 import { LabeledTextarea } from './labeled-textarea';
 import { requestJson } from './lib/api';
 import { useNotice } from './lib/use-notice';
@@ -24,8 +26,6 @@ type DiaryData = {
   entry: DiaryEntry | null;
 };
 
-type DiaryForm = { body: string; goodNote: string; regretNote: string; tomorrowNote: string };
-
 const formFrom = (entry: DiaryEntry | null): DiaryForm => ({
   body: entry?.body ?? '',
   goodNote: entry?.goodNote ?? '',
@@ -33,15 +33,9 @@ const formFrom = (entry: DiaryEntry | null): DiaryForm => ({
   tomorrowNote: entry?.tomorrowNote ?? '',
 });
 
-const sameForm = (a: DiaryForm, b: DiaryForm) =>
-  a.body === b.body &&
-  a.goodNote === b.goodNote &&
-  a.regretNote === b.regretNote &&
-  a.tomorrowNote === b.tomorrowNote;
-
 export function Diary() {
-  // null follows the server's today.
-  const [date, setDate] = useState<string | null>(null);
+  // null follows the server's today. A draft reopens its own day, which may be an earlier one.
+  const [date, setDate] = useState<string | null>(() => readDraft()?.date ?? null);
   const [version, setVersion] = useState(0);
   const [data, setData] = useState<DiaryData | null>(null);
   const [form, setForm] = useState<DiaryForm>(formFrom(null));
@@ -50,6 +44,11 @@ export function Diary() {
   const [saving, setSaving] = useState(false);
   // A notice appears beside what it is about: the save button or the date buttons.
   const [noticeAtSave, setNoticeAtSave] = useState(false);
+  const [draftFailed, setDraftFailed] = useState(false);
+  const [confirmingDiscard, setConfirmingDiscard] = useState(false);
+  const saveButton = useRef<HTMLButtonElement>(null);
+  const discardButton = useRef<HTMLButtonElement>(null);
+  const confirmDiscardButton = useRef<HTMLButtonElement>(null);
   const { notice, status, error, clear } = useNotice();
 
   useEffect(() => {
@@ -58,10 +57,20 @@ export function Diary() {
     requestJson<DiaryData>(`/api/diary${date ? `?date=${date}` : ''}`)
       .then((loaded) => {
         if (ignore) return;
+        const server = formFrom(loaded.entry);
+        const stored = readDraft();
+        const draft =
+          stored?.date === loaded.date && !sameForm(stored.form, server) ? stored : null;
         setData(loaded);
-        setForm(formFrom(loaded.entry));
-        setSavedForm(formFrom(loaded.entry));
+        setForm(draft?.form ?? server);
+        setSavedForm(server);
         setLoading(false);
+        if (draft)
+          status(
+            sameForm(draft.base, server)
+              ? '저장하지 않은 글을 불러왔습니다. 저장해야 기록에 남습니다'
+              : '저장하지 않은 글을 불러왔습니다. 그 사이 저장된 내용이 달라졌으니 확인한 뒤 저장해 주세요',
+          );
       })
       .catch((cause: unknown) => {
         if (ignore) return;
@@ -71,9 +80,29 @@ export function Diary() {
     return () => {
       ignore = true;
     };
-  }, [date, version, error]);
+  }, [date, version, error, status]);
 
   const dirty = !sameForm(form, savedForm);
+
+  // While a day is loading, the form still holds the previous day's text.
+  useEffect(() => {
+    if (!data || loading) return;
+    if (dirty) {
+      setDraftFailed(!writeDraft({ date: data.date, form, base: savedForm }));
+      return;
+    }
+    clearDraft(data.date);
+    setDraftFailed(false);
+  }, [data, loading, dirty, form, savedForm]);
+
+  // A draft survives closing the tab. Only when it could not be kept does leaving need a warning.
+  const leavingLosesText = dirty && draftFailed;
+  useEffect(() => {
+    if (!leavingLosesText) return;
+    const warn = (event: BeforeUnloadEvent) => event.preventDefault();
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [leavingLosesText]);
 
   const setField = (field: keyof DiaryForm) => (value: string) =>
     setForm((current) => ({ ...current, [field]: value }));
@@ -83,7 +112,7 @@ export function Diary() {
     if (saving) return;
     setNoticeAtSave(false);
     if (dirty) {
-      error('저장하지 않은 내용이 있습니다. 저장한 뒤 날짜를 옮겨 주세요');
+      error('저장하지 않은 내용이 있습니다. 저장하거나 버린 뒤 날짜를 옮겨 주세요');
       return;
     }
     clear();
@@ -95,6 +124,7 @@ export function Diary() {
   const save = async (target: string) => {
     if (saving || loading) return;
     setSaving(true);
+    setConfirmingDiscard(false);
     setNoticeAtSave(true);
     clear();
     try {
@@ -102,6 +132,8 @@ export function Diary() {
         method: 'PUT',
         body: form,
       });
+      // Here as well as in the effect: the user may have left the page while this was saving.
+      clearDraft(target);
       setForm(formFrom(entry));
       setSavedForm(formFrom(entry));
       status(`${target} 일기를 저장했습니다`);
@@ -110,6 +142,22 @@ export function Diary() {
     } finally {
       setSaving(false);
     }
+  };
+
+  // The pressed button disappears each time, so focus moves by hand once the new one is drawn.
+  const askDiscard = (asking: boolean) => {
+    flushSync(() => setConfirmingDiscard(asking));
+    (asking ? confirmDiscardButton : discardButton).current?.focus();
+  };
+
+  const discard = () => {
+    flushSync(() => {
+      setForm(savedForm);
+      setConfirmingDiscard(false);
+      setNoticeAtSave(true);
+      status('저장하지 않은 내용을 버렸습니다');
+    });
+    saveButton.current?.focus();
   };
 
   if (!data)
@@ -217,12 +265,49 @@ export function Diary() {
             />
             {noticeAtSave && <Notice notice={notice} />}
             <div className="flex flex-wrap items-center gap-3">
-              <Button type="submit">저장</Button>
+              <Button ref={saveButton} type="submit">
+                저장
+              </Button>
               {dirty && (
                 <span className="text-body-sm text-muted-foreground">
-                  저장하지 않은 내용이 있습니다
+                  {draftFailed
+                    ? '저장하지 않은 내용이 있습니다. 이 브라우저에 임시 저장하지 못해, 떠나면 사라집니다'
+                    : '저장하지 않은 내용이 있습니다'}
                 </span>
               )}
+              {dirty &&
+                !readOnly &&
+                (confirmingDiscard ? (
+                  <>
+                    <Button
+                      ref={confirmDiscardButton}
+                      type="button"
+                      variant="destructive"
+                      size="sm"
+                      onClick={discard}
+                    >
+                      버리기 확인
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => askDiscard(false)}
+                    >
+                      취소
+                    </Button>
+                  </>
+                ) : (
+                  <Button
+                    ref={discardButton}
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => askDiscard(true)}
+                  >
+                    버리기
+                  </Button>
+                ))}
             </div>
           </form>
         </CardContent>
