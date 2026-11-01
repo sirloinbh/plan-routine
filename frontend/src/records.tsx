@@ -276,6 +276,8 @@ export function Records() {
     clearDay();
     setDayFailed(false);
     setChosen(date);
+    // The same day changes nothing the load depends on, so ask for it again.
+    if (date === selected) reload();
   };
 
   const moveMonth = (target: string) => {

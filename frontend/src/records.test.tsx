@@ -292,6 +292,20 @@ test('picking a day clears the error of an earlier failed day', async () => {
   expect(screen.getByRole('region', { name: '2026-10-01 기록' })).toBeVisible();
 });
 
+test('picking the day that failed loads it again rather than waiting forever', async () => {
+  const api = recordsApi();
+  render(<Records />);
+  await flush();
+  api.failDay();
+  fireEvent.click(dayButton('2026-10-20'));
+  await flush();
+  expect(screen.getByRole('alert')).toBeInTheDocument();
+  fireEvent.click(dayButton('2026-10-20'));
+  await flush();
+  expect(screen.getByRole('region', { name: '2026-10-20 기록' })).toBeVisible();
+  expect(screen.queryByText('이 날의 기록을 불러오는 중…')).not.toBeInTheDocument();
+});
+
 test('the calendar heading is only the month, without its buttons', async () => {
   recordsApi();
   render(<Records />);
