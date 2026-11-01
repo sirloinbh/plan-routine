@@ -1366,10 +1366,10 @@ test(
             const checklist = await call('/api/checklist?cadence=weekly&date=2026-10-22');
             assert.deepEqual(inOrder(checklist.data.items), ids);
 
-            const start = (await call('/api/periods?date=2026-10-22')).data as {
-              periods: Record<string, { start: string }>;
+            const before = (await call('/api/goals')).data.current as {
+              period: { start: string };
             };
-            const periodStart = Object.values(start.periods).at(-1)!.start;
+            const periodStart = before.period.start;
             await client.query(
               `INSERT INTO twelve_week_goals (id, period_start, title, sort_order)
                OVERRIDING SYSTEM VALUE
