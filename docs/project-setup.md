@@ -484,8 +484,8 @@ server {
 - 기존 데이터의 의미를 보존한다. 예를 들어 새 `completed` 컬럼은 기본값을 `true`로 줘서 과거 기록의 판정이 바뀌지 않게 한다.
 - 적용 방식:
   - 빈 볼륨: Compose가 `/docker-entrypoint-initdb.d`의 모든 파일을 이름순으로 자동 실행한다.
-  - CI: 모든 파일을 이름순으로 `psql -v ON_ERROR_STOP=1 -f`로 적용한다.
-- 기존 DB에는 `npm run db:migrate`로 적용한다. 절차와 기록 방식은 [DB 문서](../database/README.md)에 있다.
+  - CI: 모든 파일을 이름순으로 `psql -v ON_ERROR_STOP=1 -f`로 적용한 뒤 `npm run db:migrate`로 다시 적용하며 기록한다.
+  - **기존 DB: `npm run db:migrate`로 적용한다.** 절차와 기록 방식은 [DB 문서](../database/README.md)에 있다.
 
   ```powershell
   docker compose exec -T db psql -U <db> -d <db> -v ON_ERROR_STOP=1 -f /docker-entrypoint-initdb.d/NNN_<설명>.sql
