@@ -2,6 +2,8 @@
 
 PostgreSQL 17. 마이그레이션 원본은 `migrations/NNN_<설명>.sql` 한 곳뿐이다. 빈 Docker 볼륨에서는 최초 실행 시 모든 파일이 이름순으로 자동 적용되고, CI도 모든 파일을 순서대로 적용한다.
 
+빈 볼륨을 처음 띄운 직후에는 `npm run db:migrate`를 한 번 돌려 기록을 남긴다. 그래야 나중에 첫 실행이 모든 파일을 다시 적용하지 않는다.
+
 기존 DB에는 실행기로 적용한다. 규칙의 원본은 `sirloinbh/project-standards`의 `docs/conventions/database.md`다.
 
 ```powershell

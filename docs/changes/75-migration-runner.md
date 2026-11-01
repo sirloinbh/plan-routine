@@ -29,7 +29,7 @@
 ## 검증
 
 - 로컬: `env -u TEST_DATABASE_URL npm run check` 통과. 백엔드 111개 중 93 pass / 0 fail / 18 skip(DB 테스트), 프론트엔드 252개 중 250 pass / 0 fail / 2 skip(다크 모드 전용 공통 테스트), `test:skills` 4개 pass. `npm run standards:check` 통과. 빌드한 `backend/dist/migrate.js`를 `DATABASE_URL` 없이 실행해 한국어 안내와 종료 코드 1을 확인했다.
-- CI의 실제 DB: PR 코멘트에 적는다.
+- CI의 실제 DB: 백엔드 111개 모두 pass, skip 0. 공통 CI가 `npm run db:migrate`를 돌려 001~005를 기록했다(PR run 41303400481).
 - 실제 서버 배포로는 확인하지 못했다. 배포가 연결되어 있지 않다.
 
 ## 한계·후속
@@ -41,3 +41,4 @@
 ## 자동 코드 리뷰
 
 - 1차: "중앙에 원본이 없다"는 전제가 틀렸음과 이름을 바꾼 기본 루틴이 되살아나는 결함을 찾았다. 중앙 실행기로 교체해 둘 다 해결했다. DB 문서도 고쳤다. 배포 전제 문제는 분리했다.
+- 2차: 코드와 테스트에는 결함이 없었다. 임시 PostgreSQL로 실행기를 직접 돌려 동작을 확인했다. 기존 DB 적용 절차가 낡은 문서 3곳을 고쳤다. 리뷰는 2회로 마친다.
