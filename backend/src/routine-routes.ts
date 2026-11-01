@@ -5,6 +5,7 @@ import { z } from 'zod/v4';
 import { badRequest, requestBody } from './request-input.js';
 import { anchorSettingKey, routineCadence, routineInput, routineName } from './routines.js';
 
+// routineColumns names id as text, so an ORDER BY on plain id would put 10 before 9: write routines.id.
 export const routineColumns = 'id::text AS id, name, cadence, category, sort_order AS "sortOrder"';
 export const notFound = { error: '루틴을 찾을 수 없습니다' };
 
@@ -26,7 +27,7 @@ export function routineRoutes(pool: Pool, today: () => string) {
     const { rows } = await pool.query(
       `SELECT ${routineColumns} FROM routines
        WHERE archived_at IS NULL AND ($1::text IS NULL OR cadence = $1)
-       ORDER BY cadence, category, sort_order, id`,
+       ORDER BY cadence, category, sort_order, routines.id`,
       [cadence ?? null],
     );
     res.json({ routines: rows });
@@ -91,7 +92,7 @@ export function routineRoutes(pool: Pool, today: () => string) {
       const group = await client.query<{ id: string }>(
         `SELECT id::text AS id FROM routines
          WHERE cadence = $1 AND category IS NOT DISTINCT FROM $2 AND archived_at IS NULL
-         ORDER BY sort_order, id`,
+         ORDER BY sort_order, routines.id`,
         [target.rows[0].cadence, target.rows[0].category],
       );
       const ids = group.rows.map((row) => row.id);
@@ -112,7 +113,7 @@ export function routineRoutes(pool: Pool, today: () => string) {
         [ids],
       );
       const { rows } = await client.query(
-        `SELECT ${routineColumns} FROM routines WHERE id = ANY($1::bigint[]) ORDER BY sort_order, id`,
+        `SELECT ${routineColumns} FROM routines WHERE id = ANY($1::bigint[]) ORDER BY sort_order, routines.id`,
         [ids],
       );
       await client.query('COMMIT');

@@ -6,6 +6,7 @@ import { daysBetween, periodFor } from './periods.js';
 import { badRequest, noNul, nulMessage, requestBody } from './request-input.js';
 import { routineAnchorDate } from './routines.js';
 
+// Names id as text, so an ORDER BY on plain id would put 10 before 9: write twelve_week_goals.id.
 const goalColumns = `id::text AS id, period_start AS "periodStart", title, achieved,
   review_note AS "reviewNote", reviewed_at AS "reviewedAt"`;
 const notFound = { error: '목표를 찾을 수 없습니다' };
@@ -107,7 +108,7 @@ export function goalRoutes(pool: Pool, today: () => string) {
     const { rows } = await pool.query<GoalRow>(
       `SELECT ${goalColumns} FROM twelve_week_goals
        WHERE period_start <= $1
-       ORDER BY period_start DESC, sort_order, id`,
+       ORDER BY period_start DESC, sort_order, twelve_week_goals.id`,
       [period.start],
     );
     const currentGoals = rows.filter((row) => row.periodStart === period.start);
@@ -288,7 +289,7 @@ export function goalRoutes(pool: Pool, today: () => string) {
         );
       const { rows } = await client.query(
         `SELECT ${goalColumns} FROM twelve_week_goals WHERE id = ANY($1::bigint[])
-         ORDER BY sort_order, id`,
+         ORDER BY sort_order, twelve_week_goals.id`,
         [ids],
       );
       await client.query('COMMIT');
