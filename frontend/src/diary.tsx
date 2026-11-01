@@ -51,6 +51,7 @@ export function Diary() {
   const [saving, setSaving] = useState(false);
   // A notice appears beside what it is about: the save button or the date buttons.
   const [noticeAtSave, setNoticeAtSave] = useState(false);
+  const openedForDraft = useRef(date !== null);
   const [draftFailed, setDraftFailed] = useState(false);
   const [confirmingDiscard, setConfirmingDiscard] = useState(false);
   const saveButton = useRef<HTMLButtonElement>(null);
@@ -68,6 +69,14 @@ export function Diary() {
         const stored = readDraft();
         const draft =
           stored?.date === loaded.date && !sameText(stored.form, server) ? stored : null;
+        // The day was opened for a draft with nothing left to restore, so today is what was wanted.
+        const nothingToRestore = openedForDraft.current && !draft && date !== null;
+        openedForDraft.current = false;
+        if (nothingToRestore) {
+          clearDraft(date);
+          setDate(null);
+          return;
+        }
         setData(loaded);
         setForm(draft?.form ?? server);
         setSavedForm(server);

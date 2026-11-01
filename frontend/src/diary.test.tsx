@@ -430,7 +430,8 @@ test('spaces alone leave no draft, so they cannot reopen an old day', async () =
 
   seedDraft('2026-10-20', '   ');
   render(<Diary />);
-  expect(await field('하루 돌아보기')).toHaveValue('');
+  expect(await screen.findByRole('heading', { level: 2, name: `오늘 (${today})` })).toBeVisible();
+  expect(localStorage.getItem(draftKey)).toBeNull();
   expect(screen.queryByRole('status')).not.toBeInTheDocument();
 });
 
