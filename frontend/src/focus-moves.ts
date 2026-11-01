@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 // it somewhere predictable, marked with data-focus-key, unless the user has already moved on.
 
 /** Focus anywhere but here means the user has moved on, and their typing must not be redirected. */
-const isFocusFree = (origin: Element | null) => {
+export const isFocusFree = (origin: Element | null) => {
   const current = document.activeElement;
   return !current || current === document.body || current === origin;
 };

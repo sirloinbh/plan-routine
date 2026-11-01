@@ -60,7 +60,14 @@ function diaryApi(seed: Entry[] = []) {
         failNextSave = false;
         return reply(500, { error: '서버 오류가 발생했습니다' });
       }
-      if (!body.body.trim()) return reply(400, { error: '일기 본문을 입력해 주세요' });
+      if (!body.body.trim()) {
+        const refusal = reply(400, { error: '일기 본문을 입력해 주세요' });
+        if (!holdNextSave) return refusal;
+        holdNextSave = false;
+        return new Promise((resolve) => {
+          heldSave = () => resolve(refusal);
+        });
+      }
       if (body.body.length > 5000)
         return reply(400, { error: '일기 본문은 5000자 이하로 입력해 주세요' });
       const date = url.split('/')[3];
@@ -592,4 +599,20 @@ test("a body over the limit is marked too, but a server failure is not the body'
   await flush();
   expect(body).not.toHaveAttribute('aria-invalid');
   expect(save).toHaveFocus();
+});
+
+test('a refused body is marked but does not take focus once the user has moved on', async () => {
+  const api = diaryApi();
+  render(<Diary />);
+  const body = await field('하루 돌아보기');
+  screen.getByRole('button', { name: '저장' }).focus();
+  api.holdNextSave();
+  press('저장');
+  await flush();
+  const note = await field('잘한 점 (선택)');
+  note.focus();
+  api.releaseSave();
+  await flush();
+  expect(body).toHaveAttribute('aria-invalid', 'true');
+  expect(note).toHaveFocus();
 });

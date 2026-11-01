@@ -12,7 +12,7 @@ import {
   sameText,
   writeDraft,
 } from './diary-draft';
-import { useDateHeading } from './focus-moves';
+import { isFocusFree, useDateHeading } from './focus-moves';
 import { LabeledTextarea } from './labeled-textarea';
 import { RequestError, requestJson } from './lib/api';
 import { useNotice } from './lib/use-notice';
@@ -162,6 +162,7 @@ export function Diary() {
 
   const save = async (target: string) => {
     if (saving || loading) return;
+    const origin = document.activeElement;
     setSaving(true);
     setBodyInvalid(false);
     setConfirmingDiscard(false);
@@ -183,7 +184,7 @@ export function Diary() {
       const body = form.body.trim();
       if (cause instanceof RequestError && cause.status === 400 && (!body || body.length > 5000)) {
         setBodyInvalid(true);
-        document.getElementById('diary-body')?.focus();
+        if (isFocusFree(origin)) document.getElementById('diary-body')?.focus();
       }
     } finally {
       setSaving(false);
@@ -228,7 +229,7 @@ export function Diary() {
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 ref={heading} tabIndex={-1} className="text-body font-semibold">
+          <h2 ref={heading} tabIndex={-1} className="scroll-mt-20 text-body font-semibold">
             {isToday ? `오늘 (${data.date})` : data.date}
           </h2>
           {data.progress.total > 0 && (

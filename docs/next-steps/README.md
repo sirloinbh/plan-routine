@@ -18,6 +18,7 @@
 | 6    | [#13](https://github.com/sirloinbh/plan-routine/issues/13) | [후순위] 다른 프로젝트 통합 허브 설계              | P3       | [#12](https://github.com/sirloinbh/plan-routine/issues/12) 이후 |
 | 7    | [#34](https://github.com/sirloinbh/plan-routine/issues/34) | 불러오는 중 표시를 공통 Skeleton·Spinner로 바꾸기  | P4       | 없음                                                            |
 | 8    | [#64](https://github.com/sirloinbh/plan-routine/issues/64) | 일기를 탭 두 개에서 쓸 때 임시 글을 잃지 않게 하기 | P4       | 없음                                                            |
+| 9    | [#66](https://github.com/sirloinbh/plan-routine/issues/66) | 다시 시도 뒤 키보드 포커스 유지                    | P4       | 없음                                                            |
 
 각 카드의 "확인 필요 (추천안)" 항목은 착수 전에 사용자 확인을 받아 이슈 코멘트로 기록한다.
 
