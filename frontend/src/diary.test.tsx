@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { expect, test, vi } from 'vitest';
 
 import { Diary } from './diary';
+import { draftKey as storedDraftKey } from './diary-draft';
 
 type Entry = {
   date: string;
@@ -314,7 +315,7 @@ test('a failed first load offers a retry', async () => {
   expect(await field('하루 돌아보기')).toBeInTheDocument();
 });
 
-const draftKey = 'plan-routine.diary-draft';
+const draftKey = storedDraftKey;
 const empty = { body: '', goodNote: '', regretNote: '', tomorrowNote: '' };
 const seedDraft = (date: string, body: string, base = empty) =>
   localStorage.setItem(draftKey, JSON.stringify({ date, form: { ...empty, body }, base }));
@@ -533,7 +534,7 @@ test('closing the tab warns only when the draft could not be kept', async () => 
   });
   await type('하루 돌아보기', '보관되지 않는 글');
   await flush();
-  expect(screen.getByText(/임시 저장하지 못해, 떠나면 사라집니다/)).toBeInTheDocument();
+  expect(screen.getByText(/임시 저장되어 있지 않아, 떠나면 사라집니다/)).toBeInTheDocument();
   expect(leaving()).toBe(true);
 
   vi.mocked(Storage.prototype.setItem).mockRestore();
@@ -644,4 +645,69 @@ test('the first load shows a named busy region, and saving shows a spinner on th
   api.releaseSave();
   await flush();
   expect(screen.queryByRole('status', { name: '저장하는 중' })).not.toBeInTheDocument();
+});
+
+const otherTab = (newValue: string | null) =>
+  act(() => {
+    window.dispatchEvent(new StorageEvent('storage', { key: draftKey, newValue }));
+  });
+
+test('when another tab takes the draft, this tab warns until its next keystroke takes it back', async () => {
+  diaryApi();
+  render(<Diary />);
+  await type('하루 돌아보기', '이 탭의 글');
+  await flush();
+  expect(leaving()).toBe(false);
+
+  const theirs = JSON.stringify({
+    date: '2026-10-20',
+    form: { ...empty, body: '다른 탭' },
+    base: empty,
+  });
+  localStorage.setItem(draftKey, theirs);
+  otherTab(theirs);
+  expect(screen.getByText(/임시 저장되어 있지 않아, 떠나면 사라집니다/)).toBeInTheDocument();
+  expect(leaving()).toBe(true);
+
+  await type('하루 돌아보기', '이 탭의 글 더');
+  await flush();
+  expect(screen.queryByText(/임시 저장되어 있지 않아/)).not.toBeInTheDocument();
+  expect(leaving()).toBe(false);
+  expect(JSON.parse(localStorage.getItem(draftKey)!)).toMatchObject({
+    form: { body: '이 탭의 글 더' },
+  });
+});
+
+test('when another tab clears the draft, this tab puts its own back', async () => {
+  diaryApi();
+  render(<Diary />);
+  await type('하루 돌아보기', '이 탭의 글');
+  await flush();
+  localStorage.removeItem(draftKey);
+  otherTab(null);
+  expect(JSON.parse(localStorage.getItem(draftKey)!)).toMatchObject({
+    form: { body: '이 탭의 글' },
+  });
+  expect(leaving()).toBe(false);
+});
+
+test('another tab changing the draft means nothing to a tab with no unsaved text', async () => {
+  diaryApi();
+  render(<Diary />);
+  await field('하루 돌아보기');
+  otherTab(JSON.stringify({ date: today, form: { ...empty, body: '다른 탭' }, base: empty }));
+  await flush();
+  expect(leaving()).toBe(false);
+  expect(screen.queryByText(/임시 저장되어 있지 않아/)).not.toBeInTheDocument();
+});
+
+test('a storage event for something else is ignored', async () => {
+  diaryApi();
+  render(<Diary />);
+  await type('하루 돌아보기', '이 탭의 글');
+  await flush();
+  act(() => {
+    window.dispatchEvent(new StorageEvent('storage', { key: 'theme', newValue: 'dark' }));
+  });
+  expect(leaving()).toBe(false);
 });

@@ -1,6 +1,6 @@
 // Unsaved diary text kept in this browser, so leaving the page does not lose it (confirmed on issue
 // #45). One draft is enough for one tab: moving to another day is blocked while text is unsaved.
-// Two tabs share it, so the later one wins (#64).
+// Two tabs share it, so the later one wins; the other tab then warns that its text is not kept (#64).
 
 export type DiaryForm = {
   body: string;
@@ -12,7 +12,7 @@ export type DiaryForm = {
 // `base` is what the server held when the draft was written, to notice a later save elsewhere.
 export type DiaryDraft = { date: string; form: DiaryForm; base: DiaryForm };
 
-const draftKey = 'plan-routine.diary-draft';
+export const draftKey = 'plan-routine.diary-draft';
 
 export const sameForm = (a: DiaryForm, b: DiaryForm) =>
   a.body === b.body &&

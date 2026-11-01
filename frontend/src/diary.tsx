@@ -8,6 +8,7 @@ import { Spinner } from './components/ui/spinner';
 import {
   clearDraft,
   type DiaryForm,
+  draftKey,
   readDraft,
   sameForm,
   sameText,
@@ -129,6 +130,22 @@ export function Diary() {
     }
     clearDraft(data.date);
     setDraftFailed(false);
+  }, [data, loading, form, savedForm]);
+
+  // Another tab shares the one draft. If it took the draft, this tab's text is no longer kept, so
+  // say so until the next keystroke takes it back. If it cleared the draft, put this tab's back.
+  useEffect(() => {
+    if (!data || loading || sameText(form, savedForm)) return;
+    const othersChanged = (event: StorageEvent) => {
+      if (event.key !== draftKey) return;
+      if (event.newValue !== null) {
+        setDraftFailed(true);
+        return;
+      }
+      setDraftFailed(!writeDraft({ date: data.date, form, base: savedForm }));
+    };
+    window.addEventListener('storage', othersChanged);
+    return () => window.removeEventListener('storage', othersChanged);
   }, [data, loading, form, savedForm]);
 
   // A draft survives closing the tab. Only when it could not be kept does leaving need a warning.
@@ -332,7 +349,7 @@ export function Diary() {
               {dirty && (
                 <span className="text-body-sm text-muted-foreground">
                   {draftFailed
-                    ? '저장하지 않은 내용이 있습니다. 이 브라우저에 임시 저장하지 못해, 떠나면 사라집니다'
+                    ? '저장하지 않은 내용이 있습니다. 임시 저장되어 있지 않아, 떠나면 사라집니다'
                     : '저장하지 않은 내용이 있습니다'}
                 </span>
               )}
