@@ -135,7 +135,7 @@ export function RoutineItems({
                 <label className="flex w-full min-w-0 items-center gap-2 text-body-sm text-muted-foreground">
                   연결
                   <select
-                    className="h-9 min-w-0 flex-1 rounded-md border border-input bg-transparent px-2 text-base text-foreground md:text-body-sm dark:bg-input/30 pointer-coarse:min-h-11 [&>option]:bg-popover [&>option]:text-popover-foreground"
+                    className="h-9 min-w-0 flex-1 rounded-md border border-input bg-transparent px-2 text-base text-foreground outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 md:text-body-sm dark:bg-input/30 pointer-coarse:min-h-11 [&>option]:bg-popover [&>option]:text-popover-foreground"
                     aria-label={`${routine.name} 연결할 프로젝트`}
                     data-focus-key={`link-${routine.id}`}
                     disabled={busy}

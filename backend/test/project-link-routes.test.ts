@@ -122,6 +122,12 @@ test('bad projects are refused in Korean before the database', async () => {
     });
     assert.equal(tooLong.status, 400);
     assert.match(String(tooLong.data.error), /2048자/);
+    // A refused address gets one message, however long it is.
+    const refusedLong = await call('/api/project-links', {
+      method: 'POST',
+      body: { name: '가계부', url: `http://example.com/${'x'.repeat(2100)}` },
+    });
+    assert.equal(refusedLong.data.error, '주소는 https:// 또는 사설 접속 주소만 쓸 수 있습니다');
     // Short as typed, far longer once percent-encoded for storage.
     const encoded = await call('/api/project-links', {
       method: 'POST',

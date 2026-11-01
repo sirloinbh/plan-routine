@@ -67,10 +67,10 @@ const projectInput = z.object(
       .refine((value) => value.length >= 1, '주소를 입력해 주세요')
       .refine((value) => value.length === 0 || allowedUrl(value) !== null, urlMessage)
       // Measured as stored: normalising percent-encodes Korean text and can make it far longer.
-      .refine(
-        (value) => (allowedUrl(value) ?? value).length <= 2048,
-        '주소는 2048자 이하로 입력해 주세요',
-      )
+      .refine((value) => {
+        const stored = allowedUrl(value);
+        return stored === null || stored.length <= 2048;
+      }, '주소는 2048자 이하로 입력해 주세요')
       .transform((value) => allowedUrl(value) ?? value),
   },
   badRequest,

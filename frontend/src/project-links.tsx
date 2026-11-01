@@ -12,6 +12,7 @@ export type ProjectLink = { id: string; name: string; url: string };
 
 const keys = {
   name: 'add-project-name',
+  url: 'project-url',
   remove: (id: string) => `project-remove-${id}`,
 };
 
@@ -74,7 +75,8 @@ export function ProjectLinks() {
       setName('');
       setUrl('');
     }
-    requestFocus([keys.name]);
+    // A refused address is what needs fixing.
+    requestFocus(ok ? [keys.name] : [keys.url]);
   };
 
   const remove = async (project: ProjectLink) => {
@@ -184,6 +186,7 @@ export function ProjectLinks() {
           <Input
             className="min-w-0 sm:flex-1"
             aria-label="프로젝트 주소"
+            data-focus-key={keys.url}
             placeholder="https://example.com"
             inputMode="url"
             value={url}

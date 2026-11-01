@@ -89,6 +89,7 @@ test('a refused address shows the Korean error and keeps what was typed', async 
   await flush();
   expect(screen.getByRole('alert')).toHaveTextContent('https:// 또는 사설 접속 주소만');
   expect(field('프로젝트 주소')).toHaveValue('javascript:alert(1)');
+  expect(field('프로젝트 주소')).toHaveFocus();
 });
 
 test('removing asks first, then moves focus to the next project', async () => {
