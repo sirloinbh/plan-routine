@@ -8,6 +8,7 @@ import { Notice } from './components/ui/notice';
 import { requestJson } from './lib/api';
 import { useNotice } from './lib/use-notice';
 import { cn } from './lib/utils';
+import { LoadingRegion } from './loading-region';
 import { groupByCategory } from './routine-groups';
 import type { Routine } from './routines';
 import { serviceDate } from './service-date';
@@ -295,9 +296,7 @@ export function Records() {
         </Button>
       </div>
     ) : (
-      <p role="status" className="text-body-sm text-muted-foreground">
-        기록을 불러오는 중…
-      </p>
+      <LoadingRegion label="기록 불러오는 중" shape="card" />
     );
 
   return (
@@ -351,11 +350,7 @@ export function Records() {
       {day?.date === selected ? (
         <DayDetail day={day} />
       ) : (
-        !dayFailed && (
-          <p role="status" className="text-body-sm text-muted-foreground">
-            이 날의 기록을 불러오는 중…
-          </p>
-        )
+        !dayFailed && <LoadingRegion label="이 날의 기록 불러오는 중" shape="cards" />
       )}
     </div>
   );

@@ -186,3 +186,31 @@ test('a list that fails to load does not claim there are none, and can be retrie
   expect(screen.getByText('독서 기록')).toBeInTheDocument();
   expect(screen.queryByRole('alert')).not.toBeInTheDocument();
 });
+
+test('removing spins only that delete button, not the add button', async () => {
+  api([books]);
+  const working = vi.mocked(fetch).getMockImplementation()!;
+  let release = () => {};
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  vi.stubGlobal(
+    'fetch',
+    vi.fn((path: string, init?: RequestInit) =>
+      (init?.method ?? 'GET') === 'GET'
+        ? working(path, init)
+        : gate.then(() => working(path, init)),
+    ),
+  );
+  render(<ProjectLinks />);
+  await flush();
+  fireEvent.click(button('독서 기록 삭제'));
+  fireEvent.click(button('독서 기록 삭제 확인'));
+  await flush();
+  expect(
+    within(button('독서 기록 삭제 확인')).getByRole('status', { name: '처리하는 중' }),
+  ).toBeInTheDocument();
+  expect(screen.queryByRole('status', { name: '저장하는 중' })).not.toBeInTheDocument();
+  release();
+  await flush();
+});

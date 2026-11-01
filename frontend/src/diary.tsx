@@ -4,6 +4,7 @@ import { flushSync } from 'react-dom';
 import { Button } from './components/ui/button';
 import { Card, CardContent } from './components/ui/card';
 import { Notice } from './components/ui/notice';
+import { Spinner } from './components/ui/spinner';
 import {
   clearDraft,
   type DiaryForm,
@@ -16,6 +17,7 @@ import { isFocusFree, useDateHeading } from './focus-moves';
 import { LabeledTextarea } from './labeled-textarea';
 import { RequestError, requestJson } from './lib/api';
 import { useNotice } from './lib/use-notice';
+import { LoadingRegion } from './loading-region';
 
 type DiaryEntry = {
   date: string;
@@ -215,9 +217,7 @@ export function Diary() {
 
   if (!data)
     return loading ? (
-      <p role="status" className="text-body-sm text-muted-foreground">
-        일기를 불러오는 중…
-      </p>
+      <LoadingRegion label="일기 불러오는 중" shape="card" />
     ) : (
       <div className="flex flex-col items-start gap-3">
         <Notice notice={notice} />
@@ -326,6 +326,7 @@ export function Diary() {
             {noticeAtSave && <Notice notice={notice} />}
             <div className="flex flex-wrap items-center gap-3">
               <Button ref={saveButton} type="submit">
+                {saving && <Spinner size="sm" label="저장하는 중" />}
                 저장
               </Button>
               {dirty && (

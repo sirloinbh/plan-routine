@@ -8,6 +8,7 @@ import { Checkbox } from './components/ui/checkbox';
 import { Label } from './components/ui/label';
 import { Notice } from './components/ui/notice';
 import type { NoticeValue } from './lib/use-notice';
+import { LoadingRegion } from './loading-region';
 
 export type ChecklistItem = {
   id: string;
@@ -26,10 +27,12 @@ export function ChecklistPending({
   failed,
   notice,
   onRetry,
+  shape = 'card',
 }: {
   failed: boolean;
   notice: NoticeValue | undefined;
   onRetry: () => void;
+  shape?: 'card' | 'cards';
 }) {
   return failed ? (
     <div className="flex flex-col items-start gap-3">
@@ -39,9 +42,7 @@ export function ChecklistPending({
       </Button>
     </div>
   ) : (
-    <p role="status" className="text-body-sm text-muted-foreground">
-      체크리스트를 불러오는 중…
-    </p>
+    <LoadingRegion label="체크리스트 불러오는 중" shape={shape} />
   );
 }
 

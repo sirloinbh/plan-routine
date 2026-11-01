@@ -3,8 +3,10 @@ import { useRef, useState } from 'react';
 import { Button } from './components/ui/button';
 import { Checkbox } from './components/ui/checkbox';
 import { Label } from './components/ui/label';
+import { Spinner } from './components/ui/spinner';
 import { useFocusRequest } from './focus-moves';
 import { requestJson } from './lib/api';
+import { LoadingRegion } from './loading-region';
 import type { Routine } from './routines';
 
 export type LinkedRoutine = { id: string; name: string };
@@ -150,9 +152,7 @@ export function GoalRoutineLinks({
           }}
         >
           {routines === null ? (
-            <p role="status" className="text-body-sm text-muted-foreground">
-              루틴을 불러오는 중…
-            </p>
+            <LoadingRegion label="루틴 불러오는 중" rows={2} />
           ) : routines.length === 0 ? (
             <p className="text-body-sm text-muted-foreground">
               연결할 하루·주간 루틴이 없습니다. 먼저 루틴을 추가해 주세요.
@@ -195,6 +195,7 @@ export function GoalRoutineLinks({
               disabled={routines === null}
               aria-busy={saving || undefined}
             >
+              {saving && <Spinner size="sm" label="저장하는 중" />}
               연결 저장
             </Button>
             <Button

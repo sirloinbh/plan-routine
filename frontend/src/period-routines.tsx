@@ -3,6 +3,7 @@ import { Button } from './components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
 import { EmptyState } from './components/ui/empty-state';
 import { Notice } from './components/ui/notice';
+import { LoadingRegion } from './loading-region';
 import { RoutineAddForm, RoutineItems, RoutineNotices } from './routine-list';
 import { useChecklist } from './use-checklist';
 import { useRoutineList } from './use-routine-list';
@@ -93,7 +94,7 @@ export function PeriodRoutines({
             </Button>
           )}
           {list.routines === null ? (
-            <p className="text-body-sm text-muted-foreground">루틴을 불러오는 중…</p>
+            <LoadingRegion label="루틴 불러오는 중" />
           ) : list.routines.length > 0 ? (
             <RoutineItems list={list} routines={list.routines} draftKey={cadence} />
           ) : (
