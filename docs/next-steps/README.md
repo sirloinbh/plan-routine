@@ -10,7 +10,7 @@
 
 | 순서 | 이슈                                                       | 할 일                                              | 우선순위 | 착수 전 확인                                                    |
 | ---- | ---------------------------------------------------------- | -------------------------------------------------- | -------- | --------------------------------------------------------------- |
-| 1    | [#79](https://github.com/sirloinbh/plan-routine/issues/79) | compose.yaml을 배포 스크립트의 전제에 맞추기       | P3       | 없음                                                            |
+| 1    | [#79](https://github.com/sirloinbh/plan-routine/issues/79) | compose 변경 뒤 `docker compose up` 확인만 남음    | P3       | Docker 필요                                                     |
 | 2    | [#12](https://github.com/sirloinbh/plan-routine/issues/12) | [후순위] 다른 프로젝트 웹앱으로 링크 이동          | P3       | 카드의 확인 항목(허용 URL). 사용자가 매우 후순위로 지정         |
 | 3    | [#13](https://github.com/sirloinbh/plan-routine/issues/13) | [후순위] 다른 프로젝트 통합 허브 설계              | P3       | [#12](https://github.com/sirloinbh/plan-routine/issues/12) 이후 |
 | 4    | [#34](https://github.com/sirloinbh/plan-routine/issues/34) | 불러오는 중 표시를 공통 Skeleton·Spinner로 바꾸기  | P4       | 없음                                                            |

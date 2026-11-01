@@ -356,7 +356,7 @@ export default defineConfig({ server: { proxy: { '/api': 'http://127.0.0.1:<api-
 
 ### 5.7 Docker Compose와 이미지
 
-`compose.yaml`: 포트는 모두 `127.0.0.1`에만 바인딩한다(로그인 없는 앱 보호).
+`compose.yaml`: 포트의 기본값은 `127.0.0.1`이다(로그인 없는 앱 보호). 서버만 `.env`의 `WEB_BIND`로 지정한다. 이미지는 `deploy/remote-deploy.sh`가 되돌리기에 쓰는 커밋 태그를 붙인다.
 
 ```yaml
 services:
@@ -372,12 +372,13 @@ services:
       - <app>-data:/var/lib/postgresql/data
       - ./database/migrations:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB']
+      test: ['CMD-SHELL', 'pg_isready -h 127.0.0.1 -U $$POSTGRES_USER -d $$POSTGRES_DB']
       interval: 5s
       timeout: 5s
       retries: 15
     restart: unless-stopped
   api:
+    image: <db-name>-backend:${IMAGE_TAG:-local}
     build: ./backend
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-<db>}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-<db>}
@@ -387,8 +388,9 @@ services:
       db: { condition: service_healthy }
     restart: unless-stopped
   web:
+    image: <db-name>-frontend:${IMAGE_TAG:-local}
     build: ./frontend
-    ports: ['127.0.0.1:<web-port>:80']
+    ports: ['${WEB_BIND:-127.0.0.1}:${WEB_PORT:-<web-port>}:80']
     depends_on: [api]
     restart: unless-stopped
 volumes:
