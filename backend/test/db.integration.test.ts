@@ -1335,3 +1335,76 @@ test(
       }
     }),
 );
+
+test(
+  'rows with the same order value come in number order, past where digits run out',
+  { skip: !url, timeout: 30_000 },
+  () =>
+    withClient(async (client, pool) => {
+      const original = await client.query<{ value: string }>(
+        'SELECT value FROM app_settings WHERE key = $1',
+        [anchorSettingKey],
+      );
+      // As text, 1000000 would sort before 999999. Ids are set so the test does not depend on
+      // how far the sequences have run; the sequences themselves are left alone.
+      const ids = Array.from({ length: 11 }, (_, index) => String(999_995 + index));
+      try {
+        await client.query(
+          `INSERT INTO routines (id, name, cadence, sort_order) OVERRIDING SYSTEM VALUE
+           SELECT n, '정렬 ' || n, 'weekly', 0 FROM unnest($1::bigint[]) AS n`,
+          [ids],
+        );
+        await withApi(
+          pool,
+          async (call) => {
+            const inOrder = (rows: unknown) =>
+              (rows as { id: string }[]).map((row) => row.id).filter((id) => ids.includes(id));
+
+            const list = await call('/api/routines?cadence=weekly');
+            assert.deepEqual(inOrder(list.data.routines), ids);
+
+            const checklist = await call('/api/checklist?cadence=weekly&date=2026-10-22');
+            assert.deepEqual(inOrder(checklist.data.items), ids);
+
+            const start = (await call('/api/periods?date=2026-10-22')).data as {
+              periods: Record<string, { start: string }>;
+            };
+            const periodStart = Object.values(start.periods).at(-1)!.start;
+            await client.query(
+              `INSERT INTO twelve_week_goals (id, period_start, title, sort_order)
+               OVERRIDING SYSTEM VALUE
+               SELECT n, $2::date, '정렬 ' || n, 0 FROM unnest($1::bigint[]) AS n`,
+              [ids, periodStart],
+            );
+            const goals = await call('/api/goals');
+            const { goals: current } = goals.data.current as { goals: unknown };
+            assert.deepEqual(inOrder(current), ids);
+
+            // Moving down from 999999 swaps it with 1000000, its neighbour by number.
+            const moved = await call('/api/routines/999999/move', {
+              method: 'POST',
+              body: { direction: 'down' },
+            });
+            assert.equal(moved.status, 200);
+            const after = await call('/api/routines?cadence=weekly');
+            assert.deepEqual(inOrder(after.data.routines), [
+              ...ids.slice(0, 4),
+              '1000000',
+              '999999',
+              ...ids.slice(6),
+            ]);
+          },
+          { today: () => '2026-10-22' },
+        );
+      } finally {
+        await client.query('DELETE FROM twelve_week_goals WHERE id = ANY($1::bigint[])', [ids]);
+        await client.query('DELETE FROM routines WHERE id = ANY($1::bigint[])', [ids]);
+        await client.query('DELETE FROM app_settings WHERE key = $1', [anchorSettingKey]);
+        if (original.rows[0])
+          await client.query('INSERT INTO app_settings (key, value) VALUES ($1, $2)', [
+            anchorSettingKey,
+            original.rows[0].value,
+          ]);
+      }
+    }),
+);
