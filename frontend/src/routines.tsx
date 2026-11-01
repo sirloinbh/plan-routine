@@ -1,5 +1,6 @@
 import { Badge } from './components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
+import { LoadingRegion } from './loading-region';
 import { groupByCategory } from './routine-groups';
 import { RoutineAddForm, RoutineItems, RoutineNotices } from './routine-list';
 import { useRoutineList } from './use-routine-list';
@@ -16,12 +17,7 @@ export type Routine = {
 export function DailyRoutines() {
   const list = useRoutineList('daily');
 
-  if (list.routines === null)
-    return (
-      <p role="status" className="text-body-sm text-muted-foreground">
-        루틴을 불러오는 중…
-      </p>
-    );
+  if (list.routines === null) return <LoadingRegion label="루틴 불러오는 중" />;
 
   return (
     <div className="flex flex-col gap-4">

@@ -8,6 +8,7 @@ import { Notice } from './components/ui/notice';
 import { requestJson } from './lib/api';
 import { useNotice } from './lib/use-notice';
 import { cn } from './lib/utils';
+import { LoadingRegion } from './loading-region';
 import { groupByCategory } from './routine-groups';
 import { serviceDate } from './service-date';
 import { isPassingFailure, useReloadOnDateChange } from './use-date-change';
@@ -228,9 +229,7 @@ export function Stats() {
     return loadFailed ? (
       <div className="flex flex-col items-start gap-3">{failure}</div>
     ) : (
-      <p role="status" className="text-body-sm text-muted-foreground">
-        달성률을 불러오는 중…
-      </p>
+      <LoadingRegion label="달성률 불러오는 중" />
     );
 
   const itemsOf = (cadence: string) => data.items.filter((item) => item.cadence === cadence);

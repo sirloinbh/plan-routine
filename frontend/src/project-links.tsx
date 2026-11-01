@@ -4,9 +4,11 @@ import { Button } from './components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
 import { Input } from './components/ui/input';
 import { Notice } from './components/ui/notice';
+import { Spinner } from './components/ui/spinner';
 import { useFocusRequest } from './focus-moves';
 import { requestJson } from './lib/api';
 import { useNotice } from './lib/use-notice';
+import { LoadingRegion } from './loading-region';
 
 export type ProjectLink = { id: string; name: string; url: string };
 
@@ -121,11 +123,7 @@ export function ProjectLinks() {
           </Button>
         )}
         {projects === null ? (
-          !loadFailed && (
-            <p role="status" className="text-body-sm text-muted-foreground">
-              프로젝트를 불러오는 중…
-            </p>
-          )
+          !loadFailed && <LoadingRegion label="프로젝트 불러오는 중" rows={2} />
         ) : projects.length === 0 ? (
           <p className="text-body-sm text-muted-foreground">아직 등록한 프로젝트가 없습니다</p>
         ) : (
@@ -147,6 +145,7 @@ export function ProjectLinks() {
                     disabled={busy}
                     onClick={() => void remove(project)}
                   >
+                    {busy && <Spinner size="sm" label="처리하는 중" />}
                     삭제 확인
                   </Button>
                 ) : (
@@ -194,6 +193,7 @@ export function ProjectLinks() {
             onChange={(event) => setUrl(event.target.value)}
           />
           <Button type="submit" disabled={busy}>
+            {busy && <Spinner size="sm" label="저장하는 중" />}
             추가
           </Button>
         </form>

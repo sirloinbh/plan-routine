@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { expect, test, vi } from 'vitest';
 
 import { Diary } from './diary';
@@ -621,4 +621,27 @@ test('a refused body is marked but does not take focus once the user has moved o
   await flush();
   expect(body).toHaveAttribute('aria-invalid', 'true');
   expect(note).toHaveFocus();
+});
+
+test('the first load shows a named busy region, and saving shows a spinner on the button', async () => {
+  const api = diaryApi();
+  api.holdNextLoad();
+  render(<Diary />);
+  expect(screen.getByRole('region', { name: '일기 불러오는 중' })).toHaveAttribute(
+    'aria-busy',
+    'true',
+  );
+  api.releaseLoad();
+  await type('하루 돌아보기', '저장 중인 글');
+  api.holdNextSave();
+  press('저장');
+  await flush();
+  expect(
+    within(screen.getByRole('button', { name: /저장/ })).getByRole('status', {
+      name: '저장하는 중',
+    }),
+  ).toBeInTheDocument();
+  api.releaseSave();
+  await flush();
+  expect(screen.queryByRole('status', { name: '저장하는 중' })).not.toBeInTheDocument();
 });

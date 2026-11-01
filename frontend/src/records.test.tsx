@@ -218,7 +218,7 @@ test('a slow answer for an earlier day does not replace the day chosen after it'
   fireEvent.click(dayButton('2026-10-20'));
   await flush();
   // Nothing from the previous day stays on screen while the next one loads.
-  expect(screen.getByText('이 날의 기록을 불러오는 중…')).toBeInTheDocument();
+  expect(screen.getByRole('region', { name: '이 날의 기록 불러오는 중' })).toBeInTheDocument();
   fireEvent.click(dayButton('2026-10-01'));
   await flush();
   api.release('2026-10-20');
@@ -303,7 +303,9 @@ test('picking the day that failed loads it again rather than waiting forever', a
   fireEvent.click(dayButton('2026-10-20'));
   await flush();
   expect(screen.getByRole('region', { name: '2026-10-20 기록' })).toBeVisible();
-  expect(screen.queryByText('이 날의 기록을 불러오는 중…')).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole('region', { name: '이 날의 기록 불러오는 중' }),
+  ).not.toBeInTheDocument();
 });
 
 test('the calendar heading is only the month, without its buttons', async () => {

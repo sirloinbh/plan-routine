@@ -5,11 +5,13 @@ import { Button } from './components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
 import { Input } from './components/ui/input';
 import { Notice } from './components/ui/notice';
+import { Spinner } from './components/ui/spinner';
 import { useFocusRequest } from './focus-moves';
 import { GoalRoutineLinks, type LinkedRoutine } from './goal-routine-links';
 import { LabeledTextarea } from './labeled-textarea';
 import { requestJson } from './lib/api';
 import { type NoticeValue, useNotice } from './lib/use-notice';
+import { LoadingRegion } from './loading-region';
 import { PeriodRoutines } from './period-routines';
 import { serviceDate } from './service-date';
 import { isPassingFailure, useReloadOnDateChange } from './use-date-change';
@@ -162,6 +164,7 @@ function PastPeriod({
           })}
           <Notice notice={notice} />
           <Button type="submit" className="self-start">
+            {saving && <Spinner size="sm" label="저장하는 중" />}
             회고 저장
           </Button>
         </form>
@@ -313,6 +316,7 @@ function CurrentGoals({
                       onChange={(event) => setEditing({ id: goal.id, title: event.target.value })}
                     />
                     <Button type="submit" disabled={busy}>
+                      {busy && <Spinner size="sm" label="저장하는 중" />}
                       저장
                     </Button>
                     <Button type="button" variant="ghost" onClick={() => cancelEditing(goal.id)}>
@@ -348,6 +352,7 @@ function CurrentGoals({
                           disabled={busy}
                           onClick={() => void remove(goal)}
                         >
+                          {busy && <Spinner size="sm" label="처리하는 중" />}
                           삭제 확인
                         </Button>
                       ) : (
@@ -403,6 +408,7 @@ function CurrentGoals({
             onChange={(event) => setDraft(event.target.value)}
           />
           <Button type="submit" disabled={busy}>
+            {busy && <Spinner size="sm" label="저장하는 중" />}
             추가
           </Button>
         </form>
@@ -520,11 +526,7 @@ export function TwelveWeek() {
           목표 다시 불러오기
         </Button>
       )}
-      {!data && !loadFailed && (
-        <p role="status" className="text-body-sm text-muted-foreground">
-          목표를 불러오는 중…
-        </p>
-      )}
+      {!data && !loadFailed && <LoadingRegion label="목표 불러오는 중" />}
       {toReview.length > 0 && (
         <p className="text-body font-semibold">지난 기간의 목표를 돌아보고 새 목표를 세워 보세요</p>
       )}
