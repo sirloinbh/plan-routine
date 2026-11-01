@@ -91,6 +91,8 @@ export function Diary() {
         if (stored?.date === loaded.date && !draft) clearDraft(loaded.date);
         // Read only here: a stored draft may by now be another tab's, with a base of its own.
         draftBase.current = draft?.base ?? null;
+        // A restored draft is this tab's now, even if storing it again is refused.
+        lastWritten.current = draft?.form ?? null;
         setData(loaded);
         setForm(draft?.form ?? server);
         setSavedForm(server);
