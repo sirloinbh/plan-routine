@@ -85,7 +85,8 @@ export function useRoutineList(cadence: string) {
   });
 
   const requestFocus = (keys: string[]) => {
-    // On a touch screen, focusing a field pops up the keyboard nobody asked for.
+    // On a touch screen, focusing the add field pops up a keyboard nobody asked for. A failed rename
+    // still returns to its field: the name needs fixing, so the keyboard is wanted there.
     const touch = window.matchMedia('(pointer: coarse)').matches;
     focusRequest.current = {
       keys: touch ? keys.filter((key) => !key.startsWith('add-')) : keys,

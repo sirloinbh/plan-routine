@@ -282,6 +282,8 @@ test('a routine moved to the end of its group hands focus to the other direction
   routineApi(twoRoutines);
   render(<DailyRoutines />);
   await screen.findByText('물 한 잔');
+  // The pressed button keeps focus while disabled, as some browsers do; that is not moving on.
+  button('물 한 잔 위로 이동').focus();
   fireEvent.click(button('물 한 잔 위로 이동'));
   await waitFor(() => expect(names('기상')).toEqual(['물 한 잔', '6시 기상']));
   expect(button('물 한 잔 위로 이동')).toBeDisabled();
