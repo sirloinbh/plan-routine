@@ -1,8 +1,8 @@
 import { useState } from 'react';
 
 import { Checklist, type ChecklistItem } from './checklist';
-import { Button } from './components/ui/button';
 import { Notice } from './components/ui/notice';
+import { RetryButton } from './retry-button';
 import { useChecklist } from './use-checklist';
 
 // Unfinished four-week routines on the daily page, during the last 7 days of their period.
@@ -25,11 +25,7 @@ export function FourWeekDue() {
   return (
     <div className="flex flex-col items-start gap-2">
       <Notice notice={shownNotice} />
-      {loadFailed && (
-        <Button type="button" variant="outline" size="sm" onClick={retry}>
-          4주 루틴 다시 불러오기
-        </Button>
-      )}
+      {loadFailed && <RetryButton onClick={retry}>4주 루틴 다시 불러오기</RetryButton>}
       {data && items.length > 0 && (
         <>
           <div className="w-full">

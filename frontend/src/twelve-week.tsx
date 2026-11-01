@@ -13,6 +13,7 @@ import { requestJson } from './lib/api';
 import { type NoticeValue, useNotice } from './lib/use-notice';
 import { LoadingRegion } from './loading-region';
 import { PeriodRoutines } from './period-routines';
+import { RetryButton } from './retry-button';
 import { serviceDate } from './service-date';
 import { isPassingFailure, useReloadOnDateChange } from './use-date-change';
 
@@ -531,9 +532,9 @@ export function TwelveWeek() {
     <div className="flex flex-col gap-6">
       <Notice notice={notice} />
       {loadFailed && (
-        <Button type="button" variant="outline" size="sm" className="self-start" onClick={reload}>
+        <RetryButton className="self-start" onClick={reload}>
           목표 다시 불러오기
-        </Button>
+        </RetryButton>
       )}
       {!data && !loadFailed && <LoadingRegion label="목표 불러오는 중" shape="card" />}
       {toReview.length > 0 && (

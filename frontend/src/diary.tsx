@@ -19,6 +19,7 @@ import { LabeledTextarea } from './labeled-textarea';
 import { RequestError, requestJson } from './lib/api';
 import { useNotice } from './lib/use-notice';
 import { LoadingRegion } from './loading-region';
+import { RetryButton } from './retry-button';
 
 type DiaryEntry = {
   date: string;
@@ -259,9 +260,7 @@ export function Diary() {
     ) : (
       <div className="flex flex-col items-start gap-3">
         <Notice notice={notice} />
-        <Button type="button" variant="outline" size="sm" onClick={() => moveTo(date)}>
-          다시 시도
-        </Button>
+        <RetryButton onClick={() => moveTo(date)}>다시 시도</RetryButton>
       </div>
     );
 

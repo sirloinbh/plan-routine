@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { Badge } from './components/ui/badge';
-import { Button } from './components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
 import { EmptyState } from './components/ui/empty-state';
 import { Notice } from './components/ui/notice';
@@ -9,6 +8,7 @@ import { requestJson } from './lib/api';
 import { useNotice } from './lib/use-notice';
 import { cn } from './lib/utils';
 import { LoadingRegion } from './loading-region';
+import { RetryButton } from './retry-button';
 import { groupByCategory } from './routine-groups';
 import { serviceDate } from './service-date';
 import { isPassingFailure, useReloadOnDateChange } from './use-date-change';
@@ -218,9 +218,9 @@ export function Stats() {
     <>
       <Notice notice={notice} />
       {loadFailed && (
-        <Button type="button" variant="outline" size="sm" className="self-start" onClick={reload}>
+        <RetryButton className="self-start" onClick={reload}>
           다시 시도
-        </Button>
+        </RetryButton>
       )}
     </>
   );

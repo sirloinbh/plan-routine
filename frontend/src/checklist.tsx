@@ -9,6 +9,7 @@ import { Label } from './components/ui/label';
 import { Notice } from './components/ui/notice';
 import type { NoticeValue } from './lib/use-notice';
 import { LoadingRegion } from './loading-region';
+import { RetryButton } from './retry-button';
 
 export type ChecklistItem = {
   id: string;
@@ -37,9 +38,7 @@ export function ChecklistPending({
   return failed ? (
     <div className="flex flex-col items-start gap-3">
       <Notice notice={notice} />
-      <Button type="button" variant="outline" size="sm" onClick={onRetry}>
-        다시 시도
-      </Button>
+      <RetryButton onClick={onRetry}>다시 시도</RetryButton>
     </div>
   ) : (
     <LoadingRegion label="체크리스트 불러오는 중" shape={shape} />

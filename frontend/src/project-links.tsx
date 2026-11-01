@@ -9,6 +9,7 @@ import { useFocusRequest } from './focus-moves';
 import { requestJson } from './lib/api';
 import { useNotice } from './lib/use-notice';
 import { LoadingRegion } from './loading-region';
+import { RetryButton } from './retry-button';
 
 export type ProjectLink = { id: string; name: string; url: string };
 
@@ -114,10 +115,7 @@ export function ProjectLinks() {
         </p>
         <Notice notice={notice} className="wrap-anywhere" />
         {loadFailed && (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
+          <RetryButton
             className="self-start"
             onClick={() => {
               clear();
@@ -126,7 +124,7 @@ export function ProjectLinks() {
             }}
           >
             프로젝트 다시 불러오기
-          </Button>
+          </RetryButton>
         )}
         {projects === null ? (
           !loadFailed && <LoadingRegion label="프로젝트 불러오는 중" rows={2} />
