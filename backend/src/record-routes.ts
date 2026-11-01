@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { Pool } from 'pg';
-import { z } from 'zod';
+import { z } from 'zod/v4';
 
 import { dailyRoutineOn } from './day-records.js';
 import { entryColumns } from './diary-routes.js';
@@ -11,7 +11,7 @@ const earliestDate = '2000-01-01';
 
 const monthQuery = z.object({
   month: z
-    .string({ invalid_type_error: '달은 YYYY-MM 형식이어야 합니다' })
+    .string({ error: '달은 YYYY-MM 형식이어야 합니다' })
     .regex(/^\d{4}-(0[1-9]|1[0-2])$/, '달은 YYYY-MM 형식이어야 합니다')
     .optional(),
 });

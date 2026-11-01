@@ -282,3 +282,20 @@ test('invalid reviews are Korean 400s before any query', async () => {
   );
   assert.equal(queries.length, 0);
 });
+
+test('goal input of the wrong type answers with one message, even if it has a length', async () => {
+  const { pool, queries } = fakePool();
+  await withApi(
+    pool,
+    async (call) => {
+      const goals = await call('/api/goals', { method: 'POST', body: { title: [] } });
+      assert.equal(goals.status, 400);
+      assert.equal(goals.data.error, '목표는 글자여야 합니다');
+      const reviews = await call('/api/goals/reviews', { method: 'PUT', body: { reviews: '' } });
+      assert.equal(reviews.status, 400);
+      assert.equal(reviews.data.error, '회고할 목표가 없습니다');
+    },
+    { today },
+  );
+  assert.equal(queries.length, 0);
+});

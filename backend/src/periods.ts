@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from 'zod/v4';
 
 export const cadences = ['daily', 'weekly', 'four_week', 'twelve_week'] as const;
 export type Cadence = (typeof cadences)[number];
@@ -26,8 +26,8 @@ export function isCalendarDate(value: string) {
 
 export const calendarDate = z
   .string({
-    required_error: '날짜를 입력해 주세요',
-    invalid_type_error: '날짜 형식이 올바르지 않습니다',
+    error: (issue) =>
+      issue.input === undefined ? '날짜를 입력해 주세요' : '날짜 형식이 올바르지 않습니다',
   })
   .refine(isCalendarDate, '날짜는 YYYY-MM-DD 형식의 실제 날짜여야 합니다');
 

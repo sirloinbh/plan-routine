@@ -111,3 +111,19 @@ test('a repeated date query parameter is rejected with a Korean 400', async () =
     assert.equal(data.error, '날짜 형식이 올바르지 않습니다');
   });
 });
+
+test('a missing routine name and a name of the wrong type have different messages', () => {
+  const message = (name: unknown) =>
+    routineInput.safeParse({ name, cadence: 'weekly' }).error?.issues[0].message;
+  assert.equal(message(undefined), '루틴 이름을 입력해 주세요');
+  assert.equal(message(1), '루틴 이름은 글자여야 합니다');
+});
+
+test('a routine name that is not text answers with one message, even if it has a length', () => {
+  const messages = (name: unknown) =>
+    routineInput.safeParse({ name, cadence: 'weekly' }).error?.issues.map((issue) => issue.message);
+  assert.deepEqual(messages([]), ['루틴 이름은 글자여야 합니다']);
+  assert.deepEqual(messages(Array.from({ length: 101 }, () => 'a')), [
+    '루틴 이름은 글자여야 합니다',
+  ]);
+});

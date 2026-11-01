@@ -178,3 +178,39 @@ test('the earliest date has no previous date', async () => {
     { today },
   );
 });
+
+test('notes left out or blank are saved as no note', async () => {
+  const { pool, queries } = fakePool();
+  await withApi(
+    pool,
+    async (call) => {
+      const { status } = await call(
+        '/api/diary/2026-10-22',
+        put({ body: ' 본문 ', regretNote: '   ', tomorrowNote: null }),
+      );
+      assert.equal(status, 200);
+    },
+    { today },
+  );
+  assert.deepEqual(queries[0].params, ['2026-10-22', '본문', null, null, null]);
+});
+
+test('diary text that is not text answers with one message, even if it has a length', async () => {
+  const { pool, queries } = fakePool();
+  await withApi(
+    pool,
+    async (call) => {
+      const empty = await call('/api/diary/2026-10-22', put({ body: [] }));
+      assert.equal(empty.status, 400);
+      assert.equal(empty.data.error, '일기 본문은 글자여야 합니다');
+      const note = await call(
+        '/api/diary/2026-10-22',
+        put({ body: '본문', goodNote: Array.from({ length: 1001 }, () => 'a') }),
+      );
+      assert.equal(note.status, 400);
+      assert.equal(note.data.error, '잘한 점은 글자여야 합니다');
+    },
+    { today },
+  );
+  assert.equal(queries.length, 0);
+});

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { Pool, PoolClient } from 'pg';
-import { z } from 'zod';
+import { z } from 'zod/v4';
 
 import { daysBetween, periodFor } from './periods.js';
 import { routineAnchorDate } from './routines.js';
@@ -15,21 +15,20 @@ const noNul = (value: string) => !value.includes('\0');
 const nulMessage = '쓸 수 없는 문자가 들어 있습니다';
 
 const goalIdMessage = '목표 번호가 올바르지 않습니다';
-const goalId = z
-  .string({ required_error: goalIdMessage, invalid_type_error: goalIdMessage })
-  .regex(/^\d{1,18}$/, goalIdMessage);
-const badRequest = { invalid_type_error: '요청 형식이 올바르지 않습니다' };
+const goalId = z.string({ error: goalIdMessage }).regex(/^\d{1,18}$/, goalIdMessage);
+const badRequest = { error: '요청 형식이 올바르지 않습니다' };
 const idParam = z.object({ id: goalId });
+// Not .min()/.max(): those also run on a non-string with a length and add a second message.
 const goalInput = z.object(
   {
     title: z
       .string({
-        required_error: '목표를 입력해 주세요',
-        invalid_type_error: '목표는 글자여야 합니다',
+        error: (issue) =>
+          issue.input === undefined ? '목표를 입력해 주세요' : '목표는 글자여야 합니다',
       })
       .trim()
-      .min(1, '목표를 입력해 주세요')
-      .max(200, '목표는 200자 이하로 입력해 주세요')
+      .refine((value) => value.length >= 1, '목표를 입력해 주세요')
+      .refine((value) => value.length <= 200, '목표는 200자 이하로 입력해 주세요')
       .refine(noNul, nulMessage),
   },
   badRequest,
@@ -41,26 +40,21 @@ const reviewsInput = z.object(
         z.object(
           {
             id: goalId,
-            achieved: z
-              .boolean({
-                required_error: '달성 여부가 올바르지 않습니다',
-                invalid_type_error: '달성 여부가 올바르지 않습니다',
-              })
-              .nullable(),
+            achieved: z.boolean({ error: '달성 여부가 올바르지 않습니다' }).nullable(),
             // A blank note is the same as no note.
             note: z
-              .string({ invalid_type_error: '메모는 글자여야 합니다' })
+              .string({ error: '메모는 글자여야 합니다' })
               .trim()
-              .max(1000, '메모는 1000자 이하로 입력해 주세요')
+              .refine((value) => value.length <= 1000, '메모는 1000자 이하로 입력해 주세요')
               .refine(noNul, nulMessage)
               .nullish()
               .transform((value) => value || null),
           },
-          { invalid_type_error: '회고 내용이 올바르지 않습니다' },
+          { error: '회고 내용이 올바르지 않습니다' },
         ),
-        { required_error: '회고할 목표가 없습니다', invalid_type_error: '회고할 목표가 없습니다' },
+        { error: '회고할 목표가 없습니다' },
       )
-      .min(1, '회고할 목표가 없습니다')
+      .refine((reviews) => reviews.length >= 1, '회고할 목표가 없습니다')
       .refine(
         (reviews) => new Set(reviews.map((review) => review.id)).size === reviews.length,
         '같은 목표를 두 번 회고할 수 없습니다',
