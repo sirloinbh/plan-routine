@@ -1,67 +1,38 @@
-import { readdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { pathToFileURL } from 'node:url';
+// Host and CI command for the shared migration runner (src/migrations.ts).
+// Usage: npm run db:migrate            applies pending files
+//        npm run db:migrate -- --status only reports (no database change)
+import { fileURLToPath } from 'node:url';
 
-import { Pool } from 'pg';
+import { Client } from 'pg';
 
-// deploy/remote-deploy.sh runs this as dist/migrate.js with the files mounted here.
-const defaultDirectory = '/database/migrations';
+import { migrate, migrationStatus, readMigrations } from './migrations.js';
 
-// Any fixed number, so that only one run applies migrations at a time.
-const migrationLock = 7_205_001;
-
-/**
- * Applies every migration in file order, each in its own transaction. Every file is safe to run
- * again (database/README.md), so nothing records what has run. A failure stops the run and leaves
- * the failing file unapplied.
- */
-export async function applyMigrations(pool: Pool, directory: string) {
-  const files = readdirSync(directory)
-    .filter((file) => file.endsWith('.sql'))
-    .sort();
-  if (files.length === 0) throw new Error(`No migrations found in ${directory}`);
-  const client = await pool.connect();
-  try {
-    await client.query('SELECT pg_advisory_lock($1)', [migrationLock]);
-    for (const file of files) {
-      await client.query('BEGIN');
-      try {
-        await client.query(readFileSync(join(directory, file), 'utf8'));
-        await client.query('COMMIT');
-      } catch (error) {
-        await client.query('ROLLBACK').catch(() => {});
-        throw new Error(
-          `Migration ${file} failed: ${error instanceof Error ? error.message : String(error)}`,
-          { cause: error },
-        );
-      }
-    }
-    return files;
-  } finally {
-    await client.query('SELECT pg_advisory_unlock($1)', [migrationLock]).catch(() => {});
-    client.release();
-  }
+const dir = fileURLToPath(new URL('../../database/migrations/', import.meta.url));
+const url = process.env.DATABASE_URL;
+if (!url) {
+  console.error('DATABASE_URL이 필요합니다. .env를 확인하세요.');
+  process.exit(1);
 }
-
-async function main() {
-  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-  try {
-    const files = await applyMigrations(pool, process.env.MIGRATIONS_DIR ?? defaultDirectory);
-    console.log(JSON.stringify({ event: 'migrations_applied', files }));
-  } finally {
-    await pool.end();
-  }
-}
-
-// Only when run as a program, so tests can import this file.
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  main().catch((error: unknown) => {
-    console.error(
-      JSON.stringify({
-        event: 'migrations_failed',
-        message: error instanceof Error ? error.message : String(error),
-      }),
+const client = new Client({ connectionString: url });
+await client.connect();
+try {
+  const files = await readMigrations(dir);
+  if (process.argv.includes('--status')) {
+    const status = await migrationStatus(client, files);
+    const done = new Set(status.applied.map((row) => row.name));
+    for (const file of files)
+      console.log(`${done.has(file.name) ? '적용됨' : '대기'}  ${file.name}`);
+    for (const error of status.errors) console.error(`오류  ${error}`);
+    process.exitCode = status.errors.length ? 1 : 0;
+  } else {
+    const applied = await migrate(client, files);
+    console.log(
+      applied.length ? `적용 완료: ${applied.join(', ')}` : '적용할 마이그레이션이 없습니다.',
     );
-    process.exitCode = 1;
-  });
+  }
+} catch (e) {
+  console.error((e as Error).message);
+  process.exitCode = 1;
+} finally {
+  await client.end();
 }

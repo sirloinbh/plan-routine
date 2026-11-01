@@ -19,6 +19,7 @@
     "typecheck": "npm run typecheck --workspaces",
     "standards:check": "node .standards/check.mjs",
     "lockfiles:sync": "node .standards/lockfiles.mjs --write",
+    "db:migrate": "npm run db:migrate -w backend --",
     "knip": "knip"
   },
   "devDependencies": {

@@ -3,9 +3,9 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-import { Pool, type PoolClient } from 'pg';
+import { Client, Pool, type PoolClient } from 'pg';
 
-import { applyMigrations } from '../src/migrate.js';
+import { migrate, readMigrations } from '../src/migrations.js';
 import { anchorSettingKey, routineAnchorDate } from '../src/routines.js';
 import { withApi } from './helpers.js';
 
@@ -1414,7 +1414,7 @@ test(
 const migrationsDirectory = fileURLToPath(new URL('../../database/migrations', import.meta.url));
 
 test(
-  'the migration runner fills an empty database and runs again over an existing one',
+  'the migration runner fills an empty database, then applies only what is new',
   { skip: !url, timeout: 60_000 },
   async () => {
     // A schema of its own is an empty database as far as the migrations can tell.
@@ -1422,33 +1422,35 @@ test(
     const admin = new Pool({ connectionString: url, max: 1 });
     await admin.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);
     await admin.query(`CREATE SCHEMA ${schema}`);
-    const pool = new Pool({ connectionString: url, max: 2, options: `-c search_path=${schema}` });
+    const client = new Client({ connectionString: url, options: `-c search_path=${schema}` });
+    await client.connect();
     try {
-      const tables = async () =>
-        (
-          await admin.query<{ table_name: string }>(
-            'SELECT table_name FROM information_schema.tables WHERE table_schema = $1 ORDER BY 1',
-            [schema],
-          )
-        ).rows.map((row) => row.table_name);
-      assert.deepEqual(await tables(), []);
-
-      const files = await applyMigrations(pool, migrationsDirectory);
-      assert.ok(files.includes('005_goal_routines.sql'));
-      const created = await tables();
+      const files = await readMigrations(migrationsDirectory);
+      const applied = await migrate(client, files);
+      assert.deepEqual(
+        applied,
+        files.map((file) => file.name),
+      );
+      const created = await admin.query(
+        'SELECT table_name FROM information_schema.tables WHERE table_schema = $1',
+        [schema],
+      );
+      const names = created.rows.map((row: { table_name: string }) => row.table_name);
       for (const table of ['app_settings', 'routines', 'twelve_week_goal_routines'])
-        assert.ok(created.includes(table), table);
+        assert.ok(names.includes(table), table);
 
-      // Over an existing database: nothing is lost and the seeded item stays single.
-      await pool.query("INSERT INTO routines (name, cadence) VALUES ('남는 루틴', 'weekly')");
-      await applyMigrations(pool, migrationsDirectory);
-      assert.deepEqual(await tables(), created);
-      const kept = await pool.query("SELECT 1 FROM routines WHERE name = '남는 루틴'");
-      assert.equal(kept.rowCount, 1);
-      const seeded = await pool.query("SELECT 1 FROM routines WHERE name = '목표 재설정'");
-      assert.equal(seeded.rowCount, 1);
+      // A later run applies nothing, so a seeded item the user renamed does not come back.
+      await client.query("UPDATE routines SET name = '바꾼 이름' WHERE name = '목표 재설정'");
+      assert.deepEqual(await migrate(client, files), []);
+      const seeded = await client.query("SELECT 1 FROM routines WHERE name = '목표 재설정'");
+      assert.equal(seeded.rowCount, 0);
+
+      // A database brought up without history (Docker's first run) gets every file recorded.
+      await client.query('DROP TABLE schema_migrations');
+      const again = await migrate(client, files);
+      assert.equal(again.length, files.length);
     } finally {
-      await pool.end();
+      await client.end();
       await admin.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);
       await admin.end();
     }
