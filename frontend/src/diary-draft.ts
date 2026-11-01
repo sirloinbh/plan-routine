@@ -1,5 +1,6 @@
 // Unsaved diary text kept in this browser, so leaving the page does not lose it (confirmed on issue
-// #45). One draft is enough: moving to another day is blocked while text is unsaved.
+// #45). One draft is enough for one tab: moving to another day is blocked while text is unsaved.
+// Two tabs share it, so the later one wins (#64).
 
 export type DiaryForm = {
   body: string;
@@ -18,6 +19,13 @@ export const sameForm = (a: DiaryForm, b: DiaryForm) =>
   a.goodNote === b.goodNote &&
   a.regretNote === b.regretNote &&
   a.tomorrowNote === b.tomorrowNote;
+
+// The server trims what it stores, so a difference in surrounding spaces is not unsaved text.
+export const sameText = (a: DiaryForm, b: DiaryForm) =>
+  a.body.trim() === b.body.trim() &&
+  a.goodNote.trim() === b.goodNote.trim() &&
+  a.regretNote.trim() === b.regretNote.trim() &&
+  a.tomorrowNote.trim() === b.tomorrowNote.trim();
 
 const isForm = (value: unknown): value is DiaryForm => {
   if (typeof value !== 'object' || value === null) return false;
@@ -49,10 +57,15 @@ export function writeDraft(draft: DiaryDraft) {
   }
 }
 
-/** Leaves a draft of another day alone: a second tab may be writing it. */
-export function clearDraft(date: string) {
+/**
+ * Leaves a draft of another day alone: a second tab may be writing it. With `sent`, also leaves
+ * text written after that save began.
+ */
+export function clearDraft(date: string, sent?: DiaryForm) {
   try {
-    if (readDraft()?.date === date) localStorage.removeItem(draftKey);
+    const stored = readDraft();
+    if (stored?.date === date && (!sent || sameForm(stored.form, sent)))
+      localStorage.removeItem(draftKey);
   } catch {
     // Blocked storage holds no draft to clear.
   }

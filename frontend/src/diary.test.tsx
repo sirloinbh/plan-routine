@@ -38,6 +38,8 @@ function diaryApi(seed: Entry[] = []) {
           return reply(500, { error: '서버 오류가 발생했습니다' });
         }
         const date = new URL(url, 'http://localhost').searchParams.get('date') ?? today;
+        if (date < '2000-01-01')
+          return reply(400, { error: '2000년 이후 날짜의 일기만 쓸 수 있습니다' });
         const response = reply(200, {
           date,
           today,
@@ -341,6 +343,7 @@ test('a saved diary leaves no draft and no notice behind', async () => {
   render(<Diary />);
   expect(await field('하루 돌아보기')).toHaveValue('저장할 글');
   expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  expect(localStorage.getItem(draftKey)).toBeNull();
 });
 
 test('a failed save keeps the draft', async () => {
@@ -384,12 +387,70 @@ test('a draft from an earlier day opens that day, not an empty today', async () 
   expect(screen.getByRole('heading', { level: 2, name: '2026-10-20' })).toBeVisible();
 });
 
-test('a draft older than a save made elsewhere says so', async () => {
+test('a draft older than a save made elsewhere keeps saying so on every visit', async () => {
   diaryApi([saved]);
   seedDraft(today, '예전 글', { ...empty, body: '더 예전 글' });
+  const { unmount } = render(<Diary />);
+  expect(await field('하루 돌아보기')).toHaveValue('예전 글');
+  expect(screen.getByRole('status')).toHaveTextContent('저장된 내용이 달라졌으니');
+  await flush();
+  unmount();
+
   render(<Diary />);
   expect(await field('하루 돌아보기')).toHaveValue('예전 글');
   expect(screen.getByRole('status')).toHaveTextContent('저장된 내용이 달라졌으니');
+});
+
+test('an answer to an earlier save does not erase text written since', async () => {
+  const api = diaryApi();
+  const { unmount } = render(<Diary />);
+  await type('하루 돌아보기', '먼저 쓴 글');
+  api.holdNextSave();
+  press('저장');
+  await flush();
+  unmount();
+
+  render(<Diary />);
+  await type('하루 돌아보기', '이어서 쓴 글');
+  await flush();
+  api.releaseSave();
+  await flush();
+  expect(JSON.parse(localStorage.getItem(draftKey)!)).toMatchObject({
+    form: { body: '이어서 쓴 글' },
+  });
+});
+
+test('spaces alone leave no draft, so they cannot reopen an old day', async () => {
+  diaryApi([saved]);
+  const { unmount } = render(<Diary />);
+  await type('하루 돌아보기', '잘 보낸 하루 ');
+  await flush();
+  expect(localStorage.getItem(draftKey)).toBeNull();
+  unmount();
+
+  seedDraft('2026-10-20', '   ');
+  render(<Diary />);
+  expect(await field('하루 돌아보기')).toHaveValue('');
+  expect(screen.queryByRole('status')).not.toBeInTheDocument();
+});
+
+test('a draft for a day the server refuses opens today instead of failing forever', async () => {
+  diaryApi();
+  seedDraft('1999-01-01', '열 수 없는 날의 글');
+  render(<Diary />);
+  expect(await screen.findByRole('heading', { level: 2, name: `오늘 (${today})` })).toBeVisible();
+  expect(screen.getByRole('alert')).toHaveTextContent('1999-01-01은 열 수 없는 날짜라');
+  expect(localStorage.getItem(draftKey)).toBeNull();
+});
+
+test('typing again takes back a discard that was about to be confirmed', async () => {
+  diaryApi();
+  render(<Diary />);
+  await type('하루 돌아보기', '버릴까 한 글');
+  press('버리기');
+  await type('하루 돌아보기', '계속 쓰는 글');
+  expect(screen.queryByRole('button', { name: '버리기 확인' })).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: '버리기' })).toBeInTheDocument();
 });
 
 test('a draft matching what is saved restores nothing', async () => {

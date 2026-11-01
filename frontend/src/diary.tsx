@@ -4,9 +4,16 @@ import { flushSync } from 'react-dom';
 import { Button } from './components/ui/button';
 import { Card, CardContent } from './components/ui/card';
 import { Notice } from './components/ui/notice';
-import { clearDraft, type DiaryForm, readDraft, sameForm, writeDraft } from './diary-draft';
+import {
+  clearDraft,
+  type DiaryForm,
+  readDraft,
+  sameForm,
+  sameText,
+  writeDraft,
+} from './diary-draft';
 import { LabeledTextarea } from './labeled-textarea';
-import { requestJson } from './lib/api';
+import { RequestError, requestJson } from './lib/api';
 import { useNotice } from './lib/use-notice';
 
 type DiaryEntry = {
@@ -60,7 +67,7 @@ export function Diary() {
         const server = formFrom(loaded.entry);
         const stored = readDraft();
         const draft =
-          stored?.date === loaded.date && !sameForm(stored.form, server) ? stored : null;
+          stored?.date === loaded.date && !sameText(stored.form, server) ? stored : null;
         setData(loaded);
         setForm(draft?.form ?? server);
         setSavedForm(server);
@@ -74,6 +81,18 @@ export function Diary() {
       })
       .catch((cause: unknown) => {
         if (ignore) return;
+        // A day the server refuses can never open, so its draft must not keep sending the user there.
+        if (
+          cause instanceof RequestError &&
+          cause.status === 400 &&
+          date &&
+          readDraft()?.date === date
+        ) {
+          clearDraft(date);
+          setDate(null);
+          error(`${date}은 열 수 없는 날짜라 그날의 임시 글을 지웠습니다`);
+          return;
+        }
         setLoading(false);
         error(cause);
       });
@@ -87,13 +106,16 @@ export function Diary() {
   // While a day is loading, the form still holds the previous day's text.
   useEffect(() => {
     if (!data || loading) return;
-    if (dirty) {
-      setDraftFailed(!writeDraft({ date: data.date, form, base: savedForm }));
+    if (!sameText(form, savedForm)) {
+      // The draft keeps its first base, or a save made elsewhere would be forgotten on the next visit.
+      const kept = readDraft();
+      const base = kept?.date === data.date ? kept.base : savedForm;
+      setDraftFailed(!writeDraft({ date: data.date, form, base }));
       return;
     }
     clearDraft(data.date);
     setDraftFailed(false);
-  }, [data, loading, dirty, form, savedForm]);
+  }, [data, loading, form, savedForm]);
 
   // A draft survives closing the tab. Only when it could not be kept does leaving need a warning.
   const leavingLosesText = dirty && draftFailed;
@@ -104,8 +126,10 @@ export function Diary() {
     return () => window.removeEventListener('beforeunload', warn);
   }, [leavingLosesText]);
 
-  const setField = (field: keyof DiaryForm) => (value: string) =>
+  const setField = (field: keyof DiaryForm) => (value: string) => {
+    setConfirmingDiscard(false);
     setForm((current) => ({ ...current, [field]: value }));
+  };
 
   // Also bumps the version so pressing the same button again retries a failed load.
   const moveTo = (target: string | null) => {
@@ -133,7 +157,7 @@ export function Diary() {
         body: form,
       });
       // Here as well as in the effect: the user may have left the page while this was saving.
-      clearDraft(target);
+      clearDraft(target, form);
       setForm(formFrom(entry));
       setSavedForm(formFrom(entry));
       status(`${target} 일기를 저장했습니다`);
