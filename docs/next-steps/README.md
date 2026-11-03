@@ -14,7 +14,7 @@
 
 정리된 일(2026-11-03): 임시 브랜치 `tmp/42-no-lock`을 지웠다. 추천안으로 정한 결정(#52, #12, #64, #45, #34, #66)은 사용자가 확인했다. #13 통합 허브 설계는 다른 프로젝트에서 다루기로 해 "계획 안 함"으로 닫았다. `minimatch` 경고는 [#99](https://github.com/sirloinbh/plan-routine/issues/99)에서 고쳤다.
 
-열린 카드는 #79뿐이다. 중앙 저장소에는 [project-standards#392](https://github.com/sirloinbh/project-standards/issues/392)가 있다.
+열린 카드는 #79와 [#101](https://github.com/sirloinbh/plan-routine/issues/101)(ESLint가 `minimatch` 11을 받아들이면 `overrides` 지우기, 후순위)이다. 중앙 저장소에는 [project-standards#392](https://github.com/sirloinbh/project-standards/issues/392)가 있다.
 
 ## 열려 있는 PR
 
