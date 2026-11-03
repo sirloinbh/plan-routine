@@ -39,6 +39,9 @@
     "knip": "6.41.0",
     "prettier-plugin-tailwindcss": "0.8.1"
   },
+  "overrides": {
+    "minimatch": "11.0.4"
+  },
   "allowScripts": {
     "esbuild@0.28.2": true,
     "esbuild@0.25.12": true
