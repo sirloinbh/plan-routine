@@ -1,5 +1,5 @@
 {
-  "centralSha": "5c3039c306b546445b55697f9b716b1f6b24f6be",
+  "centralSha": "94790218848f47ad87d02b536cce7fdb1d13993d",
   "profile": "app",
   "project": "plan-routine",
   "files": {
@@ -20,7 +20,7 @@
     },
     ".claude/skills/std-backlog/SKILL.md": {
       "mode": "full",
-      "sha256": "24fc15a48fd17e3ef9f6b0468593ddfac0f5269b9357fbe14f19f9baf7bee2b5",
+      "sha256": "b34e21e85a76c995249d7acc73baebd75804208f46ec49581b48aad8f0822215",
       "source": "templates/common/skills/std-backlog/SKILL.md"
     },
     ".claude/skills/std-communication/SKILL.md": {
@@ -228,7 +228,7 @@
     },
     "deploy/autodeploy.sh": {
       "mode": "full",
-      "sha256": "19726d00cbfceec17342ba34ca1a4462b8041c24cd5297cab82f961331b5a363",
+      "sha256": "855b5bb9ad3345740c619a6cfe8578bfccb1c4b7741b0bb3780fbe3acfd9c0f3",
       "source": "templates/app/deploy/autodeploy.sh.tmpl"
     },
     "deploy/autodeploy.timer": {
@@ -243,7 +243,7 @@
     },
     "deploy/backup.sh": {
       "mode": "full",
-      "sha256": "de872107e9b52eabf9fb6ad01a7a8c8fd1a8884e8c97bcf5f9f40f431f2810ee",
+      "sha256": "e2019f5feb5c5bb2eccf498bf9a02ce562843c247569c2b630bf9a4e59ddc75f",
       "source": "templates/app/deploy/backup.sh.tmpl"
     },
     "deploy/backup.timer": {
@@ -431,12 +431,12 @@
     },
     "frontend/src/components/ui/checkbox.test.tsx": {
       "mode": "full",
-      "sha256": "c828586f600a9d7cecd0cd4773962213caaa25789b37c7e648cfc1d00040b52f",
+      "sha256": "93b7c258bf63d3ff59c8f6558dab0c8ee608e66b2a254b24801ef623e96a2bd6",
       "source": "templates/ui/frontend/src/components/ui/checkbox.test.tsx"
     },
     "frontend/src/components/ui/checkbox.tsx": {
       "mode": "full",
-      "sha256": "8a7e6fc99e7581ed6ca600f70ac908dd535b003e1a1bca2bbc1563f54e59bfe8",
+      "sha256": "d24a1ad67fcbc8649f4d30a2081ab2d766aeaa6289f19642f653973e39d4c94b",
       "source": "templates/ui/frontend/src/components/ui/checkbox.tsx"
     },
     "frontend/src/components/ui/confirm-dialog.test.tsx": {
@@ -677,7 +677,7 @@
     },
     "skills/std-backlog/SKILL.md": {
       "mode": "full",
-      "sha256": "24fc15a48fd17e3ef9f6b0468593ddfac0f5269b9357fbe14f19f9baf7bee2b5",
+      "sha256": "b34e21e85a76c995249d7acc73baebd75804208f46ec49581b48aad8f0822215",
       "source": "templates/common/skills/std-backlog/SKILL.md"
     },
     "skills/std-communication/SKILL.md": {
