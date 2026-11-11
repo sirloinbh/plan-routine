@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { expect, test, vi } from 'vitest';
 
 import { DailyChecklist } from './daily-checklist';
+import { formatDate } from './format-date';
 
 type Seed = { id: string; name: string; category: string; sortOrder?: number };
 
@@ -39,7 +40,7 @@ function checklistApi(seed: Seed[] = [], options: { failWrites?: string } = {}) 
       if (method === 'GET') {
         if (failNextLoad) {
           failNextLoad = false;
-          return reply(500, { error: '서버 오류가 발생했습니다' });
+          return reply(500, { error: 'A server error occurred' });
         }
         const date = new URL(url, 'http://localhost').searchParams.get('date') ?? serverToday;
         const index = editable.indexOf(date);
@@ -61,8 +62,7 @@ function checklistApi(seed: Seed[] = [], options: { failWrites?: string } = {}) 
       writes.push({ method, path: url });
       if (options.failWrites) return reply(500, { error: options.failWrites });
       const [, , , id, , date] = url.split('/');
-      if (!routines.some((r) => r.id === id))
-        return reply(404, { error: '루틴을 찾을 수 없습니다' });
+      if (!routines.some((r) => r.id === id)) return reply(404, { error: 'Routine not found' });
       const commit = () => {
         if (method === 'PUT') checks.add(`${id}/${date}`);
         else checks.delete(`${id}/${date}`);
@@ -93,53 +93,53 @@ function checklistApi(seed: Seed[] = [], options: { failWrites?: string } = {}) 
 // Lets a running save finish; a box ignores clicks until then.
 const flush = () => act(() => new Promise((resolve) => setTimeout(resolve)));
 const box = (name: string) => screen.findByRole('checkbox', { name });
-const region = (label: string) => screen.getByRole('region', { name: `${label} 체크리스트` });
+const region = (label: string) => screen.getByRole('region', { name: `${label} checklist` });
 
 const seed = [
-  { id: '1', name: '6시 기상', category: 'wake' },
-  { id: '2', name: '물 한 잔', category: 'wake' },
-  { id: '3', name: '스쿼트', category: 'exercise' },
+  { id: '1', name: 'Wake at 6', category: 'wake' },
+  { id: '2', name: 'Drink water', category: 'wake' },
+  { id: '3', name: 'Squats', category: 'exercise' },
 ];
 
 test('shows today with routines by category, hiding empty categories', async () => {
   checklistApi(seed);
   render(<DailyChecklist />);
-  await box('6시 기상');
-  expect(screen.getByRole('heading', { level: 2, name: '오늘 (2026-10-22)' })).toBeVisible();
-  expect(within(region('기상')).getAllByRole('checkbox')).toHaveLength(2);
-  expect(within(region('운동')).getAllByRole('checkbox')).toHaveLength(1);
-  expect(screen.queryByRole('region', { name: '식단 체크리스트' })).not.toBeInTheDocument();
+  await box('Wake at 6');
+  expect(screen.getByRole('heading', { level: 2, name: 'Today (October 22, 2026)' })).toBeVisible();
+  expect(within(region('Wake-up')).getAllByRole('checkbox')).toHaveLength(2);
+  expect(within(region('Exercise')).getAllByRole('checkbox')).toHaveLength(1);
+  expect(screen.queryByRole('region', { name: 'Diet checklist' })).not.toBeInTheDocument();
 });
 
 test('checking updates the box and progress at once and survives a reload', async () => {
   const api = checklistApi(seed);
   const { unmount } = render(<DailyChecklist />);
-  expect(await box('6시 기상')).not.toBeChecked();
-  expect(screen.getByText('전체 0/3 완료')).toBeInTheDocument();
+  expect(await box('Wake at 6')).not.toBeChecked();
+  expect(screen.getByText('0/3 done overall')).toBeInTheDocument();
 
-  fireEvent.click(await box('6시 기상'));
-  expect(await box('6시 기상')).toBeChecked();
-  expect(screen.getByText('전체 1/3 완료')).toBeInTheDocument();
-  expect(within(region('기상')).getByText('1/2')).toBeInTheDocument();
-  expect(within(region('운동')).getByText('0/1')).toBeInTheDocument();
+  fireEvent.click(await box('Wake at 6'));
+  expect(await box('Wake at 6')).toBeChecked();
+  expect(screen.getByText('1/3 done overall')).toBeInTheDocument();
+  expect(within(region('Wake-up')).getByText('1/2')).toBeInTheDocument();
+  expect(within(region('Exercise')).getByText('0/1')).toBeInTheDocument();
   await waitFor(() =>
     expect(api.writes).toEqual([{ method: 'PUT', path: `/api/routines/1/checks/${today}` }]),
   );
 
   unmount();
   render(<DailyChecklist />);
-  expect(await box('6시 기상')).toBeChecked();
-  expect(screen.getByText('전체 1/3 완료')).toBeInTheDocument();
+  expect(await box('Wake at 6')).toBeChecked();
+  expect(screen.getByText('1/3 done overall')).toBeInTheDocument();
 });
 
 test('unchecking sends a delete and lowers the progress', async () => {
   const api = checklistApi(seed);
   render(<DailyChecklist />);
-  fireEvent.click(await box('스쿼트'));
+  fireEvent.click(await box('Squats'));
   await flush();
-  fireEvent.click(await box('스쿼트'));
-  expect(await box('스쿼트')).not.toBeChecked();
-  expect(screen.getByText('전체 0/3 완료')).toBeInTheDocument();
+  fireEvent.click(await box('Squats'));
+  expect(await box('Squats')).not.toBeChecked();
+  expect(screen.getByText('0/3 done overall')).toBeInTheDocument();
   await flush();
   expect(api.writes.at(-1)).toEqual({
     method: 'DELETE',
@@ -150,7 +150,7 @@ test('unchecking sends a delete and lowers the progress', async () => {
 test('a second click on a box still saving sends no second request', async () => {
   const api = checklistApi(seed);
   render(<DailyChecklist />);
-  const target = await box('6시 기상');
+  const target = await box('Wake at 6');
   fireEvent.click(target);
   fireEvent.click(target);
   await flush();
@@ -158,54 +158,56 @@ test('a second click on a box still saving sends no second request', async () =>
   expect(target).toBeChecked();
 });
 
-test('a failed save restores the box and shows the Korean error', async () => {
-  checklistApi(seed, { failWrites: '서버 오류가 발생했습니다' });
+test('a failed save restores the box and shows the English error', async () => {
+  checklistApi(seed, { failWrites: 'A server error occurred' });
   render(<DailyChecklist />);
-  fireEvent.click(await box('6시 기상'));
-  expect(await screen.findByRole('alert')).toHaveTextContent('서버 오류가 발생했습니다');
-  expect(await box('6시 기상')).not.toBeChecked();
-  expect(screen.getByText('전체 0/3 완료')).toBeInTheDocument();
+  fireEvent.click(await box('Wake at 6'));
+  expect(await screen.findByRole('alert')).toHaveTextContent('A server error occurred');
+  expect(await box('Wake at 6')).not.toBeChecked();
+  expect(screen.getByText('0/3 done overall')).toBeInTheDocument();
 });
 
-test('a routine archived elsewhere shows the Korean 404 and leaves the list', async () => {
+test('a routine archived elsewhere shows the English 404 and leaves the list', async () => {
   const api = checklistApi(seed);
   render(<DailyChecklist />);
-  await box('물 한 잔');
+  await box('Drink water');
   api.archiveElsewhere('2');
-  fireEvent.click(await box('물 한 잔'));
-  expect(await screen.findByRole('alert')).toHaveTextContent('루틴을 찾을 수 없습니다');
+  fireEvent.click(await box('Drink water'));
+  expect(await screen.findByRole('alert')).toHaveTextContent('Routine not found');
   await waitFor(() =>
-    expect(screen.queryByRole('checkbox', { name: '물 한 잔' })).not.toBeInTheDocument(),
+    expect(screen.queryByRole('checkbox', { name: 'Drink water' })).not.toBeInTheDocument(),
   );
-  expect(screen.getByText('전체 0/2 완료')).toBeInTheDocument();
+  expect(screen.getByText('0/2 done overall')).toBeInTheDocument();
 });
 
 test('another day keeps its own checks and the date buttons stop at the range ends', async () => {
   const api = checklistApi(seed);
   render(<DailyChecklist />);
-  fireEvent.click(await box('6시 기상'));
+  fireEvent.click(await box('Wake at 6'));
   await waitFor(() => expect(api.writes).toHaveLength(1));
-  expect(screen.getByRole('button', { name: '다음 날' })).toBeDisabled();
-  expect(screen.queryByRole('button', { name: '오늘로' })).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Next day' })).toBeDisabled();
+  expect(screen.queryByRole('button', { name: 'Go to today' })).not.toBeInTheDocument();
 
-  fireEvent.click(screen.getByRole('button', { name: '이전 날' }));
-  expect(await screen.findByRole('heading', { level: 2, name: '2026-10-21' })).toBeVisible();
-  expect(await box('6시 기상')).not.toBeChecked();
-  fireEvent.click(await box('스쿼트'));
+  fireEvent.click(screen.getByRole('button', { name: 'Previous day' }));
+  expect(await screen.findByRole('heading', { level: 2, name: 'October 21, 2026' })).toBeVisible();
+  expect(await box('Wake at 6')).not.toBeChecked();
+  fireEvent.click(await box('Squats'));
   await waitFor(() =>
     expect(api.writes.at(-1)).toEqual({ method: 'PUT', path: '/api/routines/3/checks/2026-10-21' }),
   );
 
-  fireEvent.click(screen.getByRole('button', { name: '오늘로' }));
-  expect(await screen.findByRole('heading', { level: 2, name: `오늘 (${today})` })).toBeVisible();
-  expect(await box('6시 기상')).toBeChecked();
-  expect(await box('스쿼트')).not.toBeChecked();
+  fireEvent.click(screen.getByRole('button', { name: 'Go to today' }));
+  expect(
+    await screen.findByRole('heading', { level: 2, name: `Today (${formatDate(today)})` }),
+  ).toBeVisible();
+  expect(await box('Wake at 6')).toBeChecked();
+  expect(await box('Squats')).not.toBeChecked();
 
   for (let step = 0; step < 7; step++) {
-    fireEvent.click(screen.getByRole('button', { name: '이전 날' }));
-    await screen.findByRole('heading', { level: 2, name: editable[6 - step] });
+    fireEvent.click(screen.getByRole('button', { name: 'Previous day' }));
+    await screen.findByRole('heading', { level: 2, name: formatDate(editable[6 - step]) });
   }
-  expect(screen.getByRole('button', { name: '이전 날' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Previous day' })).toBeDisabled();
 });
 
 const showPageAgain = () =>
@@ -218,18 +220,20 @@ test('a page shown again after midnight moves to the new day and saves there', a
   const api = checklistApi(seed);
   api.setToday('2026-10-20');
   render(<DailyChecklist />);
-  await screen.findByRole('heading', { level: 2, name: '오늘 (2026-10-20)' });
+  await screen.findByRole('heading', { level: 2, name: 'Today (October 20, 2026)' });
 
-  // "오늘로" keeps following the server's today rather than the date it was pressed on.
-  fireEvent.click(screen.getByRole('button', { name: '이전 날' }));
-  await screen.findByRole('heading', { level: 2, name: '2026-10-19' });
-  fireEvent.click(screen.getByRole('button', { name: '오늘로' }));
-  await screen.findByRole('heading', { level: 2, name: '오늘 (2026-10-20)' });
+  // "Go to today" keeps following the server's today rather than the date it was pressed on.
+  fireEvent.click(screen.getByRole('button', { name: 'Previous day' }));
+  await screen.findByRole('heading', { level: 2, name: 'October 19, 2026' });
+  fireEvent.click(screen.getByRole('button', { name: 'Go to today' }));
+  await screen.findByRole('heading', { level: 2, name: 'Today (October 20, 2026)' });
 
   api.setToday(today);
   await showPageAgain();
-  expect(screen.getByRole('heading', { level: 2, name: `오늘 (${today})` })).toBeVisible();
-  fireEvent.click(await box('6시 기상'));
+  expect(
+    screen.getByRole('heading', { level: 2, name: `Today (${formatDate(today)})` }),
+  ).toBeVisible();
+  fireEvent.click(await box('Wake at 6'));
   await flush();
   expect(api.writes).toEqual([{ method: 'PUT', path: `/api/routines/1/checks/${today}` }]);
 });
@@ -237,21 +241,21 @@ test('a page shown again after midnight moves to the new day and saves there', a
 test('a load during a save does not undo the checked box, and the saved state is shown', async () => {
   const api = checklistApi(seed);
   render(<DailyChecklist />);
-  const target = await box('6시 기상');
+  const target = await box('Wake at 6');
   api.holdWrites();
   fireEvent.click(target);
   // This load reads the server before the save commits, so it still says "not checked".
   await showPageAgain();
-  expect(await box('6시 기상')).toBeChecked();
-  expect(screen.getByText('전체 1/3 완료')).toBeInTheDocument();
+  expect(await box('Wake at 6')).toBeChecked();
+  expect(screen.getByText('1/3 done overall')).toBeInTheDocument();
 
   api.release();
   await flush();
   await flush();
-  expect(await box('6시 기상')).toBeChecked();
-  expect(screen.getByText('전체 1/3 완료')).toBeInTheDocument();
+  expect(await box('Wake at 6')).toBeChecked();
+  expect(screen.getByText('1/3 done overall')).toBeInTheDocument();
   // Unchecking after the reload proves the save finished and the box accepts clicks again.
-  fireEvent.click(await box('6시 기상'));
+  fireEvent.click(await box('Wake at 6'));
   await flush();
   expect(api.writes.at(-1)?.method).toBe('DELETE');
 });
@@ -259,7 +263,7 @@ test('a load during a save does not undo the checked box, and the saved state is
 test('a load read before the save committed is dropped even if it arrives after the save', async () => {
   const api = checklistApi(seed);
   render(<DailyChecklist />);
-  const target = await box('6시 기상');
+  const target = await box('Wake at 6');
   api.holdWrites();
   fireEvent.click(target);
   api.holdNextLoad();
@@ -269,36 +273,36 @@ test('a load read before the save committed is dropped even if it arrives after 
   api.releaseLoad();
   await flush();
   await flush();
-  expect(await box('6시 기상')).toBeChecked();
-  expect(screen.getByText('전체 1/3 완료')).toBeInTheDocument();
+  expect(await box('Wake at 6')).toBeChecked();
+  expect(screen.getByText('1/3 done overall')).toBeInTheDocument();
 });
 
 test('a load error goes away when a later load works, but a save error stays', async () => {
   const api = checklistApi(seed, {});
   render(<DailyChecklist />);
-  await box('6시 기상');
+  await box('Wake at 6');
   api.failNextLoad();
   await showPageAgain();
-  expect(screen.getByRole('alert')).toHaveTextContent('서버 오류가 발생했습니다');
+  expect(screen.getByRole('alert')).toHaveTextContent('A server error occurred');
   await showPageAgain();
   expect(screen.queryByRole('alert')).not.toBeInTheDocument();
 
   api.archiveElsewhere('2');
-  fireEvent.click(await box('물 한 잔'));
+  fireEvent.click(await box('Drink water'));
   await flush();
   await flush();
-  expect(screen.getByRole('alert')).toHaveTextContent('루틴을 찾을 수 없습니다');
+  expect(screen.getByRole('alert')).toHaveTextContent('Routine not found');
 });
 
 test('a failed move can be retried with the same button', async () => {
   const api = checklistApi(seed);
   render(<DailyChecklist />);
-  await box('6시 기상');
+  await box('Wake at 6');
   api.failNextLoad();
-  fireEvent.click(screen.getByRole('button', { name: '이전 날' }));
-  expect(await screen.findByRole('alert')).toHaveTextContent('서버 오류가 발생했습니다');
-  fireEvent.click(screen.getByRole('button', { name: '이전 날' }));
-  expect(await screen.findByRole('heading', { level: 2, name: '2026-10-21' })).toBeVisible();
+  fireEvent.click(screen.getByRole('button', { name: 'Previous day' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('A server error occurred');
+  fireEvent.click(screen.getByRole('button', { name: 'Previous day' }));
+  expect(await screen.findByRole('heading', { level: 2, name: 'October 21, 2026' })).toBeVisible();
   expect(screen.queryByRole('alert')).not.toBeInTheDocument();
 });
 
@@ -306,9 +310,9 @@ test('a failed first load offers a retry', async () => {
   const api = checklistApi(seed);
   api.failNextLoad();
   render(<DailyChecklist />);
-  expect(await screen.findByRole('alert')).toHaveTextContent('서버 오류가 발생했습니다');
-  fireEvent.click(screen.getByRole('button', { name: '다시 시도' }));
-  expect(await box('6시 기상')).toBeInTheDocument();
+  expect(await screen.findByRole('alert')).toHaveTextContent('A server error occurred');
+  fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+  expect(await box('Wake at 6')).toBeInTheDocument();
 });
 
 // Noon in Seoul. Only the clock and the interval are faked; flush() still uses a real timer.
@@ -325,18 +329,20 @@ test('the first check after midnight is not saved to yesterday and the next goes
   const api = checklistApi(seed);
   api.setToday('2026-10-21');
   render(<DailyChecklist />);
-  await screen.findByRole('heading', { level: 2, name: '오늘 (2026-10-21)' });
+  await screen.findByRole('heading', { level: 2, name: 'Today (October 21, 2026)' });
 
   setClock('2026-10-22');
   api.setToday('2026-10-22');
-  fireEvent.click(await box('6시 기상'));
+  fireEvent.click(await box('Wake at 6'));
   await flush();
   expect(api.writes).toEqual([]);
-  expect(screen.getByRole('status')).toHaveTextContent('날짜가 바뀌어 새 기간을 불러왔습니다');
-  expect(screen.getByRole('heading', { level: 2, name: '오늘 (2026-10-22)' })).toBeVisible();
-  expect(await box('6시 기상')).not.toBeChecked();
+  expect(screen.getByRole('status')).toHaveTextContent(
+    'The date changed and a new period was loaded',
+  );
+  expect(screen.getByRole('heading', { level: 2, name: 'Today (October 22, 2026)' })).toBeVisible();
+  expect(await box('Wake at 6')).not.toBeChecked();
 
-  fireEvent.click(await box('6시 기상'));
+  fireEvent.click(await box('Wake at 6'));
   await flush();
   expect(api.writes).toEqual([{ method: 'PUT', path: '/api/routines/1/checks/2026-10-22' }]);
 });
@@ -346,7 +352,7 @@ test('an open window moves to the new day by itself, without requests before tha
   const api = checklistApi(seed);
   api.setToday('2026-10-21');
   render(<DailyChecklist />);
-  await screen.findByRole('heading', { level: 2, name: '오늘 (2026-10-21)' });
+  await screen.findByRole('heading', { level: 2, name: 'Today (October 21, 2026)' });
 
   const before = checklistLoads();
   await act(async () => {
@@ -361,7 +367,7 @@ test('an open window moves to the new day by itself, without requests before tha
     vi.advanceTimersByTime(60_000);
     await new Promise((resolve) => setTimeout(resolve));
   });
-  expect(screen.getByRole('heading', { level: 2, name: '오늘 (2026-10-22)' })).toBeVisible();
+  expect(screen.getByRole('heading', { level: 2, name: 'Today (October 22, 2026)' })).toBeVisible();
 });
 
 test('focusing the window moves to the new day', async () => {
@@ -369,7 +375,7 @@ test('focusing the window moves to the new day', async () => {
   const api = checklistApi(seed);
   api.setToday('2026-10-21');
   render(<DailyChecklist />);
-  await screen.findByRole('heading', { level: 2, name: '오늘 (2026-10-21)' });
+  await screen.findByRole('heading', { level: 2, name: 'Today (October 21, 2026)' });
 
   setClock('2026-10-22');
   api.setToday('2026-10-22');
@@ -377,7 +383,7 @@ test('focusing the window moves to the new day', async () => {
     window.dispatchEvent(new Event('focus'));
     await new Promise((resolve) => setTimeout(resolve));
   });
-  expect(screen.getByRole('heading', { level: 2, name: '오늘 (2026-10-22)' })).toBeVisible();
+  expect(screen.getByRole('heading', { level: 2, name: 'Today (October 22, 2026)' })).toBeVisible();
 });
 
 const nextCheck = () =>
@@ -391,15 +397,15 @@ test('a failed reload after midnight is tried again at the next check', async ()
   const api = checklistApi(seed);
   api.setToday('2026-10-21');
   render(<DailyChecklist />);
-  await screen.findByRole('heading', { level: 2, name: '오늘 (2026-10-21)' });
+  await screen.findByRole('heading', { level: 2, name: 'Today (October 21, 2026)' });
 
   setClock('2026-10-22');
   api.setToday('2026-10-22');
   api.failNextLoad();
   await nextCheck();
-  expect(screen.getByRole('alert')).toHaveTextContent('서버 오류가 발생했습니다');
+  expect(screen.getByRole('alert')).toHaveTextContent('A server error occurred');
   await nextCheck();
-  expect(screen.getByRole('heading', { level: 2, name: '오늘 (2026-10-22)' })).toBeVisible();
+  expect(screen.getByRole('heading', { level: 2, name: 'Today (October 22, 2026)' })).toBeVisible();
   expect(screen.queryByRole('alert')).not.toBeInTheDocument();
 });
 
@@ -407,9 +413,9 @@ test('a day that left the editable range is not asked for again every minute', a
   fakeClock('2026-10-22');
   const api = checklistApi(seed);
   render(<DailyChecklist />);
-  await box('6시 기상');
-  fireEvent.click(screen.getByRole('button', { name: '이전 날' }));
-  await screen.findByRole('heading', { level: 2, name: '2026-10-21' });
+  await box('Wake at 6');
+  fireEvent.click(screen.getByRole('button', { name: 'Previous day' }));
+  await screen.findByRole('heading', { level: 2, name: 'October 21, 2026' });
 
   const working = vi.mocked(fetch).getMockImplementation()!;
   const rejected = vi.fn((url: string, init?: RequestInit) =>
@@ -417,14 +423,14 @@ test('a day that left the editable range is not asked for again every minute', a
       ? Promise.resolve({
           ok: false,
           status: 400,
-          json: () => Promise.resolve({ error: '최근 7일까지만 체크할 수 있습니다' }),
+          json: () => Promise.resolve({ error: 'You can only check the last 7 days' }),
         })
       : working(url, init),
   );
   vi.stubGlobal('fetch', rejected);
   setClock('2026-10-23');
   await nextCheck();
-  expect(screen.getByRole('alert')).toHaveTextContent('최근 7일까지만 체크할 수 있습니다');
+  expect(screen.getByRole('alert')).toHaveTextContent('You can only check the last 7 days');
   expect(rejected).toHaveBeenCalledTimes(1);
   await nextCheck();
   await nextCheck();
@@ -437,17 +443,19 @@ test('after a failed reload a refused click still explains itself', async () => 
   const api = checklistApi(seed);
   api.setToday('2026-10-21');
   render(<DailyChecklist />);
-  await box('6시 기상');
+  await box('Wake at 6');
 
   setClock('2026-10-22');
   api.setToday('2026-10-22');
   api.failNextLoad();
   await nextCheck();
-  fireEvent.click(await box('6시 기상'));
+  fireEvent.click(await box('Wake at 6'));
   await flush();
   expect(api.writes).toEqual([]);
-  expect(screen.getByRole('heading', { level: 2, name: '오늘 (2026-10-22)' })).toBeVisible();
-  expect(screen.getByRole('status')).toHaveTextContent('날짜가 바뀌어 새 기간을 불러왔습니다');
+  expect(screen.getByRole('heading', { level: 2, name: 'Today (October 22, 2026)' })).toBeVisible();
+  expect(screen.getByRole('status')).toHaveTextContent(
+    'The date changed and a new period was loaded',
+  );
 });
 
 test('a chosen past day can still be checked after midnight', async () => {
@@ -455,12 +463,12 @@ test('a chosen past day can still be checked after midnight', async () => {
   const api = checklistApi(seed);
   api.setToday('2026-10-21');
   render(<DailyChecklist />);
-  await box('6시 기상');
-  fireEvent.click(screen.getByRole('button', { name: '이전 날' }));
-  await screen.findByRole('heading', { level: 2, name: '2026-10-20' });
+  await box('Wake at 6');
+  fireEvent.click(screen.getByRole('button', { name: 'Previous day' }));
+  await screen.findByRole('heading', { level: 2, name: 'October 20, 2026' });
 
   setClock('2026-10-22');
-  fireEvent.click(await box('6시 기상'));
+  fireEvent.click(await box('Wake at 6'));
   await flush();
   expect(api.writes).toEqual([{ method: 'PUT', path: '/api/routines/1/checks/2026-10-20' }]);
 });
@@ -468,11 +476,11 @@ test('a chosen past day can still be checked after midnight', async () => {
 test('with no routines it points to the routine page instead of an empty grid', async () => {
   checklistApi();
   render(<DailyChecklist />);
-  expect(await screen.findByText('체크할 루틴이 없습니다')).toBeInTheDocument();
-  expect(screen.getByText('전체 0/0 완료')).toBeInTheDocument();
+  expect(await screen.findByText('No routines to check')).toBeInTheDocument();
+  expect(screen.getByText('0/0 done overall')).toBeInTheDocument();
 });
 
-test('a failed load shows the Korean error', async () => {
+test('a failed load shows the English error', async () => {
   vi.stubGlobal(
     'fetch',
     vi.fn(() => Promise.reject(new Error('offline'))),
@@ -491,56 +499,56 @@ const pressDate = (name: string) => {
 test('moving to another day puts focus on its date, also where the buttons run out', async () => {
   checklistApi(seed);
   render(<DailyChecklist />);
-  await box('6시 기상');
-  pressDate('이전 날');
+  await box('Wake at 6');
+  pressDate('Previous day');
   await flush();
-  expect(heading('2026-10-21')).toHaveFocus();
+  expect(heading('October 21, 2026')).toHaveFocus();
 
-  pressDate('오늘로');
+  pressDate('Go to today');
   await flush();
-  expect(heading('오늘 (2026-10-22)')).toHaveFocus();
+  expect(heading('Today (October 22, 2026)')).toHaveFocus();
 
   for (const day of editable.slice(0, -1).reverse()) {
-    pressDate('이전 날');
+    pressDate('Previous day');
     await flush();
-    expect(heading(day)).toHaveFocus();
+    expect(heading(formatDate(day))).toHaveFocus();
   }
-  expect(screen.getByRole('button', { name: '이전 날' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Previous day' })).toBeDisabled();
 });
 
 test('a day that fails to load leaves focus where it was', async () => {
   const api = checklistApi(seed);
   render(<DailyChecklist />);
-  await box('6시 기상');
+  await box('Wake at 6');
   api.failNextLoad();
-  pressDate('이전 날');
+  pressDate('Previous day');
   await flush();
-  expect(screen.getByRole('button', { name: '이전 날' })).toHaveFocus();
+  expect(screen.getByRole('button', { name: 'Previous day' })).toHaveFocus();
 });
 
 test('a slow day does not take focus back once the user has moved on', async () => {
   const api = checklistApi(seed);
   render(<DailyChecklist />);
-  const first = await box('6시 기상');
+  const first = await box('Wake at 6');
   api.holdNextLoad();
-  pressDate('이전 날');
+  pressDate('Previous day');
   await flush();
   first.focus();
   api.releaseLoad();
   await flush();
-  expect(heading('2026-10-21')).toBeVisible();
-  expect(await box('6시 기상')).toHaveFocus();
+  expect(heading('October 21, 2026')).toBeVisible();
+  expect(await box('Wake at 6')).toHaveFocus();
 });
 
 test('midnight changes the day without moving focus', async () => {
   const api = checklistApi(seed);
   render(<DailyChecklist />);
-  (await box('6시 기상')).focus();
+  (await box('Wake at 6')).focus();
   api.setToday('2026-10-21');
   document.dispatchEvent(new Event('visibilitychange'));
   await flush();
-  expect(heading('오늘 (2026-10-21)')).toBeVisible();
-  expect(await box('6시 기상')).toHaveFocus();
+  expect(heading('Today (October 21, 2026)')).toBeVisible();
+  expect(await box('Wake at 6')).toHaveFocus();
 });
 
 test('after a retry succeeds, focus is on the page rather than lost', async () => {
@@ -548,13 +556,13 @@ test('after a retry succeeds, focus is on the page rather than lost', async () =
   api.failNextLoad();
   render(
     <section aria-labelledby="page">
-      <h1 id="page">오늘 체크</h1>
+      <h1 id="page">Today</h1>
       <DailyChecklist />
     </section>,
   );
-  const retry = await screen.findByRole('button', { name: '다시 시도' });
+  const retry = await screen.findByRole('button', { name: 'Try again' });
   retry.focus();
   fireEvent.click(retry);
-  await box('6시 기상');
-  expect(screen.getByRole('region', { name: '오늘 체크' })).toHaveFocus();
+  await box('Wake at 6');
+  expect(screen.getByRole('region', { name: 'Today' })).toHaveFocus();
 });
