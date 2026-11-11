@@ -8,22 +8,22 @@ import { anchorSettingKey, routineCadence, routineInput, routineName } from './r
 // routineColumns names id as text, so an ORDER BY on plain id would put 10 before 9: write routines.id.
 export const routineColumns =
   'id::text AS id, name, cadence, category, sort_order AS "sortOrder", project_link_id::text AS "projectLinkId"';
-export const notFound = { error: '루틴을 찾을 수 없습니다' };
+export const notFound = { error: 'Routine not found' };
 
 const listQuery = z.object({ cadence: routineCadence.optional() });
-export const routineId = z.string().regex(/^\d{1,18}$/, '루틴 번호가 올바르지 않습니다');
+export const routineId = z.string().regex(/^\d{1,18}$/, 'Invalid routine ID');
 const idParam = z.object({ id: routineId });
 const renameInput = z.object({ name: routineName }, badRequest);
 const moveInput = z.object(
-  { direction: z.enum(['up', 'down'], { error: '이동 방향은 위 또는 아래여야 합니다' }) },
+  { direction: z.enum(['up', 'down'], { error: 'Direction must be up or down' }) },
   badRequest,
 );
 
 const projectLinkInput = z.object(
   {
     projectLinkId: z
-      .string({ error: '연결할 프로젝트가 올바르지 않습니다' })
-      .regex(/^\d{1,18}$/, '연결할 프로젝트가 올바르지 않습니다')
+      .string({ error: 'Invalid project to link' })
+      .regex(/^\d{1,18}$/, 'Invalid project to link')
       .nullable(),
   },
   badRequest,
@@ -149,7 +149,7 @@ export function routineRoutes(pool: Pool, today: () => string) {
       [projectLinkId, id],
     );
     if (!rows[0]) {
-      res.status(404).json({ error: '루틴이나 프로젝트를 찾을 수 없습니다' });
+      res.status(404).json({ error: 'Routine or project not found' });
       return;
     }
     res.json({ routine: rows[0] });

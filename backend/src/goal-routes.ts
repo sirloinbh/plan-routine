@@ -9,10 +9,10 @@ import { routineAnchorDate } from './routines.js';
 // Names id as text, so an ORDER BY on plain id would put 10 before 9: write twelve_week_goals.id.
 const goalColumns = `id::text AS id, period_start AS "periodStart", title, achieved,
   review_note AS "reviewNote", reviewed_at AS "reviewedAt"`;
-const notFound = { error: '목표를 찾을 수 없습니다' };
-const pastGoal = { error: '지난 기간의 목표는 고칠 수 없습니다' };
+const notFound = { error: 'Goal not found' };
+const pastGoal = { error: 'Goals of past periods cannot be edited' };
 
-const goalIdMessage = '목표 번호가 올바르지 않습니다';
+const goalIdMessage = 'Invalid goal ID';
 const goalId = z.string({ error: goalIdMessage }).regex(/^\d{1,18}$/, goalIdMessage);
 const idParam = z.object({ id: goalId });
 // Not .min()/.max(): those also run on a non-string with a length and add a second message.
@@ -20,12 +20,11 @@ const goalInput = z.object(
   {
     title: z
       .string({
-        error: (issue) =>
-          issue.input === undefined ? '목표를 입력해 주세요' : '목표는 글자여야 합니다',
+        error: (issue) => (issue.input === undefined ? 'Enter a goal' : 'The goal must be text'),
       })
       .trim()
-      .refine((value) => value.length >= 1, '목표를 입력해 주세요')
-      .refine((value) => value.length <= 200, '목표는 200자 이하로 입력해 주세요')
+      .refine((value) => value.length >= 1, 'Enter a goal')
+      .refine((value) => value.length <= 200, 'The goal must be 200 characters or fewer')
       .refine(noNul, nulMessage),
   },
   badRequest,
@@ -40,40 +39,40 @@ const reviewsInput = z.object(
         z.object(
           {
             id: goalId,
-            achieved: z.boolean({ error: '달성 여부가 올바르지 않습니다' }).nullable(),
+            achieved: z.boolean({ error: 'Invalid achieved value' }).nullable(),
             // A blank note is the same as no note.
             note: z
-              .string({ error: '메모는 글자여야 합니다' })
+              .string({ error: 'The note must be text' })
               .trim()
-              .refine((value) => value.length <= 1000, '메모는 1000자 이하로 입력해 주세요')
+              .refine((value) => value.length <= 1000, 'The note must be 1000 characters or fewer')
               .refine(noNul, nulMessage)
               .nullish()
               .transform((value) => value || null),
           },
-          { error: '회고 내용이 올바르지 않습니다' },
+          { error: 'Invalid review content' },
         ),
-        { error: '회고할 목표가 없습니다' },
+        { error: 'There are no goals to review' },
       )
-      .max(maxReviews, `한 번에 회고할 수 있는 목표는 ${maxReviews}개까지입니다`)
-      .refine((reviews) => reviews.length >= 1, '회고할 목표가 없습니다')
+      .max(maxReviews, `You can review at most ${maxReviews} goals at a time`)
+      .refine((reviews) => reviews.length >= 1, 'There are no goals to review')
       .refine(
         (reviews) => new Set(reviews.map((review) => review.id)).size === reviews.length,
-        '같은 목표를 두 번 회고할 수 없습니다',
+        'The same goal cannot be reviewed twice',
       ),
   },
   badRequest,
 );
 
-const routineIdMessage = '루틴 번호가 올바르지 않습니다';
+const routineIdMessage = 'Invalid routine ID';
 const maxLinks = 200;
 const routineLinksInput = z.object(
   {
     routineIds: z
       .array(z.string({ error: routineIdMessage }).regex(/^\d{1,18}$/, routineIdMessage), {
-        error: '연결할 루틴 목록이 올바르지 않습니다',
+        error: 'Invalid list of routines to link',
       })
-      .max(maxLinks, `한 목표에 루틴을 ${maxLinks}개까지 연결할 수 있습니다`)
-      .refine((ids) => new Set(ids).size === ids.length, '같은 루틴을 두 번 연결할 수 없습니다'),
+      .max(maxLinks, `A goal can link at most ${maxLinks} routines`)
+      .refine((ids) => new Set(ids).size === ids.length, 'The same routine cannot be linked twice'),
   },
   badRequest,
 );
@@ -216,7 +215,7 @@ export function goalRoutes(pool: Pool, today: () => string) {
       );
       if (allowed.rows.length !== routineIds.length) {
         await client.query('ROLLBACK');
-        res.status(400).json({ error: '연결할 수 없는 루틴이 있습니다. 다시 확인해 주세요' });
+        res.status(400).json({ error: 'Some routines cannot be linked. Please check again' });
         return;
       }
       await client.query('DELETE FROM twelve_week_goal_routines WHERE goal_id = $1', [id]);
@@ -274,7 +273,7 @@ export function goalRoutes(pool: Pool, today: () => string) {
       }
       if (found.rows.some((row) => row.periodStart >= period.start)) {
         await client.query('ROLLBACK');
-        res.status(400).json({ error: '아직 끝나지 않은 기간의 목표는 회고할 수 없습니다' });
+        res.status(400).json({ error: 'Goals of a period that has not ended cannot be reviewed' });
         return;
       }
       for (const { id, achieved, note } of reviews)

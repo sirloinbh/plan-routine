@@ -4,9 +4,9 @@ import { z } from 'zod/v4';
 
 import { badRequest, noNul, nulMessage, requestBody } from './request-input.js';
 
-const notFound = { error: '프로젝트를 찾을 수 없습니다' };
+const notFound = { error: 'Project not found' };
 const columns = 'id::text AS id, name, url';
-const urlMessage = '주소는 https:// 또는 사설 접속 주소만 쓸 수 있습니다';
+const urlMessage = 'The URL must be https:// or a private access address';
 
 function isPrivateIpv4(host: string) {
   // Number() alone would also read names like 10.0.0.1e1, which are not addresses at all.
@@ -50,33 +50,30 @@ const projectInput = z.object(
     name: z
       .string({
         error: (issue) =>
-          issue.input === undefined
-            ? '프로젝트 이름을 입력해 주세요'
-            : '프로젝트 이름은 글자여야 합니다',
+          issue.input === undefined ? 'Enter a project name' : 'The project name must be text',
       })
       .trim()
-      .refine((value) => value.length >= 1, '프로젝트 이름을 입력해 주세요')
-      .refine((value) => value.length <= 100, '프로젝트 이름은 100자 이하로 입력해 주세요')
+      .refine((value) => value.length >= 1, 'Enter a project name')
+      .refine((value) => value.length <= 100, 'The project name must be 100 characters or fewer')
       .refine(noNul, nulMessage),
     url: z
       .string({
-        error: (issue) =>
-          issue.input === undefined ? '주소를 입력해 주세요' : '주소는 글자여야 합니다',
+        error: (issue) => (issue.input === undefined ? 'Enter a URL' : 'The URL must be text'),
       })
       .trim()
-      .refine((value) => value.length >= 1, '주소를 입력해 주세요')
+      .refine((value) => value.length >= 1, 'Enter a URL')
       .refine((value) => value.length === 0 || allowedUrl(value) !== null, urlMessage)
-      // Measured as stored: normalising percent-encodes Korean text and can make it far longer.
+      // Measured as stored: normalising percent-encodes non-ASCII text and can make it far longer.
       .refine((value) => {
         const stored = allowedUrl(value);
         return stored === null || stored.length <= 2048;
-      }, '주소는 2048자 이하로 입력해 주세요')
+      }, 'The URL must be 2048 characters or fewer')
       .transform((value) => allowedUrl(value) ?? value),
   },
   badRequest,
 );
 const idParam = z.object({
-  id: z.string().regex(/^\d{1,18}$/, '프로젝트 번호가 올바르지 않습니다'),
+  id: z.string().regex(/^\d{1,18}$/, 'Invalid project ID'),
 });
 
 export function projectLinkRoutes(pool: Pool) {
