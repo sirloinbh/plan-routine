@@ -82,7 +82,7 @@ test('shows the server date from /api/health on the overview', async () => {
   health({ today: '2026-10-26' });
   render(<App />);
   expect(screen.getByRole('heading', { level: 1, name: '대시보드' })).toBeInTheDocument();
-  expect(await screen.findByText('서버 연결됨 · 2026-10-26')).toBeInTheDocument();
+  expect(await screen.findByText('Server connected · 2026-10-26')).toBeInTheDocument();
 });
 
 test('reports a server error as an alert', async () => {
@@ -94,7 +94,7 @@ test('reports a server error as an alert', async () => {
 test('each page has its own address and is marked in the main menu', async () => {
   health({ today: '2026-10-26' });
   render(<App />);
-  const menu = screen.getByRole('navigation', { name: '주 메뉴' });
+  const menu = screen.getByRole('navigation', { name: 'Main menu' });
   fireEvent.click(within(menu).getByRole('link', { name: '하루 루틴' }));
   expect(window.location.pathname).toBe('/routines');
   expect(await screen.findByRole('heading', { level: 1, name: '하루 루틴' })).toBeInTheDocument();
@@ -111,7 +111,7 @@ test('each page has its own address and is marked in the main menu', async () =>
 test('the main menu opens the daily checklist page', async () => {
   health({ today: '2026-10-26' });
   render(<App />);
-  const menu = screen.getByRole('navigation', { name: '주 메뉴' });
+  const menu = screen.getByRole('navigation', { name: 'Main menu' });
   fireEvent.click(within(menu).getByRole('link', { name: '오늘 체크' }));
   expect(window.location.pathname).toBe('/today');
   expect(await screen.findByRole('heading', { level: 1, name: '오늘 체크' })).toBeInTheDocument();
@@ -122,7 +122,7 @@ test('the main menu opens the daily checklist page', async () => {
 test('the diary opens from the main menu and from the daily checklist page', async () => {
   health({ today: '2026-10-26' });
   render(<App />);
-  const menu = screen.getByRole('navigation', { name: '주 메뉴' });
+  const menu = screen.getByRole('navigation', { name: 'Main menu' });
   fireEvent.click(within(menu).getByRole('link', { name: '오늘 체크' }));
   fireEvent.click(await screen.findByRole('link', { name: '오늘 일기 쓰기' }));
   expect(window.location.pathname).toBe('/diary');
@@ -135,7 +135,7 @@ test('the diary opens from the main menu and from the daily checklist page', asy
 test('the main menu opens the weekly routine page', async () => {
   health({ today: '2026-10-26' });
   render(<App />);
-  const menu = screen.getByRole('navigation', { name: '주 메뉴' });
+  const menu = screen.getByRole('navigation', { name: 'Main menu' });
   fireEvent.click(within(menu).getByRole('link', { name: '주간 루틴' }));
   expect(window.location.pathname).toBe('/weekly');
   expect(await screen.findByRole('heading', { level: 1, name: '주간 루틴' })).toBeInTheDocument();
@@ -146,7 +146,7 @@ test('the main menu opens the weekly routine page', async () => {
 test('the main menu opens the four-week routine page', async () => {
   health({ today: '2026-10-26' });
   render(<App />);
-  const menu = screen.getByRole('navigation', { name: '주 메뉴' });
+  const menu = screen.getByRole('navigation', { name: 'Main menu' });
   fireEvent.click(within(menu).getByRole('link', { name: '4주 루틴' }));
   expect(window.location.pathname).toBe('/four-week');
   expect(await screen.findByRole('heading', { level: 1, name: '4주 루틴' })).toBeInTheDocument();
@@ -187,7 +187,7 @@ test('the daily checklist page shows unfinished four-week routines near the peri
 test('the main menu opens the twelve-week page', async () => {
   health({ today: '2026-10-26' });
   render(<App />);
-  const menu = screen.getByRole('navigation', { name: '주 메뉴' });
+  const menu = screen.getByRole('navigation', { name: 'Main menu' });
   fireEvent.click(within(menu).getByRole('link', { name: '12주 루틴' }));
   expect(window.location.pathname).toBe('/twelve-week');
   expect(await screen.findByRole('heading', { level: 1, name: '12주 루틴' })).toBeInTheDocument();
@@ -198,7 +198,7 @@ test('the main menu opens the twelve-week page', async () => {
 test('the main menu opens the records page', async () => {
   health({ today: '2026-10-26' });
   render(<App />);
-  const menu = screen.getByRole('navigation', { name: '주 메뉴' });
+  const menu = screen.getByRole('navigation', { name: 'Main menu' });
   fireEvent.click(within(menu).getByRole('link', { name: '기록' }));
   expect(window.location.pathname).toBe('/records');
   expect(await screen.findByRole('heading', { level: 1, name: '기록' })).toBeInTheDocument();
@@ -209,7 +209,7 @@ test('the main menu opens the records page', async () => {
 test('the main menu opens the stats page', async () => {
   health({ today: '2026-10-26' });
   render(<App />);
-  const menu = screen.getByRole('navigation', { name: '주 메뉴' });
+  const menu = screen.getByRole('navigation', { name: 'Main menu' });
   fireEvent.click(within(menu).getByRole('link', { name: '달성률' }));
   expect(window.location.pathname).toBe('/stats');
   expect(await screen.findByRole('heading', { level: 1, name: '달성률' })).toBeInTheDocument();

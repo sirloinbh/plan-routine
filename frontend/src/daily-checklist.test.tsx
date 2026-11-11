@@ -478,7 +478,7 @@ test('a failed load shows the Korean error', async () => {
     vi.fn(() => Promise.reject(new Error('offline'))),
   );
   render(<DailyChecklist />);
-  expect(await screen.findByRole('alert')).toHaveTextContent('서버에 연결할 수 없습니다');
+  expect(await screen.findByRole('alert')).toHaveTextContent('Cannot reach the server');
 });
 
 const heading = (name: string) => screen.getByRole('heading', { level: 2, name });
