@@ -56,10 +56,10 @@ const issued = (queries: { sql: string; params: unknown[] }[], word: string) =>
 
 test('the page data holds the period, weeks left, goals and past periods newest first', async () => {
   const { pool, queries } = fakePool([
-    goal('3', '2026-10-18', '이번 목표'),
-    goal('2', '2026-07-26', '지난 목표'),
-    goal('4', '2026-07-26', '지난 목표 2'),
-    goal('1', '2026-05-03', '그 전 목표'),
+    goal('3', '2026-10-18', 'Current goal'),
+    goal('2', '2026-07-26', 'Past goal'),
+    goal('4', '2026-07-26', 'Past goal 2'),
+    goal('1', '2026-05-03', 'Earlier goal'),
   ]);
   await withApi(
     pool,
@@ -72,7 +72,7 @@ test('the page data holds the period, weeks left, goals and past periods newest 
       assert.deepEqual(current.period, { start: '2026-10-18', end: '2027-01-09' });
       assert.deepEqual(
         current.goals.map((row) => row.title),
-        ['이번 목표'],
+        ['Current goal'],
       );
       const past = data.past as { period: { start: string; end: string }; goals: Row[] }[];
       assert.deepEqual(
@@ -116,32 +116,32 @@ test('a new goal goes to the current period in one transaction, with its text tr
     async (call) => {
       const { status, data } = await call('/api/goals', {
         method: 'POST',
-        body: { title: ' 책 12권 읽기 ' },
+        body: { title: ' Read 12 books ' },
       });
       assert.equal(status, 201);
-      assert.equal((data.goal as Row).title, '책 12권 읽기');
+      assert.equal((data.goal as Row).title, 'Read 12 books');
     },
     { today },
   );
   assert.deepEqual(issued(queries, 'INSERT INTO twelve_week_goals')[0].params, [
     '2026-10-18',
-    '책 12권 읽기',
+    'Read 12 books',
   ]);
   assert.equal(queries[0].sql, 'BEGIN');
   assert.equal(queries.at(-1)?.sql, 'COMMIT');
 });
 
-test('invalid goals are Korean 400s before any query', async () => {
+test('invalid goals are English 400s before any query', async () => {
   const { pool, queries } = fakePool();
   await withApi(
     pool,
     async (call) => {
       for (const [request, message] of [
-        [undefined, '목표를 입력해 주세요'],
-        [{ title: '   ' }, '목표를 입력해 주세요'],
-        [{ title: 3 }, '목표는 글자여야 합니다'],
-        [{ title: '가'.repeat(201) }, '목표는 200자 이하로 입력해 주세요'],
-        [{ title: 'a\0b' }, '쓸 수 없는 문자가 들어 있습니다'],
+        [undefined, 'Enter a goal'],
+        [{ title: '   ' }, 'Enter a goal'],
+        [{ title: 3 }, 'The goal must be text'],
+        [{ title: 'a'.repeat(201) }, 'The goal must be 200 characters or fewer'],
+        [{ title: 'a\0b' }, 'Contains characters that are not allowed'],
       ] as const) {
         const { status, data } = await call('/api/goals', { method: 'POST', body: request });
         assert.equal(status, 400);
@@ -149,7 +149,7 @@ test('invalid goals are Korean 400s before any query', async () => {
       }
       const badId = await call('/api/goals/abc', { method: 'DELETE' });
       assert.equal(badId.status, 400);
-      assert.equal(badId.data.error, '목표 번호가 올바르지 않습니다');
+      assert.equal(badId.data.error, 'Invalid goal ID');
     },
     { today },
   );
@@ -157,24 +157,24 @@ test('invalid goals are Korean 400s before any query', async () => {
 });
 
 test('goals of the current period can change; past ones refuse and missing ones are 404s', async () => {
-  const { pool } = fakePool([goal('1', '2026-10-18', '이번'), goal('2', '2026-07-26', '지난')]);
+  const { pool } = fakePool([goal('1', '2026-10-18', 'Current'), goal('2', '2026-07-26', 'Past')]);
   await withApi(
     pool,
     async (call) => {
       const rename = (id: string) =>
-        call(`/api/goals/${id}`, { method: 'PATCH', body: { title: '새 이름' } });
+        call(`/api/goals/${id}`, { method: 'PATCH', body: { title: 'New name' } });
       assert.equal((await rename('1')).status, 200);
       const past = await rename('2');
       assert.equal(past.status, 400);
-      assert.equal(past.data.error, '지난 기간의 목표는 고칠 수 없습니다');
+      assert.equal(past.data.error, 'Goals of past periods cannot be edited');
       const missing = await rename('9');
       assert.equal(missing.status, 404);
-      assert.equal(missing.data.error, '목표를 찾을 수 없습니다');
+      assert.equal(missing.data.error, 'Goal not found');
 
       assert.equal((await call('/api/goals/1', { method: 'DELETE' })).status, 200);
       const pastDelete = await call('/api/goals/2', { method: 'DELETE' });
       assert.equal(pastDelete.status, 400);
-      assert.equal(pastDelete.data.error, '지난 기간의 목표는 고칠 수 없습니다');
+      assert.equal(pastDelete.data.error, 'Goals of past periods cannot be edited');
       assert.equal((await call('/api/goals/9', { method: 'DELETE' })).status, 404);
     },
     { today },
@@ -185,8 +185,8 @@ const putReviews = (reviews: unknown) => ({ method: 'PUT', body: { reviews } });
 
 test('reviews of past goals save in one transaction, with blank notes as none', async () => {
   const { pool, queries } = fakePool([
-    goal('2', '2026-07-26', '지난'),
-    goal('4', '2026-07-26', '또'),
+    goal('2', '2026-07-26', 'Past'),
+    goal('4', '2026-07-26', 'Another'),
   ]);
   await withApi(
     pool,
@@ -194,7 +194,7 @@ test('reviews of past goals save in one transaction, with blank notes as none', 
       const { status } = await call(
         '/api/goals/reviews',
         putReviews([
-          { id: '2', achieved: true, note: ' 해냈다 ' },
+          { id: '2', achieved: true, note: ' Done it ' },
           { id: '4', achieved: null, note: '  ' },
         ]),
       );
@@ -203,15 +203,15 @@ test('reviews of past goals save in one transaction, with blank notes as none', 
     { today },
   );
   const updates = issued(queries, 'SET achieved');
-  assert.deepEqual(updates[0].params, ['2', true, '해냈다']);
+  assert.deepEqual(updates[0].params, ['2', true, 'Done it']);
   assert.deepEqual(updates[1].params, ['4', null, null]);
   assert.equal(queries.at(-1)?.sql, 'COMMIT');
 });
 
 test('reviewing a goal of the running period or a missing goal cancels everything', async () => {
   const { pool, queries } = fakePool([
-    goal('1', '2026-10-18', '이번'),
-    goal('2', '2026-07-26', '지난'),
+    goal('1', '2026-10-18', 'Current'),
+    goal('2', '2026-07-26', 'Past'),
   ]);
   await withApi(
     pool,
@@ -224,7 +224,7 @@ test('reviewing a goal of the running period or a missing goal cancels everythin
         ]),
       );
       assert.equal(running.status, 400);
-      assert.equal(running.data.error, '아직 끝나지 않은 기간의 목표는 회고할 수 없습니다');
+      assert.equal(running.data.error, 'Goals of a period that has not ended cannot be reviewed');
       const missing = await call(
         '/api/goals/reviews',
         putReviews([
@@ -233,7 +233,7 @@ test('reviewing a goal of the running period or a missing goal cancels everythin
         ]),
       );
       assert.equal(missing.status, 404);
-      assert.equal(missing.data.error, '목표를 찾을 수 없습니다');
+      assert.equal(missing.data.error, 'Goal not found');
     },
     { today },
   );
@@ -242,31 +242,31 @@ test('reviewing a goal of the running period or a missing goal cancels everythin
   assert.equal(issued(queries, 'COMMIT').length, 0);
 });
 
-test('invalid reviews are Korean 400s before any query', async () => {
+test('invalid reviews are English 400s before any query', async () => {
   const { pool, queries } = fakePool();
   await withApi(
     pool,
     async (call) => {
       for (const [reviews, message] of [
-        [[], '회고할 목표가 없습니다'],
-        ['목표', '회고할 목표가 없습니다'],
-        [[{ id: 'x', achieved: true }], '목표 번호가 올바르지 않습니다'],
-        [[{ id: '2', achieved: '네' }], '달성 여부가 올바르지 않습니다'],
-        [[{ id: '2' }], '달성 여부가 올바르지 않습니다'],
-        [[{ achieved: true }], '목표 번호가 올바르지 않습니다'],
-        [[{ id: 3, achieved: true }], '목표 번호가 올바르지 않습니다'],
-        [['x'], '회고 내용이 올바르지 않습니다'],
+        [[], 'There are no goals to review'],
+        ['goal', 'There are no goals to review'],
+        [[{ id: 'x', achieved: true }], 'Invalid goal ID'],
+        [[{ id: '2', achieved: 'yes' }], 'Invalid achieved value'],
+        [[{ id: '2' }], 'Invalid achieved value'],
+        [[{ achieved: true }], 'Invalid goal ID'],
+        [[{ id: 3, achieved: true }], 'Invalid goal ID'],
+        [['x'], 'Invalid review content'],
         [
-          [{ id: '2', achieved: true, note: '가'.repeat(1001) }],
-          '메모는 1000자 이하로 입력해 주세요',
+          [{ id: '2', achieved: true, note: 'a'.repeat(1001) }],
+          'The note must be 1000 characters or fewer',
         ],
-        [[{ id: '2', achieved: true, note: 'a\0b' }], '쓸 수 없는 문자가 들어 있습니다'],
+        [[{ id: '2', achieved: true, note: 'a\0b' }], 'Contains characters that are not allowed'],
         [
           [
             { id: '2', achieved: true },
             { id: '2', achieved: false },
           ],
-          '같은 목표를 두 번 회고할 수 없습니다',
+          'The same goal cannot be reviewed twice',
         ],
       ] as const) {
         const { status, data } = await call('/api/goals/reviews', putReviews(reviews));
@@ -274,9 +274,9 @@ test('invalid reviews are Korean 400s before any query', async () => {
         assert.equal(data.error, message);
       }
       const arrayBody = await call('/api/goals/reviews', { method: 'PUT', body: [] });
-      assert.equal(arrayBody.data.error, '요청 형식이 올바르지 않습니다');
+      assert.equal(arrayBody.data.error, 'Invalid request format');
       const noBody = await call('/api/goals/reviews', { method: 'PUT' });
-      assert.equal(noBody.data.error, '회고할 목표가 없습니다');
+      assert.equal(noBody.data.error, 'There are no goals to review');
     },
     { today },
   );
@@ -290,10 +290,10 @@ test('goal input of the wrong type answers with one message, even if it has a le
     async (call) => {
       const goals = await call('/api/goals', { method: 'POST', body: { title: [] } });
       assert.equal(goals.status, 400);
-      assert.equal(goals.data.error, '목표는 글자여야 합니다');
+      assert.equal(goals.data.error, 'The goal must be text');
       const reviews = await call('/api/goals/reviews', { method: 'PUT', body: { reviews: '' } });
       assert.equal(reviews.status, 400);
-      assert.equal(reviews.data.error, '회고할 목표가 없습니다');
+      assert.equal(reviews.data.error, 'There are no goals to review');
     },
     { today },
   );
@@ -312,7 +312,7 @@ test('a review request over the limit is refused before any query, and one at th
         body: { reviews: reviews(1001) },
       });
       assert.equal(over.status, 400);
-      assert.equal(over.data.error, '한 번에 회고할 수 있는 목표는 1000개까지입니다');
+      assert.equal(over.data.error, 'You can review at most 1000 goals at a time');
       assert.equal(queries.length, 0);
       // The fake pool finds none of these goals, so passing validation answers 404.
       const atLimit = await call('/api/goals/reviews', {
@@ -384,7 +384,7 @@ test('linking refuses a routine that cannot serve a goal and changes nothing', a
     async (call) => {
       const { status, data } = await call('/api/goals/9/routines', putLinks(['1', '2']));
       assert.equal(status, 400);
-      assert.match(String(data.error), /연결할 수 없는 루틴/);
+      assert.match(String(data.error), /cannot be linked/);
     },
     { today },
   );
@@ -398,7 +398,7 @@ test('linking answers for a missing goal and for one of a past period', async ()
     async (call) => {
       const { status, data } = await call('/api/goals/9/routines', putLinks([]));
       assert.equal(status, 404);
-      assert.equal(data.error, '목표를 찾을 수 없습니다');
+      assert.equal(data.error, 'Goal not found');
     },
     { today },
   );
@@ -407,23 +407,23 @@ test('linking answers for a missing goal and for one of a past period', async ()
     async (call) => {
       const { status, data } = await call('/api/goals/9/routines', putLinks([]));
       assert.equal(status, 400);
-      assert.equal(data.error, '지난 기간의 목표는 고칠 수 없습니다');
+      assert.equal(data.error, 'Goals of past periods cannot be edited');
     },
     { today },
   );
 });
 
-test('linking refuses bad input in Korean before touching the database', async () => {
+test('linking refuses bad input in English before touching the database', async () => {
   const { pool, queries } = linkPool();
   await withApi(
     pool,
     async (call) => {
       for (const [body, message] of [
-        [{}, '연결할 루틴 목록이 올바르지 않습니다'],
-        [{ routineIds: 'x' }, '연결할 루틴 목록이 올바르지 않습니다'],
-        [{ routineIds: ['abc'] }, '루틴 번호가 올바르지 않습니다'],
-        [{ routineIds: [1] }, '루틴 번호가 올바르지 않습니다'],
-        [{ routineIds: ['1', '1'] }, '같은 루틴을 두 번 연결할 수 없습니다'],
+        [{}, 'Invalid list of routines to link'],
+        [{ routineIds: 'x' }, 'Invalid list of routines to link'],
+        [{ routineIds: ['abc'] }, 'Invalid routine ID'],
+        [{ routineIds: [1] }, 'Invalid routine ID'],
+        [{ routineIds: ['1', '1'] }, 'The same routine cannot be linked twice'],
       ] as const) {
         const { status, data } = await call('/api/goals/9/routines', { method: 'PUT', body });
         assert.equal(status, 400);
@@ -432,7 +432,7 @@ test('linking refuses bad input in Korean before touching the database', async (
       const many = Array.from({ length: 201 }, (_, index) => String(index));
       const tooMany = await call('/api/goals/9/routines', putLinks(many));
       assert.equal(tooMany.status, 400);
-      assert.match(String(tooMany.data.error), /200개까지/);
+      assert.match(String(tooMany.data.error), /at most 200 routines/);
       const badId = await call('/api/goals/abc/routines', putLinks([]));
       assert.equal(badId.status, 400);
     },

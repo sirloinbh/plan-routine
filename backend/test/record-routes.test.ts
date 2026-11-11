@@ -7,17 +7,17 @@ import { withApi } from './helpers.js';
 
 const wake = {
   id: '1',
-  name: '6시 기상',
+  name: 'Wake at 6',
   cadence: 'daily',
   category: 'wake',
   sortOrder: 0,
   archived: false,
   checked: true,
 };
-const old = { ...wake, id: '2', name: '보관한 루틴', archived: true, checked: false };
+const old = { ...wake, id: '2', name: 'Archived routine', archived: true, checked: false };
 const entry = {
   date: '2026-10-20',
-  body: '잘 보냈다',
+  body: 'Spent it well',
   goodNote: null,
   regretNote: null,
   tomorrowNote: null,
@@ -94,16 +94,16 @@ test('the earliest month has no previous month', async () => {
   );
 });
 
-test('bad, future and too old months are Korean 400s before any query', async () => {
+test('bad, future and too old months are English 400s before any query', async () => {
   const { pool, queries } = fakePool();
   await withApi(
     pool,
     async (call) => {
       for (const [month, message] of [
-        ['2026-13', '달은 YYYY-MM 형식이어야 합니다'],
-        ['2026-1', '달은 YYYY-MM 형식이어야 합니다'],
-        ['2026-11', '미래 달의 기록은 볼 수 없습니다'],
-        ['1999-12', '2000년 이후의 기록만 볼 수 있습니다'],
+        ['2026-13', 'Month must be in YYYY-MM format'],
+        ['2026-1', 'Month must be in YYYY-MM format'],
+        ['2026-11', 'Records for a future month cannot be viewed'],
+        ['1999-12', 'Records can only be viewed from the year 2000 on'],
       ] as const) {
         const { status, data } = await call(`/api/records?month=${month}`);
         assert.equal(status, 400);
@@ -150,15 +150,15 @@ test('a day with no record answers empty, and old days have no time limit', asyn
   );
 });
 
-test('future, too old and impossible days are Korean 400s before any query', async () => {
+test('future, too old and impossible days are English 400s before any query', async () => {
   const { pool, queries } = fakePool();
   await withApi(
     pool,
     async (call) => {
       for (const [date, message] of [
-        ['2026-10-23', '미래 날짜의 기록은 볼 수 없습니다'],
-        ['1999-12-31', '2000년 이후의 기록만 볼 수 있습니다'],
-        ['2026-02-30', '날짜는 YYYY-MM-DD 형식의 실제 날짜여야 합니다'],
+        ['2026-10-23', 'Records for a future date cannot be viewed'],
+        ['1999-12-31', 'Records can only be viewed from the year 2000 on'],
+        ['2026-02-30', 'Date must be a real date in YYYY-MM-DD format'],
       ] as const) {
         const { status, data } = await call(`/api/records/${date}`);
         assert.equal(status, 400);

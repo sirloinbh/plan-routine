@@ -59,7 +59,7 @@ test(
         await client.query('BEGIN');
         try {
           const { rows } = await client.query<{ id: string }>(
-            "INSERT INTO routines (name, cadence, category) VALUES ('기상', 'daily', 'wake') RETURNING id",
+            "INSERT INTO routines (name, cadence, category) VALUES ('Wake up', 'daily', 'wake') RETURNING id",
           );
           await client.query(
             "INSERT INTO routine_checks (routine_id, period_start) VALUES ($1, '2026-10-22')",
@@ -70,13 +70,13 @@ test(
           await client.query('ROLLBACK');
         }
       };
-      await rejects("INSERT INTO routines (name, cadence) VALUES ('운동', 'daily')", '23514');
+      await rejects("INSERT INTO routines (name, cadence) VALUES ('Exercise', 'daily')", '23514');
       await rejects(
-        "INSERT INTO routines (name, cadence, category) VALUES ('청소', 'weekly', 'housework')",
+        "INSERT INTO routines (name, cadence, category) VALUES ('Clean', 'weekly', 'housework')",
         '23514',
       );
       await rejects("INSERT INTO routines (name, cadence) VALUES ('  ', 'weekly')", '23514');
-      await rejects("INSERT INTO routines (name, cadence) VALUES ('월간', 'monthly')", '23514');
+      await rejects("INSERT INTO routines (name, cadence) VALUES ('Monthly', 'monthly')", '23514');
       await rejects(
         "INSERT INTO routine_checks (routine_id, period_start) VALUES (:id, '2026-10-22')",
         '23505',
@@ -143,7 +143,7 @@ test(
         await withApi(
           pool,
           async (call) => {
-            for (const name of ['체크 대상', '체크 안 함']) {
+            for (const name of ['To check', 'Not checked']) {
               const { data } = await call('/api/routines', {
                 method: 'POST',
                 body: { name, cadence: 'daily', category: 'care' },
@@ -250,7 +250,7 @@ test(
           async (call) => {
             const { data } = await call('/api/routines', {
               method: 'POST',
-              body: { name: '보관과 체크 경합', cadence: 'daily', category: 'care' },
+              body: { name: 'Archive and check race', cadence: 'daily', category: 'care' },
             });
             const id = (data.routine as { id: string }).id;
             created.push(id);
@@ -342,26 +342,26 @@ test(
             const path = '/api/diary/2026-10-22';
             const first = await call(path, {
               method: 'PUT',
-              body: { body: ' 첫 글 ', goodNote: '잘한 점', regretNote: '  ' },
+              body: { body: ' First entry ', goodNote: 'Good points', regretNote: '  ' },
             });
             assert.equal(first.status, 200);
             assert.deepEqual(first.data.entry, {
               date: '2026-10-22',
-              body: '첫 글',
-              goodNote: '잘한 점',
+              body: 'First entry',
+              goodNote: 'Good points',
               regretNote: null,
               tomorrowNote: null,
             });
 
-            const second = await call(path, { method: 'PUT', body: { body: '고친 글' } });
+            const second = await call(path, { method: 'PUT', body: { body: 'Edited text' } });
             assert.equal(second.status, 200);
             const reread = await call('/api/diary?date=2026-10-22');
-            assert.equal((reread.data.entry as { body: string }).body, '고친 글');
+            assert.equal((reread.data.entry as { body: string }).body, 'Edited text');
             // Saving without a note clears the note it had.
             assert.equal((reread.data.entry as { goodNote: unknown }).goodNote, null);
 
             const both = await Promise.all(
-              ['동시 저장 1', '동시 저장 2'].map((text) =>
+              ['Concurrent save 1', 'Concurrent save 2'].map((text) =>
                 call(path, { method: 'PUT', body: { body: text } }),
               ),
             );
@@ -385,7 +385,7 @@ test(
             // The longest allowed text is stored whole, counting an emoji as JavaScript does.
             const longest = await call('/api/diary/2026-10-21', {
               method: 'PUT',
-              body: { body: '😀'.repeat(2500), goodNote: '가'.repeat(1000) },
+              body: { body: '😀'.repeat(2500), goodNote: 'a'.repeat(1000) },
             });
             assert.equal(longest.status, 200);
             assert.equal((longest.data.entry as { body: string }).body.length, 5000);
@@ -399,7 +399,7 @@ test(
               checked: number;
               total: number;
             };
-            for (const name of ['일기 진행률 1', '일기 진행률 2']) {
+            for (const name of ['Diary progress 1', 'Diary progress 2']) {
               const { data } = await call('/api/routines', {
                 method: 'POST',
                 body: { name, cadence: 'daily', category: 'care' },
@@ -468,7 +468,7 @@ test(
           async (call) => {
             const added = await call('/api/routines', {
               method: 'POST',
-              body: { name: '주간 청소', cadence: 'weekly' },
+              body: { name: 'Weekly cleaning', cadence: 'weekly' },
             });
             assert.equal(added.status, 201);
             const { id, category } = added.data.routine as { id: string; category: unknown };
@@ -517,7 +517,7 @@ test(
             // Weekly routines have no category, so their group is matched on NULL.
             const second = await call('/api/routines', {
               method: 'POST',
-              body: { name: '주간 가계부', cadence: 'weekly' },
+              body: { name: 'Weekly budget', cadence: 'weekly' },
             });
             const secondId = (second.data.routine as { id: string }).id;
             created.push(secondId);
@@ -530,7 +530,7 @@ test(
             assert.ok(order.indexOf(secondId) < order.indexOf(id));
             const renamed = await call(`/api/routines/${secondId}`, {
               method: 'PATCH',
-              body: { name: '주간 가계부 정리' },
+              body: { name: 'Weekly budget tidy' },
             });
             assert.equal(renamed.status, 200);
 
@@ -577,7 +577,7 @@ test(
             // The first routine records first use: Thursday, so periods count from Sunday 10-18.
             const added = await call('/api/routines', {
               method: 'POST',
-              body: { name: '이불빨래', cadence: 'four_week' },
+              body: { name: 'Wash bedding', cadence: 'four_week' },
             });
             assert.equal(added.status, 201);
             const { id } = added.data.routine as { id: string };
@@ -741,8 +741,8 @@ test(
               return id;
             };
             // Thursday first use, so the period counts from Sunday 10-18.
-            const first = await add('책 읽기');
-            const second = await add('달리기');
+            const first = await add('Read a book');
+            const second = await add('Run');
             const before = await page();
             assert.equal(before.remainingWeeks, 12);
             const current = before.current as Period;
@@ -754,10 +754,10 @@ test(
 
             const renamed = await call(`/api/goals/${second}`, {
               method: 'PATCH',
-              body: { title: '5km 달리기' },
+              body: { title: 'Run 5 km' },
             });
             assert.equal(renamed.status, 200);
-            const removable = await add('지울 목표');
+            const removable = await add('Goal to delete');
             const removed = await call(`/api/goals/${removable}`, { method: 'DELETE' });
             assert.equal(removed.status, 200);
 
@@ -777,16 +777,16 @@ test(
             assert.deepEqual(
               last.goals.map((goal) => [goal.title, goal.reviewedAt]),
               [
-                ['책 읽기', null],
-                ['5km 달리기', null],
+                ['Read a book', null],
+                ['Run 5 km', null],
               ],
             );
-            const next = await add('새 목표');
+            const next = await add('New goal');
 
             // A past goal keeps its text.
             const pastEdit = await call(`/api/goals/${first}`, {
               method: 'PATCH',
-              body: { title: '다른 이름' },
+              body: { title: 'Other name' },
             });
             assert.equal(pastEdit.status, 400);
             assert.equal((await call(`/api/goals/${first}`, { method: 'DELETE' })).status, 400);
@@ -796,7 +796,7 @@ test(
               method: 'PUT',
               body: {
                 reviews: [
-                  { id: first, achieved: true, note: '남으면 안 됨' },
+                  { id: first, achieved: true, note: 'Must not remain' },
                   { id: next, achieved: true },
                 ],
               },
@@ -816,7 +816,7 @@ test(
               method: 'PUT',
               body: {
                 reviews: [
-                  { id: first, achieved: true, note: ' 10권 읽음 ' },
+                  { id: first, achieved: true, note: ' Read 10 books ' },
                   { id: second, achieved: false },
                 ],
               },
@@ -827,7 +827,7 @@ test(
             assert.deepEqual(
               reviewed.goals.map((goal) => [goal.achieved, goal.reviewNote, !!goal.reviewedAt]),
               [
-                [true, '10권 읽음', true],
+                [true, 'Read 10 books', true],
                 [false, null, true],
               ],
             );
@@ -878,11 +878,11 @@ test(
         created.push(rows[0].id);
         return rows[0].id;
       };
-      const steady = await add('계속 있는 루틴', null);
+      const steady = await add('Ongoing routine', null);
       // Archived at 15:30 UTC on 03-14, which is 00:30 on 03-15 in Seoul.
-      const archived = await add('보관한 루틴', '2025-03-14T15:30:00Z');
-      const backfilled = await add('나중에 만든 루틴', null, '2025-03-20T00:00:00Z');
-      const archivedChecked = await add('그날 보관하고 체크한 루틴', '2025-03-15T01:00:00Z');
+      const archived = await add('Archived routine', '2025-03-14T15:30:00Z');
+      const backfilled = await add('Routine added later', null, '2025-03-20T00:00:00Z');
+      const archivedChecked = await add('Archived and checked that day', '2025-03-15T01:00:00Z');
       for (const [id, day] of [
         [steady, '2025-03-10'],
         [backfilled, '2025-03-12'],
@@ -893,7 +893,7 @@ test(
           [id, day],
         );
       await client.query(
-        `INSERT INTO diary_entries (entry_date, body) VALUES ('2025-03-12', '그날의 일기')`,
+        `INSERT INTO diary_entries (entry_date, body) VALUES ('2025-03-12', 'Diary of that day')`,
       );
       try {
         await withApi(
@@ -908,32 +908,32 @@ test(
             // Before the Seoul creation date, nothing existed yet.
             assert.deepEqual(await names('2025-03-09'), []);
             assert.deepEqual(await names('2025-03-10'), [
-              ['계속 있는 루틴', true],
-              ['보관한 루틴', false],
-              ['그날 보관하고 체크한 루틴', false],
+              ['Ongoing routine', true],
+              ['Archived routine', false],
+              ['Archived and checked that day', false],
             ]);
             // A routine made later still counts on a day it was checked.
             assert.deepEqual(await names('2025-03-12'), [
-              ['계속 있는 루틴', false],
-              ['보관한 루틴', false],
-              ['나중에 만든 루틴', true],
-              ['그날 보관하고 체크한 루틴', false],
+              ['Ongoing routine', false],
+              ['Archived routine', false],
+              ['Routine added later', true],
+              ['Archived and checked that day', false],
             ]);
             // The last day before archiving, then the archive day itself.
             assert.deepEqual(await names('2025-03-14'), [
-              ['계속 있는 루틴', false],
-              ['보관한 루틴', false],
-              ['그날 보관하고 체크한 루틴', false],
+              ['Ongoing routine', false],
+              ['Archived routine', false],
+              ['Archived and checked that day', false],
             ]);
             assert.deepEqual(await names('2025-03-15'), [
-              ['계속 있는 루틴', false],
-              ['그날 보관하고 체크한 루틴', true],
+              ['Ongoing routine', false],
+              ['Archived and checked that day', true],
             ]);
             // Created later and not checked: not counted on an earlier day.
-            assert.deepEqual(await names('2025-03-19'), [['계속 있는 루틴', false]]);
+            assert.deepEqual(await names('2025-03-19'), [['Ongoing routine', false]]);
             assert.deepEqual(await names('2025-03-20'), [
-              ['계속 있는 루틴', false],
-              ['나중에 만든 루틴', false],
+              ['Ongoing routine', false],
+              ['Routine added later', false],
             ]);
             const archivedDay = await call('/api/records/2025-03-14');
             assert.equal(
@@ -975,7 +975,7 @@ test(
               ['2025-03-12'],
             );
             const written = await call('/api/records/2025-03-12');
-            assert.equal((written.data.diary as { body: string }).body, '그날의 일기');
+            assert.equal((written.data.diary as { body: string }).body, 'Diary of that day');
             const empty = await call('/api/records/2025-03-09');
             assert.equal(empty.data.diary, null);
 
@@ -1036,17 +1036,17 @@ test(
             type Stats = { daily: { weeks: Tally[] }; weekly: Tally[]; fourWeek: Tally[] };
             const before = (await call('/api/stats')).data as Stats;
             // 15:30 UTC on 01-13 is 00:30 on 01-14 in Seoul.
-            const daily = await add('통계 하루', 'daily', 'care', '2030-01-13T15:30:00Z');
+            const daily = await add('Stats daily', 'daily', 'care', '2030-01-13T15:30:00Z');
             // 15:30 UTC on 01-15 is 00:30 on 01-16 in Seoul.
             const archived = await add(
-              '통계 보관',
+              'Stats archived',
               'daily',
               'care',
               '2030-01-13T15:30:00Z',
               '2030-01-15T15:30:00Z',
             );
-            const weekly = await add('통계 주간', 'weekly', null, '2030-01-06T00:00:00Z');
-            const fourWeek = await add('통계 4주', 'four_week', null, '2030-01-06T00:00:00Z');
+            const weekly = await add('Stats weekly', 'weekly', null, '2030-01-06T00:00:00Z');
+            const fourWeek = await add('Stats 4-week', 'four_week', null, '2030-01-06T00:00:00Z');
             for (const [id, start] of [
               [daily, '2030-01-14'],
               [archived, '2030-01-15'],
@@ -1158,7 +1158,7 @@ test(
         await withApi(
           pool,
           async (call) => {
-            for (const name of ['6시 기상', '물 한 잔', '스트레칭']) {
+            for (const name of ['Wake at 6', 'Drink water', 'Stretch']) {
               const { status, data } = await call('/api/routines', {
                 method: 'POST',
                 body: { name, cadence: 'daily', category: 'wake' },
@@ -1172,7 +1172,7 @@ test(
                 .filter((routine) => created.includes(routine.id))
                 .map((routine) => routine.name);
             };
-            assert.deepEqual(await names(), ['6시 기상', '물 한 잔', '스트레칭']);
+            assert.deepEqual(await names(), ['Wake at 6', 'Drink water', 'Stretch']);
             // Adding a routine records the first-use date (or keeps an existing one).
             const anchor = await client.query<{ value: string }>(
               'SELECT value FROM app_settings WHERE key = $1',
@@ -1185,17 +1185,17 @@ test(
               body: { direction: 'up' },
             });
             assert.equal(moved.status, 200);
-            assert.deepEqual(await names(), ['6시 기상', '스트레칭', '물 한 잔']);
+            assert.deepEqual(await names(), ['Wake at 6', 'Stretch', 'Drink water']);
             // Moving the first item up leaves the order unchanged.
             await call(`/api/routines/${created[0]}/move`, {
               method: 'POST',
               body: { direction: 'up' },
             });
-            assert.deepEqual(await names(), ['6시 기상', '스트레칭', '물 한 잔']);
+            assert.deepEqual(await names(), ['Wake at 6', 'Stretch', 'Drink water']);
 
             const renamed = await call(`/api/routines/${created[0]}`, {
               method: 'PATCH',
-              body: { name: '6시 30분 기상' },
+              body: { name: 'Wake at 6:30' },
             });
             assert.equal(renamed.status, 200);
 
@@ -1205,7 +1205,7 @@ test(
             );
             const archived = await call(`/api/routines/${created[1]}/archive`, { method: 'POST' });
             assert.equal(archived.status, 200);
-            assert.deepEqual(await names(), ['6시 30분 기상', '스트레칭']);
+            assert.deepEqual(await names(), ['Wake at 6:30', 'Stretch']);
             // The archived routine keeps its check and can no longer be changed.
             const checks = await client.query(
               'SELECT 1 FROM routine_checks WHERE routine_id = $1',
@@ -1266,12 +1266,12 @@ test(
               routines.push(id);
               return id;
             };
-            const daily = await addRoutine('연결 하루', 'daily', 'care');
-            const weekly = await addRoutine('연결 주간', 'weekly');
-            const fourWeek = await addRoutine('연결 4주', 'four_week');
+            const daily = await addRoutine('Link daily', 'daily', 'care');
+            const weekly = await addRoutine('Link weekly', 'weekly');
+            const fourWeek = await addRoutine('Link 4-week', 'four_week');
             const created = await call('/api/goals', {
               method: 'POST',
-              body: { title: '연결 목표' },
+              body: { title: 'Link goal' },
             });
             const goalId = (created.data.goal as { id: string }).id;
             goals.push(goalId);
@@ -1290,8 +1290,8 @@ test(
             const linked = await put([weekly, daily]);
             assert.equal(linked.status, 200);
             const both = [
-              { id: daily, name: '연결 하루' },
-              { id: weekly, name: '연결 주간' },
+              { id: daily, name: 'Link daily' },
+              { id: weekly, name: 'Link weekly' },
             ];
             assert.deepEqual(linked.data.routines, both);
             assert.deepEqual(await shown(), both);
@@ -1301,7 +1301,7 @@ test(
             assert.deepEqual(await shown(), both);
 
             assert.equal((await put([weekly])).status, 200);
-            assert.deepEqual(await shown(), [{ id: weekly, name: '연결 주간' }]);
+            assert.deepEqual(await shown(), [{ id: weekly, name: 'Link weekly' }]);
 
             // An archived routine leaves the goal's list and cannot be linked again.
             await call(`/api/routines/${weekly}/archive`, { method: 'POST' });
@@ -1353,7 +1353,7 @@ test(
       try {
         await client.query(
           `INSERT INTO routines (id, name, cadence, sort_order) OVERRIDING SYSTEM VALUE
-           SELECT n, '정렬 ' || n, 'weekly', 0 FROM unnest($1::bigint[]) AS n`,
+           SELECT n, 'Sort ' || n, 'weekly', 0 FROM unnest($1::bigint[]) AS n`,
           [ids],
         );
         await withApi(
@@ -1375,7 +1375,7 @@ test(
             await client.query(
               `INSERT INTO twelve_week_goals (id, period_start, title, sort_order)
                OVERRIDING SYSTEM VALUE
-               SELECT n, $2::date, '정렬 ' || n, 0 FROM unnest($1::bigint[]) AS n`,
+               SELECT n, $2::date, 'Sort ' || n, 0 FROM unnest($1::bigint[]) AS n`,
               [ids, periodStart],
             );
             const goals = await call('/api/goals');
@@ -1440,7 +1440,7 @@ test(
         assert.ok(names.includes(table), table);
 
       // A later run applies nothing, so a seeded item the user renamed does not come back.
-      await client.query("UPDATE routines SET name = '바꾼 이름' WHERE name = '목표 재설정'");
+      await client.query("UPDATE routines SET name = 'Renamed' WHERE name = '목표 재설정'");
       assert.deepEqual(await migrate(client, files), []);
       const seeded = await client.query("SELECT 1 FROM routines WHERE name = '목표 재설정'");
       assert.equal(seeded.rowCount, 0);
@@ -1474,12 +1474,12 @@ test(
           async (call) => {
             const routine = await call('/api/routines', {
               method: 'POST',
-              body: { name: '연결 루틴', cadence: 'weekly' },
+              body: { name: 'Link routine', cadence: 'weekly' },
             });
             routineId = (routine.data.routine as { id: string }).id;
             const project = await call('/api/project-links', {
               method: 'POST',
-              body: { name: '연결 테스트', url: 'https://books.example' },
+              body: { name: 'Link test', url: 'https://books.example' },
             });
             assert.equal(project.status, 201);
             projectId = (project.data.project as { id: string; url: string }).id;
@@ -1487,7 +1487,7 @@ test(
 
             const same = await call('/api/project-links', {
               method: 'POST',
-              body: { name: '연결 테스트', url: 'https://other.example' },
+              body: { name: 'Link test', url: 'https://other.example' },
             });
             assert.equal(same.status, 409);
 
@@ -1507,7 +1507,7 @@ test(
               projectId,
             );
             const shown = await item();
-            assert.equal(shown.linkName, '연결 테스트');
+            assert.equal(shown.linkName, 'Link test');
             assert.equal(shown.linkUrl, 'https://books.example/');
 
             const missing = await call(path, {

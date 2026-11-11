@@ -75,41 +75,41 @@ function fakePool(rows: unknown[] = []) {
 }
 
 test('a project is stored with its name trimmed and its address normalised', async () => {
-  const stored = { id: '1', name: '가계부', url: 'https://example.com/' };
+  const stored = { id: '1', name: 'Budget', url: 'https://example.com/' };
   const { pool, queries } = fakePool([stored]);
   await withApi(pool, async (call) => {
     const { status, data } = await call('/api/project-links', {
       method: 'POST',
-      body: { name: ' 가계부 ', url: ' https://EXAMPLE.com ' },
+      body: { name: ' Budget ', url: ' https://EXAMPLE.com ' },
     });
     assert.equal(status, 201);
     assert.deepEqual(data.project, stored);
   });
-  assert.deepEqual(queries[0].params, ['가계부', 'https://example.com/']);
+  assert.deepEqual(queries[0].params, ['Budget', 'https://example.com/']);
 });
 
-test('bad projects are refused in Korean before the database', async () => {
+test('bad projects are refused in English before the database', async () => {
   const { pool, queries } = fakePool();
   await withApi(pool, async (call) => {
     for (const [body, message] of [
-      [{ url: 'https://a.example' }, '프로젝트 이름을 입력해 주세요'],
-      [{ name: ' ', url: 'https://a.example' }, '프로젝트 이름을 입력해 주세요'],
-      [{ name: 1, url: 'https://a.example' }, '프로젝트 이름은 글자여야 합니다'],
+      [{ url: 'https://a.example' }, 'Enter a project name'],
+      [{ name: ' ', url: 'https://a.example' }, 'Enter a project name'],
+      [{ name: 1, url: 'https://a.example' }, 'The project name must be text'],
       [
         { name: 'a'.repeat(101), url: 'https://a.example' },
-        '프로젝트 이름은 100자 이하로 입력해 주세요',
+        'The project name must be 100 characters or fewer',
       ],
-      [{ name: 'a\0b', url: 'https://a.example' }, '쓸 수 없는 문자가 들어 있습니다'],
-      [{ name: '가계부' }, '주소를 입력해 주세요'],
-      [{ name: '가계부', url: ' ' }, '주소를 입력해 주세요'],
-      [{ name: '가계부', url: 5 }, '주소는 글자여야 합니다'],
+      [{ name: 'a\0b', url: 'https://a.example' }, 'Contains characters that are not allowed'],
+      [{ name: 'Budget' }, 'Enter a URL'],
+      [{ name: 'Budget', url: ' ' }, 'Enter a URL'],
+      [{ name: 'Budget', url: 5 }, 'The URL must be text'],
       [
-        { name: '가계부', url: 'javascript:alert(1)' },
-        '주소는 https:// 또는 사설 접속 주소만 쓸 수 있습니다',
+        { name: 'Budget', url: 'javascript:alert(1)' },
+        'The URL must be https:// or a private access address',
       ],
       [
-        { name: '가계부', url: 'http://example.com/' },
-        '주소는 https:// 또는 사설 접속 주소만 쓸 수 있습니다',
+        { name: 'Budget', url: 'http://example.com/' },
+        'The URL must be https:// or a private access address',
       ],
     ] as const) {
       const { status, data } = await call('/api/project-links', { method: 'POST', body });
@@ -118,23 +118,23 @@ test('bad projects are refused in Korean before the database', async () => {
     }
     const tooLong = await call('/api/project-links', {
       method: 'POST',
-      body: { name: '가계부', url: `https://a.example/${'x'.repeat(2048)}` },
+      body: { name: 'Budget', url: `https://a.example/${'x'.repeat(2048)}` },
     });
     assert.equal(tooLong.status, 400);
-    assert.match(String(tooLong.data.error), /2048자/);
+    assert.match(String(tooLong.data.error), /2048 characters/);
     // A refused address gets one message, however long it is.
     const refusedLong = await call('/api/project-links', {
       method: 'POST',
-      body: { name: '가계부', url: `http://example.com/${'x'.repeat(2100)}` },
+      body: { name: 'Budget', url: `http://example.com/${'x'.repeat(2100)}` },
     });
-    assert.equal(refusedLong.data.error, '주소는 https:// 또는 사설 접속 주소만 쓸 수 있습니다');
+    assert.equal(refusedLong.data.error, 'The URL must be https:// or a private access address');
     // Short as typed, far longer once percent-encoded for storage.
     const encoded = await call('/api/project-links', {
       method: 'POST',
-      body: { name: '가계부', url: `https://a.example/${'가'.repeat(1000)}` },
+      body: { name: 'Budget', url: `https://a.example/${'é'.repeat(1000)}` },
     });
     assert.equal(encoded.status, 400);
-    assert.match(String(encoded.data.error), /2048자/);
+    assert.match(String(encoded.data.error), /2048 characters/);
   });
   assert.equal(queries.length, 0);
 });
@@ -144,13 +144,13 @@ test('removing answers for a missing project', async () => {
   await withApi(pool, async (call) => {
     const missing = await call('/api/project-links/9', { method: 'DELETE' });
     assert.equal(missing.status, 404);
-    assert.equal(missing.data.error, '프로젝트를 찾을 수 없습니다');
+    assert.equal(missing.data.error, 'Project not found');
     assert.equal((await call('/api/project-links/abc', { method: 'DELETE' })).status, 400);
   });
 });
 
 test('a routine link is set or cleared, and refused for something missing', async () => {
-  const routine = { id: '1', name: '가계부 쓰기' };
+  const routine = { id: '1', name: 'Update the budget' };
   const found = fakePool([routine]);
   await withApi(found.pool, async (call) => {
     const set = await call('/api/routines/1/project-link', {
@@ -180,7 +180,7 @@ test('a routine link is set or cleared, and refused for something missing', asyn
       body: { projectLinkId: '7' },
     });
     assert.equal(status, 404);
-    assert.equal(data.error, '루틴이나 프로젝트를 찾을 수 없습니다');
+    assert.equal(data.error, 'Routine or project not found');
     for (const body of [{}, { projectLinkId: 'abc' }, { projectLinkId: 7 }, []]) {
       const refused = await call('/api/routines/1/project-link', { method: 'PUT', body });
       assert.equal(refused.status, 400);
