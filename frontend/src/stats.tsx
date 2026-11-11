@@ -4,6 +4,7 @@ import { Badge } from './components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
 import { EmptyState } from './components/ui/empty-state';
 import { Notice } from './components/ui/notice';
+import { formatDate } from './format-date';
 import { requestJson } from './lib/api';
 import { useNotice } from './lib/use-notice';
 import { cn } from './lib/utils';
@@ -36,10 +37,10 @@ type StatsData = {
 
 // Identity is never color alone: every state also has a mark and a word.
 const statusLook: Record<Status, { mark: string; word: string; className: string }> = {
-  done: { mark: '✓', word: '완료', className: 'bg-primary text-primary-foreground' },
-  missed: { mark: '✕', word: '미완료', className: 'bg-muted text-foreground' },
-  open: { mark: '…', word: '진행 중', className: 'border border-input text-muted-foreground' },
-  none: { mark: '', word: '대상 아님', className: 'border border-dashed border-input' },
+  done: { mark: '✓', word: 'Done', className: 'bg-primary text-primary-foreground' },
+  missed: { mark: '✕', word: 'Not done', className: 'bg-muted text-foreground' },
+  open: { mark: '…', word: 'In progress', className: 'border border-input text-muted-foreground' },
+  none: { mark: '', word: 'Not applicable', className: 'border border-dashed border-input' },
 };
 
 // Rounding must not claim all or nothing while neither is true: 216/217 is not 100%.
@@ -49,9 +50,9 @@ const percent = ({ checked, total }: Tally) => {
   if (checked < total && value === 100) return 99;
   return value;
 };
-const short = (date: string) => date.slice(5).replace('-', '/');
+const short = (date: string) => formatDate(date, 'short');
 const periodName = ({ start, end }: { start: string; end: string }) =>
-  start === end ? start : `${start} ~ ${end}`;
+  start === end ? formatDate(start) : `${formatDate(start)} – ${formatDate(end)}`;
 
 function RateRow({ label, tally }: { label: string; tally: Tally }) {
   return (
@@ -60,7 +61,7 @@ function RateRow({ label, tally }: { label: string; tally: Tally }) {
       {tally.total === 0 ? (
         <>
           <span aria-hidden className="h-2 rounded-sm bg-muted/50" />
-          <span className="text-right text-muted-foreground">기록 없음</span>
+          <span className="text-right text-muted-foreground">No records</span>
         </>
       ) : (
         <>
@@ -90,7 +91,7 @@ function RateCard({
   rows: { key: string; label: string; tally: Tally }[];
 }) {
   return (
-    <Card role="region" aria-label={`${title} 달성률`}>
+    <Card role="region" aria-label={`${title} completion rates`}>
       <CardHeader>
         <CardTitle>{title}</CardTitle>
       </CardHeader>
@@ -108,7 +109,7 @@ function RateCard({
 const periodRows = (periods: PeriodTally[]) =>
   periods.map((period) => ({
     key: period.start,
-    label: `${short(period.start)} ~ ${short(period.end)}`,
+    label: `${short(period.start)} – ${short(period.end)}`,
     tally: period,
   }));
 
@@ -120,10 +121,10 @@ function ItemRow({ item }: { item: Item }) {
         <span className="min-w-0 flex-1 basis-40 text-body-sm font-medium wrap-anywhere">
           {item.name}
         </span>
-        {item.archived && <Badge variant="secondary">보관됨</Badge>}
+        {item.archived && <Badge variant="secondary">Archived</Badge>}
         <span className="text-body-sm tabular-nums">
           {item.total === 0 ? (
-            <span className="text-muted-foreground">기록 없음</span>
+            <span className="text-muted-foreground">No records</span>
           ) : (
             <>
               {percent(item)}%{' '}
@@ -155,9 +156,9 @@ function ItemRow({ item }: { item: Item }) {
       </ol>
       <details className="text-caption text-muted-foreground">
         <summary className="cursor-pointer wrap-anywhere pointer-coarse:py-3">
-          {item.name} 기간별로 보기
+          {item.name} by period
         </summary>
-        <ul className="mt-1 flex flex-col gap-0.5" aria-label={`${item.name} 최근 이력`}>
+        <ul className="mt-1 flex flex-col gap-0.5" aria-label={`${item.name} recent history`}>
           {oldestFirst.map((period) => (
             <li key={period.start} className="flex justify-between gap-2">
               <span>{periodName(period)}</span>
@@ -219,7 +220,7 @@ export function Stats() {
       <Notice notice={notice} />
       {loadFailed && (
         <RetryButton className="self-start" onClick={reload}>
-          다시 시도
+          Try again
         </RetryButton>
       )}
     </>
@@ -229,7 +230,7 @@ export function Stats() {
     return loadFailed ? (
       <div className="flex flex-col items-start gap-3">{failure}</div>
     ) : (
-      <LoadingRegion label="달성률 불러오는 중" shape="cards" />
+      <LoadingRegion label="Loading completion rates" shape="cards" />
     );
 
   const itemsOf = (cadence: string) => data.items.filter((item) => item.cadence === cadence);
@@ -237,9 +238,9 @@ export function Stats() {
     (group) => group.routines.length > 0,
   );
   const itemCards = [
-    { key: 'weekly', title: '주간 루틴', items: itemsOf('weekly') },
-    { key: 'four_week', title: '4주 루틴', items: itemsOf('four_week') },
-    { key: 'twelve_week', title: '12주 루틴', items: itemsOf('twelve_week') },
+    { key: 'weekly', title: 'Weekly routines', items: itemsOf('weekly') },
+    { key: 'four_week', title: '4-week routines', items: itemsOf('four_week') },
+    { key: 'twelve_week', title: '12-week routines', items: itemsOf('twelve_week') },
   ].filter((card) => card.items.length > 0);
 
   return (
@@ -247,29 +248,30 @@ export function Stats() {
       {failure}
       <section className="flex flex-col gap-4" aria-labelledby="stats-rates">
         <h2 id="stats-rates" className="text-body font-semibold">
-          주기별 달성률
+          Completion rates by cycle
         </h2>
         <p className="text-body-sm text-muted-foreground">
-          활성 상태였던 항목만 셉니다. 아직 끝나지 않은 기간은 완료한 것만 들어갑니다.
+          Only items that were active are counted. For periods that have not ended, only completed
+          items are counted.
         </p>
         <div className="grid gap-4 md:grid-cols-2">
-          <RateCard title="하루 루틴 주별" rows={periodRows(data.daily.weeks)} />
+          <RateCard title="Daily routines by week" rows={periodRows(data.daily.weeks)} />
           <RateCard
-            title="하루 루틴 월별"
+            title="Daily routines by month"
             rows={data.daily.months.map((month) => ({
               key: month.month,
               label: month.month,
               tally: month,
             }))}
           />
-          <RateCard title="주간 루틴" rows={periodRows(data.weekly)} />
-          <RateCard title="4주 루틴" rows={periodRows(data.fourWeek)} />
-          <RateCard title="12주 루틴" rows={periodRows(data.twelveWeek)} />
+          <RateCard title="Weekly routines" rows={periodRows(data.weekly)} />
+          <RateCard title="4-week routines" rows={periodRows(data.fourWeek)} />
+          <RateCard title="12-week routines" rows={periodRows(data.twelveWeek)} />
         </div>
       </section>
       <section className="flex flex-col gap-4" aria-labelledby="stats-items">
         <h2 id="stats-items" className="text-body font-semibold">
-          항목별 이력
+          History by item
         </h2>
         <ul className="flex flex-wrap gap-3 text-caption text-muted-foreground" aria-hidden>
           {(['done', 'missed', 'open', 'none'] as const).map((status) => (
@@ -288,14 +290,14 @@ export function Stats() {
         </ul>
         {data.items.length === 0 ? (
           <EmptyState
-            title="아직 이력이 없습니다"
-            description="루틴을 추가하고 체크하면 여기에 쌓입니다."
+            title="No history yet"
+            description="Add and check routines, and the history builds up here."
             headingLevel="h3"
           />
         ) : (
           <div className="grid gap-4 md:grid-cols-2">
             {dailyGroups.map((group) => (
-              <Card key={group.key} role="region" aria-label={`${group.label} 이력`}>
+              <Card key={group.key} role="region" aria-label={`${group.label} history`}>
                 <CardHeader>
                   <CardTitle>{group.label}</CardTitle>
                 </CardHeader>
@@ -309,7 +311,7 @@ export function Stats() {
               </Card>
             ))}
             {itemCards.map((card) => (
-              <Card key={card.key} role="region" aria-label={`${card.title} 이력`}>
+              <Card key={card.key} role="region" aria-label={`${card.title} history`}>
                 <CardHeader>
                   <CardTitle>{card.title}</CardTitle>
                 </CardHeader>

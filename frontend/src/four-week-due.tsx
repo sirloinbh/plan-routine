@@ -2,6 +2,7 @@ import { useState } from 'react';
 
 import { Checklist, type ChecklistItem } from './checklist';
 import { Notice } from './components/ui/notice';
+import { formatDate } from './format-date';
 import { RetryButton } from './retry-button';
 import { useChecklist } from './use-checklist';
 
@@ -25,12 +26,12 @@ export function FourWeekDue() {
   return (
     <div className="flex flex-col items-start gap-2">
       <Notice notice={shownNotice} />
-      {loadFailed && <RetryButton onClick={retry}>4주 루틴 다시 불러오기</RetryButton>}
+      {loadFailed && <RetryButton onClick={retry}>Reload 4-week routines</RetryButton>}
       {data && items.length > 0 && (
         <>
           <div className="w-full">
             <Checklist
-              title="곧 끝나는 4주 루틴"
+              title="4-week routines ending soon"
               headingLevel="h2"
               items={items}
               onToggle={(item) => {
@@ -40,10 +41,10 @@ export function FourWeekDue() {
             />
           </div>
           <p className="text-body-sm text-muted-foreground">
-            {data.period.end}까지입니다.{' '}
+            Ends {formatDate(data.period.end)}.{' '}
             {data.remainingDays === 0
-              ? '오늘이 마지막 날입니다'
-              : `${data.remainingDays}일 남았습니다`}
+              ? 'Today is the last day'
+              : `${data.remainingDays} ${data.remainingDays === 1 ? 'day' : 'days'} left`}
           </p>
         </>
       )}

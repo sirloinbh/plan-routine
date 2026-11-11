@@ -12,8 +12,8 @@ import type { Routine } from './routines';
 export type LinkedRoutine = { id: string; name: string };
 
 const groups = [
-  { cadence: 'daily', label: '하루 루틴' },
-  { cadence: 'weekly', label: '주간 루틴' },
+  { cadence: 'daily', label: 'Daily routines' },
+  { cadence: 'weekly', label: 'Weekly routines' },
 ];
 
 // Shows and changes which daily and weekly routines serve a goal of the current period.
@@ -97,8 +97,8 @@ export function GoalRoutineLinks({
       );
       onSaved(
         selected.length > 0
-          ? `'${goal.title}' 목표에 루틴 ${selected.length}개를 연결했습니다`
-          : `'${goal.title}' 목표의 루틴 연결을 모두 해제했습니다`,
+          ? `Linked ${selected.length} ${selected.length === 1 ? 'routine' : 'routines'} to the goal '${goal.title}'`
+          : `Unlinked all routines from the goal '${goal.title}'`,
         saved.routines,
       );
       setOpen(false);
@@ -130,37 +130,37 @@ export function GoalRoutineLinks({
       <div className="flex flex-wrap items-center gap-2">
         <p className="min-w-0 flex-1 basis-48 text-body-sm wrap-anywhere text-muted-foreground">
           {linked.length > 0
-            ? `연결된 루틴: ${linked.map((routine) => routine.name).join(', ')}`
-            : '연결된 루틴이 없습니다'}
+            ? `Linked routines: ${linked.map((routine) => routine.name).join(', ')}`
+            : 'No linked routines'}
         </p>
         {!open && (
           <Button
             type="button"
             variant="ghost"
             size="sm"
-            aria-label={`${goal.title} 루틴 연결`}
+            aria-label={`Link routines to ${goal.title}`}
             data-focus-key={keys.toggle}
             disabled={disabled}
             onClick={() => void start()}
           >
-            루틴 연결
+            Link routines
           </Button>
         )}
       </div>
       {open && (
         <form
           className="flex flex-col gap-3 rounded-md border p-3"
-          aria-label={`${goal.title} 루틴 연결`}
+          aria-label={`Link routines to ${goal.title}`}
           onSubmit={(event) => {
             event.preventDefault();
             void save();
           }}
         >
           {routines === null ? (
-            <LoadingRegion label="루틴 불러오는 중" rows={2} />
+            <LoadingRegion label="Loading routines" rows={2} />
           ) : routines.length === 0 ? (
             <p className="text-body-sm text-muted-foreground">
-              연결할 하루·주간 루틴이 없습니다. 먼저 루틴을 추가해 주세요.
+              There are no daily or weekly routines to link. Add a routine first.
             </p>
           ) : (
             groups.map(({ cadence, label }) => {
@@ -200,8 +200,8 @@ export function GoalRoutineLinks({
               disabled={routines === null}
               aria-busy={saving || undefined}
             >
-              {saving && <Spinner size="sm" label="저장하는 중" />}
-              연결 저장
+              {saving && <Spinner size="sm" label="Saving" />}
+              Save links
             </Button>
             <Button
               type="button"
@@ -214,7 +214,7 @@ export function GoalRoutineLinks({
                 close();
               }}
             >
-              닫기
+              Close
             </Button>
           </div>
         </form>

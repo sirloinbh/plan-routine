@@ -7,6 +7,7 @@ import { Input } from './components/ui/input';
 import { Notice } from './components/ui/notice';
 import { Spinner } from './components/ui/spinner';
 import { useFocusRequest } from './focus-moves';
+import { formatDate } from './format-date';
 import { GoalRoutineLinks, type LinkedRoutine } from './goal-routine-links';
 import { LabeledTextarea } from './labeled-textarea';
 import { requestJson } from './lib/api';
@@ -36,9 +37,9 @@ type GoalsData = {
 type ReviewDraft = { achieved: boolean | null; note: string };
 
 const answers: { value: boolean | null; label: string }[] = [
-  { value: true, label: '달성' },
-  { value: false, label: '미달성' },
-  { value: null, label: '미정' },
+  { value: true, label: 'Achieved' },
+  { value: false, label: 'Not achieved' },
+  { value: null, label: 'Undecided' },
 ];
 
 const needsReview = ({ goals }: GoalPeriod) => goals.some((goal) => !goal.reviewedAt);
@@ -93,8 +94,8 @@ function PastPeriod({
       const answered = reviews.some(({ achieved, note }) => achieved !== null || note.trim());
       status(
         answered
-          ? '회고를 저장했습니다'
-          : '저장했습니다. 달성 여부나 메모를 남기면 회고가 끝납니다',
+          ? 'Saved the review'
+          : 'Saved. The review is complete once you mark the goal achieved or add a note',
       );
       // The saved answers show at once, even if the reload that follows fails.
       onSaved(goals);
@@ -106,9 +107,9 @@ function PastPeriod({
     }
   };
 
-  const label = `${past.period.start} ~ ${past.period.end}`;
+  const label = `${formatDate(past.period.start)} – ${formatDate(past.period.end)}`;
   return (
-    <Card role="region" aria-label={`${label} 회고`}>
+    <Card role="region" aria-label={`Review for ${label}`}>
       <CardHeader>
         <CardTitle
           asHeading="h2"
@@ -118,14 +119,14 @@ function PastPeriod({
           className="flex scroll-mt-[calc(env(safe-area-inset-top)+5rem)] flex-wrap items-center gap-2"
         >
           {label}
-          {needsReview(past) && <Badge variant="secondary">회고 필요</Badge>}
+          {needsReview(past) && <Badge variant="secondary">Review needed</Badge>}
         </CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         <Notice notice={movedNotice} />
         <form
           className="flex flex-col gap-4"
-          aria-label={`${label} 회고 저장`}
+          aria-label={`Save the review for ${label}`}
           onSubmit={(event) => {
             event.preventDefault();
             void save();
@@ -153,7 +154,7 @@ function PastPeriod({
                 </div>
                 <LabeledTextarea
                   id={`review-${goal.id}`}
-                  label="메모"
+                  label="Note"
                   value={draft.note}
                   rows={2}
                   limit={1000}
@@ -165,8 +166,8 @@ function PastPeriod({
           })}
           <Notice notice={notice} />
           <Button type="submit" className="self-start">
-            {saving && <Spinner size="sm" label="저장하는 중" />}
-            회고 저장
+            {saving && <Spinner size="sm" label="Saving" />}
+            Save review
           </Button>
         </form>
       </CardContent>
@@ -213,7 +214,7 @@ function CurrentGoals({
     const messages = [
       lostEdit.current,
       gone.length > 0
-        ? `${gone.join(', ')} 목표가 이번 기간 목록에 없어 루틴 연결을 저장하지 못했습니다`
+        ? `Could not save routine links because ${gone.join(', ')} ${gone.length === 1 ? 'is' : 'are'} no longer in this period's goals`
         : null,
     ].filter((message) => message !== null);
     lostEdit.current = null;
@@ -225,7 +226,7 @@ function CurrentGoals({
   if (editing && !goals.some((goal) => goal.id === editing.id)) {
     setEditing(null);
     requestFocus([focusKeys.add]);
-    lostEdit.current = `'${editing.title}' 수정을 저장하지 못했습니다. 이번 기간의 목표가 아닙니다`;
+    lostEdit.current = `Could not save the edit to '${editing.title}'. It is not a goal of this period`;
   }
 
   // Reloads after failures too: a 404 usually means the list changed elsewhere, and a past-goal
@@ -252,14 +253,14 @@ function CurrentGoals({
   const add = async () => {
     const title = draft.trim();
     if (!title) {
-      error('목표를 입력해 주세요');
+      error('Enter a goal');
       beginChange();
       requestFocus([focusKeys.add]);
       return;
     }
     const ok = await run(
       () => requestJson('/api/goals', { method: 'POST', body: { title } }),
-      `'${title}' 목표를 추가했습니다`,
+      `Added the goal '${title}'`,
       'add',
     );
     requestFocus([focusKeys.add]);
@@ -271,14 +272,14 @@ function CurrentGoals({
     if (!editing) return;
     const title = editing.title.trim();
     if (!title) {
-      error('목표를 입력해 주세요');
+      error('Enter a goal');
       beginChange();
       requestFocus([focusKeys.renameInput]);
       return;
     }
     const ok = await run(
       () => requestJson(`/api/goals/${editing.id}`, { method: 'PATCH', body: { title } }),
-      `목표를 '${title}'(으)로 바꿨습니다`,
+      `Changed the goal to '${title}'`,
       'rename',
     );
     if (ok) setEditing(null);
@@ -305,7 +306,7 @@ function CurrentGoals({
           // Removed on purpose, so its open panel is nothing to report once the list reloads.
           openPanels.current.delete(goal.id),
         ),
-      `'${goal.title}' 목표를 지웠습니다`,
+      `Deleted the goal '${goal.title}'`,
       `remove:${goal.id}`,
     );
     setConfirmDelete(null);
@@ -317,21 +318,21 @@ function CurrentGoals({
   };
 
   return (
-    <Card role="region" aria-label="이번 12주 목표">
+    <Card role="region" aria-label="Goals for these 12 weeks">
       <CardHeader>
         <CardTitle asHeading="h2" className="flex items-center gap-2">
-          이번 12주 목표
+          Goals for these 12 weeks
           <Badge variant="secondary">{goals.length}</Badge>
         </CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         <p className="text-body-sm text-muted-foreground">
-          {data.current.period.start} ~ {data.current.period.end} · {data.remainingWeeks}주
-          남았습니다
+          {formatDate(data.current.period.start)} – {formatDate(data.current.period.end)} ·{' '}
+          {data.remainingWeeks} {data.remainingWeeks === 1 ? 'week' : 'weeks'} left
         </p>
         <Notice notice={notice} className="wrap-anywhere" />
         {goals.length === 0 ? (
-          <p className="text-body-sm text-muted-foreground">아직 목표가 없습니다</p>
+          <p className="text-body-sm text-muted-foreground">No goals yet</p>
         ) : (
           <ul className="flex flex-col divide-y">
             {goals.map((goal) => (
@@ -339,7 +340,7 @@ function CurrentGoals({
                 {editing?.id === goal.id ? (
                   <form
                     className="flex w-full flex-wrap gap-2"
-                    aria-label={`${goal.title} 수정`}
+                    aria-label={`Rename ${goal.title}`}
                     onSubmit={(event) => {
                       event.preventDefault();
                       void rename();
@@ -347,7 +348,7 @@ function CurrentGoals({
                   >
                     <Input
                       className="min-w-0 flex-1"
-                      aria-label={`${goal.title} 새 이름`}
+                      aria-label={`New name for ${goal.title}`}
                       data-focus-key={focusKeys.renameInput}
                       // eslint-disable-next-line jsx-a11y-x/no-autofocus -- the field opens on a click, so focus follows that action.
                       autoFocus
@@ -356,11 +357,11 @@ function CurrentGoals({
                       onChange={(event) => setEditing({ id: goal.id, title: event.target.value })}
                     />
                     <Button type="submit" disabled={busy}>
-                      {pending === 'rename' && <Spinner size="sm" label="저장하는 중" />}
-                      저장
+                      {pending === 'rename' && <Spinner size="sm" label="Saving" />}
+                      Save
                     </Button>
                     <Button type="button" variant="ghost" onClick={() => cancelEditing(goal.id)}>
-                      취소
+                      Cancel
                     </Button>
                   </form>
                 ) : (
@@ -373,7 +374,7 @@ function CurrentGoals({
                         type="button"
                         variant="ghost"
                         size="sm"
-                        aria-label={`${goal.title} 수정`}
+                        aria-label={`Rename ${goal.title}`}
                         data-focus-key={focusKeys.edit(goal.id)}
                         disabled={busy}
                         onClick={() => {
@@ -381,33 +382,31 @@ function CurrentGoals({
                           setEditing({ id: goal.id, title: goal.title });
                         }}
                       >
-                        수정
+                        Rename
                       </Button>
                       {confirmDelete === goal.id ? (
                         <Button
                           type="button"
                           variant="destructive"
                           size="sm"
-                          aria-label={`${goal.title} 삭제 확인`}
+                          aria-label={`Confirm deleting ${goal.title}`}
                           disabled={busy}
                           onClick={() => void remove(goal)}
                         >
-                          {pending === `remove:${goal.id}` && (
-                            <Spinner size="sm" label="처리하는 중" />
-                          )}
-                          삭제 확인
+                          {pending === `remove:${goal.id}` && <Spinner size="sm" label="Working" />}
+                          Confirm delete
                         </Button>
                       ) : (
                         <Button
                           type="button"
                           variant="ghost"
                           size="sm"
-                          aria-label={`${goal.title} 삭제`}
+                          aria-label={`Delete ${goal.title}`}
                           data-focus-key={focusKeys.remove(goal.id)}
                           disabled={busy}
                           onClick={() => setConfirmDelete(goal.id)}
                         >
-                          삭제
+                          Delete
                         </Button>
                       )}
                     </span>
@@ -438,7 +437,7 @@ function CurrentGoals({
         )}
         <form
           className="flex gap-2"
-          aria-label="새 목표 추가"
+          aria-label="Add a new goal"
           onSubmit={(event) => {
             event.preventDefault();
             void add();
@@ -446,16 +445,16 @@ function CurrentGoals({
         >
           <Input
             className="min-w-0 flex-1"
-            aria-label="새 목표"
+            aria-label="New goal"
             data-focus-key={focusKeys.add}
-            placeholder="이번 12주에 이룰 일"
+            placeholder="What to achieve in these 12 weeks"
             value={draft}
             maxLength={200}
             onChange={(event) => setDraft(event.target.value)}
           />
           <Button type="submit" disabled={busy}>
-            {pending === 'add' && <Spinner size="sm" label="저장하는 중" />}
-            추가
+            {pending === 'add' && <Spinner size="sm" label="Saving" />}
+            Add
           </Button>
         </form>
       </CardContent>
@@ -528,8 +527,8 @@ export function TwelveWeek() {
     if (needsReview(past) !== stillOpen) {
       reviewNotice.status(
         stillOpen
-          ? '저장했습니다. 달성 여부나 메모를 남기면 회고가 끝납니다'
-          : '회고를 저장했습니다',
+          ? 'Saved. The review is complete once you mark the goal achieved or add a note'
+          : 'Saved the review',
       );
       setMovedCard(past.period.start);
       requestFocus([focusKeys.period(past.period.start)]);
@@ -569,21 +568,21 @@ export function TwelveWeek() {
       <Notice notice={notice} />
       {loadFailed && (
         <RetryButton className="self-start" onClick={reload}>
-          목표 다시 불러오기
+          Reload goals
         </RetryButton>
       )}
-      {!data && !loadFailed && <LoadingRegion label="목표 불러오는 중" shape="card" />}
+      {!data && !loadFailed && <LoadingRegion label="Loading goals" shape="card" />}
       {toReview.length > 0 && (
-        <p className="text-body font-semibold">지난 기간의 목표를 돌아보고 새 목표를 세워 보세요</p>
+        <p className="text-body font-semibold">Review the goals of past periods and set new ones</p>
       )}
       {toReview.map(pastCard)}
       {data && <CurrentGoals data={data} reload={reload} onLinked={routinesLinked} />}
       <PeriodRoutines
         cadence="twelve_week"
-        name="12주"
-        periodName="이번 기간"
-        examples="예: 목표 재설정"
-        emptyHint="아래에서 12주에 한 번 할 일을 추가해 주세요."
+        name="12-week"
+        periodName="This period"
+        examples="e.g. Reset goals"
+        emptyHint="Add something to do once every 12 weeks below."
       />
       {reviewed.map(pastCard)}
     </div>

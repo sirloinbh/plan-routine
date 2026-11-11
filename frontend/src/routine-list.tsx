@@ -37,7 +37,7 @@ export function RoutineItems({
           {editing?.id === routine.id ? (
             <form
               className="flex w-full flex-wrap gap-2"
-              aria-label={`${routine.name} 이름 수정`}
+              aria-label={`Rename ${routine.name}`}
               onSubmit={(event) => {
                 event.preventDefault();
                 void list.rename(draftKey);
@@ -45,7 +45,7 @@ export function RoutineItems({
             >
               <Input
                 className="min-w-0 flex-1"
-                aria-label={`${routine.name} 새 이름`}
+                aria-label={`New name for ${routine.name}`}
                 data-focus-key="rename-input"
                 // eslint-disable-next-line jsx-a11y-x/no-autofocus -- the rename field opens on a click, so focus follows that action.
                 autoFocus
@@ -54,11 +54,11 @@ export function RoutineItems({
                 onChange={(event) => list.setEditing({ id: routine.id, name: event.target.value })}
               />
               <Button type="submit" disabled={busy}>
-                {list.pending === 'rename' && <Spinner size="sm" label="저장하는 중" />}
-                저장
+                {list.pending === 'rename' && <Spinner size="sm" label="Saving" />}
+                Save
               </Button>
               <Button type="button" variant="ghost" onClick={list.cancelEditing}>
-                취소
+                Cancel
               </Button>
             </form>
           ) : (
@@ -69,29 +69,29 @@ export function RoutineItems({
                   type="button"
                   variant="ghost"
                   size="sm"
-                  aria-label={`${routine.name} 위로 이동`}
+                  aria-label={`Move ${routine.name} up`}
                   data-focus-key={`up-${routine.id}`}
                   disabled={busy || index === 0}
                   onClick={() => void list.move(routine, 'up', draftKey)}
                 >
-                  위로
+                  Up
                 </Button>
                 <Button
                   type="button"
                   variant="ghost"
                   size="sm"
-                  aria-label={`${routine.name} 아래로 이동`}
+                  aria-label={`Move ${routine.name} down`}
                   data-focus-key={`down-${routine.id}`}
                   disabled={busy || index === routines.length - 1}
                   onClick={() => void list.move(routine, 'down', draftKey)}
                 >
-                  아래로
+                  Down
                 </Button>
                 <Button
                   type="button"
                   variant="ghost"
                   size="sm"
-                  aria-label={`${routine.name} 이름 수정`}
+                  aria-label={`Rename ${routine.name}`}
                   data-focus-key={`edit-${routine.id}`}
                   disabled={busy}
                   onClick={() => {
@@ -99,14 +99,14 @@ export function RoutineItems({
                     list.setEditing({ id: routine.id, name: routine.name });
                   }}
                 >
-                  수정
+                  Rename
                 </Button>
                 {confirmArchive === routine.id ? (
                   <Button
                     type="button"
                     variant="destructive"
                     size="sm"
-                    aria-label={`${routine.name} 보관 확인`}
+                    aria-label={`Confirm archiving ${routine.name}`}
                     disabled={busy}
                     onClick={() =>
                       void list.archive(
@@ -119,29 +119,29 @@ export function RoutineItems({
                     }
                   >
                     {list.pending === `archive:${routine.id}` && (
-                      <Spinner size="sm" label="처리하는 중" />
+                      <Spinner size="sm" label="Working" />
                     )}
-                    보관 확인
+                    Confirm archive
                   </Button>
                 ) : (
                   <Button
                     type="button"
                     variant="ghost"
                     size="sm"
-                    aria-label={`${routine.name} 보관`}
+                    aria-label={`Archive ${routine.name}`}
                     disabled={busy}
                     onClick={() => list.setConfirmArchive(routine.id)}
                   >
-                    보관
+                    Archive
                   </Button>
                 )}
               </span>
               {projects.length > 0 && (
                 <label className="flex w-full min-w-0 items-center gap-2 text-body-sm text-muted-foreground">
-                  연결
+                  Link
                   <select
                     className="h-9 min-w-0 flex-1 rounded-md border border-input bg-transparent px-2 text-base text-foreground outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 md:text-body-sm dark:bg-input/30 pointer-coarse:min-h-11 [&>option]:bg-popover [&>option]:text-popover-foreground"
-                    aria-label={`${routine.name} 연결할 프로젝트`}
+                    aria-label={`Project to link to ${routine.name}`}
                     data-focus-key={`link-${routine.id}`}
                     disabled={busy}
                     value={routine.projectLinkId ?? ''}
@@ -149,7 +149,7 @@ export function RoutineItems({
                       void list.setProjectLink(routine, event.target.value || null)
                     }
                   >
-                    <option value="">없음</option>
+                    <option value="">None</option>
                     {projects.map((project) => (
                       <option key={project.id} value={project.id}>
                         {project.name}
@@ -171,7 +171,7 @@ export function RoutineAddForm({
   draftKey,
   label,
   category,
-  placeholder = '새 루틴 이름',
+  placeholder = 'New routine name',
 }: {
   list: RoutineList;
   draftKey: string;
@@ -182,7 +182,7 @@ export function RoutineAddForm({
   return (
     <form
       className="flex gap-2"
-      aria-label={`${label} 루틴 추가`}
+      aria-label={`Add a ${label} routine`}
       onSubmit={(event) => {
         event.preventDefault();
         void list.add(draftKey, label, category);
@@ -190,7 +190,7 @@ export function RoutineAddForm({
     >
       <Input
         className="min-w-0 flex-1"
-        aria-label={`${label} 새 루틴 이름`}
+        aria-label={`New ${label} routine name`}
         data-focus-key={`add-${draftKey}`}
         placeholder={placeholder}
         value={list.drafts[draftKey] ?? ''}
@@ -198,8 +198,8 @@ export function RoutineAddForm({
         onChange={(event) => list.setDraft(draftKey, event.target.value)}
       />
       <Button type="submit" disabled={list.busy}>
-        {list.pending === `add:${draftKey}` && <Spinner size="sm" label="저장하는 중" />}
-        추가
+        {list.pending === `add:${draftKey}` && <Spinner size="sm" label="Saving" />}
+        Add
       </Button>
     </form>
   );

@@ -15,6 +15,7 @@ import {
   writeDraft,
 } from './diary-draft';
 import { isFocusFree, useDateHeading } from './focus-moves';
+import { dateHeading, formatDate } from './format-date';
 import { LabeledTextarea } from './labeled-textarea';
 import { RequestError, requestJson } from './lib/api';
 import { useNotice } from './lib/use-notice';
@@ -100,8 +101,8 @@ export function Diary() {
         if (draft)
           status(
             sameForm(draft.base, server)
-              ? '저장하지 않은 글을 불러왔습니다. 저장해야 기록에 남습니다'
-              : '저장하지 않은 글을 불러왔습니다. 그 사이 저장된 내용이 달라졌으니 확인한 뒤 저장해 주세요',
+              ? 'Restored an unsaved draft. Save it to keep it in your records'
+              : 'Restored an unsaved draft. The saved entry changed in the meantime, so check it before saving',
           );
       })
       .catch((cause: unknown) => {
@@ -115,7 +116,7 @@ export function Diary() {
         ) {
           clearDraft(date);
           setDate(null);
-          error(`${date}은 열 수 없는 날짜라 그날의 임시 글을 지웠습니다`);
+          error(`${formatDate(date)} cannot be opened, so its draft was discarded`);
           return;
         }
         setLoading(false);
@@ -188,7 +189,7 @@ export function Diary() {
     if (saving) return;
     setNoticeAtSave(false);
     if (dirty) {
-      error('저장하지 않은 내용이 있습니다. 저장하거나 버린 뒤 날짜를 옮겨 주세요');
+      error('You have unsaved changes. Save or discard them before changing the date');
       return;
     }
     clear();
@@ -216,7 +217,7 @@ export function Diary() {
       clearDraft(target, form);
       setForm(formFrom(entry));
       setSavedForm(formFrom(entry));
-      status(`${target} 일기를 저장했습니다`);
+      status(`Saved the diary entry for ${formatDate(target)}`);
     } catch (cause) {
       error(cause);
       // What the server refuses is the body when it is empty or too long, so take the user there.
@@ -247,18 +248,18 @@ export function Diary() {
       setBodyInvalid(false);
       setConfirmingDiscard(false);
       setNoticeAtSave(true);
-      status('저장하지 않은 내용을 버렸습니다');
+      status('Discarded the unsaved changes');
     });
     saveButton.current?.focus();
   };
 
   if (!data)
     return loading ? (
-      <LoadingRegion label="일기 불러오는 중" shape="card" />
+      <LoadingRegion label="Loading diary" shape="card" />
     ) : (
       <div className="flex flex-col items-start gap-3">
         <Notice notice={notice} />
-        <RetryButton onClick={() => moveTo(date)}>다시 시도</RetryButton>
+        <RetryButton onClick={() => moveTo(date)}>Try again</RetryButton>
       </div>
     );
 
@@ -274,11 +275,11 @@ export function Diary() {
             tabIndex={-1}
             className="scroll-mt-[calc(env(safe-area-inset-top)+5rem)] text-body font-semibold"
           >
-            {isToday ? `오늘 (${data.date})` : data.date}
+            {dateHeading(data.date, data.today)}
           </h2>
           {data.progress.total > 0 && (
             <p className="text-body-sm text-muted-foreground">
-              하루 루틴 {data.progress.checked}/{data.progress.total} 완료
+              Daily routines {data.progress.checked}/{data.progress.total} done
             </p>
           )}
         </div>
@@ -290,7 +291,7 @@ export function Diary() {
             disabled={!data.previousDate}
             onClick={() => data.previousDate && moveTo(data.previousDate)}
           >
-            이전 날
+            Previous day
           </Button>
           <Button
             type="button"
@@ -301,11 +302,11 @@ export function Diary() {
               data.nextDate && moveTo(data.nextDate === data.today ? null : data.nextDate)
             }
           >
-            다음 날
+            Next day
           </Button>
           {!isToday && (
             <Button type="button" variant="ghost" size="sm" onClick={() => moveTo(null)}>
-              오늘로
+              Go to today
             </Button>
           )}
         </div>
@@ -315,7 +316,7 @@ export function Diary() {
         <CardContent>
           <form
             className="flex flex-col gap-4"
-            aria-label={`${data.date} 일기`}
+            aria-label={`Diary for ${formatDate(data.date)}`}
             onSubmit={(event) => {
               event.preventDefault();
               void save(data.date);
@@ -323,7 +324,7 @@ export function Diary() {
           >
             <LabeledTextarea
               id="diary-body"
-              label="하루 돌아보기"
+              label="Looking back on the day"
               value={form.body}
               rows={8}
               limit={5000}
@@ -333,7 +334,7 @@ export function Diary() {
             />
             <LabeledTextarea
               id="diary-good"
-              label="잘한 점 (선택)"
+              label="What went well (optional)"
               value={form.goodNote}
               rows={2}
               limit={1000}
@@ -342,7 +343,7 @@ export function Diary() {
             />
             <LabeledTextarea
               id="diary-regret"
-              label="아쉬운 점 (선택)"
+              label="What could be better (optional)"
               value={form.regretNote}
               rows={2}
               limit={1000}
@@ -351,7 +352,7 @@ export function Diary() {
             />
             <LabeledTextarea
               id="diary-tomorrow"
-              label="내일 할 일 (선택)"
+              label="To do tomorrow (optional)"
               value={form.tomorrowNote}
               rows={2}
               limit={1000}
@@ -361,14 +362,14 @@ export function Diary() {
             {noticeAtSave && <Notice notice={notice} />}
             <div className="flex flex-wrap items-center gap-3">
               <Button ref={saveButton} type="submit">
-                {saving && <Spinner size="sm" label="저장하는 중" />}
-                저장
+                {saving && <Spinner size="sm" label="Saving" />}
+                Save
               </Button>
               {dirty && (
                 <span className="text-body-sm text-muted-foreground">
                   {draftFailed
-                    ? '저장하지 않은 내용이 있습니다. 임시 저장되어 있지 않아, 떠나면 사라집니다'
-                    : '저장하지 않은 내용이 있습니다'}
+                    ? 'You have unsaved changes. They are not saved as a draft, so leaving will lose them'
+                    : 'You have unsaved changes'}
                 </span>
               )}
               {dirty &&
@@ -382,7 +383,7 @@ export function Diary() {
                       size="sm"
                       onClick={discard}
                     >
-                      버리기 확인
+                      Confirm discard
                     </Button>
                     <Button
                       type="button"
@@ -390,7 +391,7 @@ export function Diary() {
                       size="sm"
                       onClick={() => askDiscard(false)}
                     >
-                      취소
+                      Cancel
                     </Button>
                   </>
                 ) : (
@@ -401,7 +402,7 @@ export function Diary() {
                     size="sm"
                     onClick={() => askDiscard(true)}
                   >
-                    버리기
+                    Discard
                   </Button>
                 ))}
             </div>

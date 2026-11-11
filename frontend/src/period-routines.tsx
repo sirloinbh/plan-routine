@@ -2,6 +2,7 @@ import { Checklist, type ChecklistItem, ChecklistPending } from './checklist';
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
 import { EmptyState } from './components/ui/empty-state';
 import { Notice } from './components/ui/notice';
+import { formatDate } from './format-date';
 import { LoadingRegion } from './loading-region';
 import { RetryButton } from './retry-button';
 import { RoutineAddForm, RoutineItems, RoutineNotices } from './routine-list';
@@ -10,9 +11,9 @@ import { useRoutineList } from './use-routine-list';
 
 type PeriodPage = {
   cadence: string;
-  /** Names the routines: "주간 루틴 관리". */
+  /** Names the routines: "Manage weekly routines". */
   name: string;
-  /** Names the current period: "이번 주". */
+  /** Names the current period: "This week". */
   periodName: string;
   examples: string;
   emptyHint: string;
@@ -38,23 +39,26 @@ export function PeriodRoutines({
       {data ? (
         <div className="flex flex-col gap-4">
           <h2 className="text-body font-semibold">
-            {periodName} ({data.period.start} ~ {data.period.end})
+            {periodName} ({formatDate(data.period.start)} – {formatDate(data.period.end)})
           </h2>
           {showRemaining && (
             <p className="text-body-sm text-muted-foreground">
               {data.remainingDays === 0
-                ? '오늘이 마지막 날입니다'
-                : `${data.remainingDays}일 남았습니다`}
+                ? 'Today is the last day'
+                : `${data.remainingDays} ${data.remainingDays === 1 ? 'day' : 'days'} left`}
             </p>
           )}
           <Notice notice={checklist.notice} />
           {checklist.loadFailed && (
             <RetryButton className="self-start" onClick={checklist.retry}>
-              다시 시도
+              Try again
             </RetryButton>
           )}
           {data.items.length === 0 ? (
-            <EmptyState title={`${periodName}에 체크할 루틴이 없습니다`} description={emptyHint} />
+            <EmptyState
+              title={`No routines to check for ${periodName.toLowerCase()}`}
+              description={emptyHint}
+            />
           ) : (
             <Checklist
               title={periodName}
@@ -70,24 +74,24 @@ export function PeriodRoutines({
           onRetry={checklist.retry}
         />
       )}
-      <Card role="region" aria-label={`${name} 루틴 관리`}>
+      <Card role="region" aria-label={`Manage ${name} routines`}>
         <CardHeader>
-          <CardTitle asHeading="h2">{name} 루틴 관리</CardTitle>
+          <CardTitle asHeading="h2">Manage {name} routines</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           <RoutineNotices notice={list.notice} />
           {list.loadFailed && (
             <RetryButton className="self-start" onClick={list.refresh}>
-              목록 다시 불러오기
+              Reload the list
             </RetryButton>
           )}
           {list.routines === null ? (
-            <LoadingRegion label="루틴 불러오는 중" />
+            <LoadingRegion label="Loading routines" />
           ) : list.routines.length > 0 ? (
             <RoutineItems list={list} routines={list.routines} draftKey={cadence} />
           ) : (
             !list.loadFailed && (
-              <p className="text-body-sm text-muted-foreground">아직 루틴이 없습니다</p>
+              <p className="text-body-sm text-muted-foreground">No routines yet</p>
             )
           )}
           <RoutineAddForm list={list} draftKey={cadence} label={name} placeholder={examples} />
@@ -101,10 +105,10 @@ export function WeeklyRoutines() {
   return (
     <PeriodRoutines
       cadence="weekly"
-      name="주간"
-      periodName="이번 주"
-      examples="예: 독후감 쓰기, 청소, 가계부 쓰기"
-      emptyHint="아래에서 매주 한 번 할 일을 추가해 주세요."
+      name="weekly"
+      periodName="This week"
+      examples="e.g. Write a book report, Clean, Update the budget"
+      emptyHint="Add something to do once a week below."
     />
   );
 }
@@ -113,10 +117,10 @@ export function FourWeekRoutines() {
   return (
     <PeriodRoutines
       cadence="four_week"
-      name="4주"
-      periodName="이번 4주"
-      examples="예: 이불빨래, 소모품 교체, 대청소"
-      emptyHint="아래에서 4주에 한 번 할 일을 추가해 주세요."
+      name="4-week"
+      periodName="These 4 weeks"
+      examples="e.g. Wash bedding, Replace supplies, Deep clean"
+      emptyHint="Add something to do once every 4 weeks below."
       showRemaining
     />
   );

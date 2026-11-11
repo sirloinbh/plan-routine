@@ -38,10 +38,10 @@ export function ChecklistPending({
   return failed ? (
     <div className="flex flex-col items-start gap-3">
       <Notice notice={notice} />
-      <RetryButton onClick={onRetry}>다시 시도</RetryButton>
+      <RetryButton onClick={onRetry}>Try again</RetryButton>
     </div>
   ) : (
-    <LoadingRegion label="체크리스트 불러오는 중" shape={shape} />
+    <LoadingRegion label="Loading checklist" shape={shape} />
   );
 }
 
@@ -58,7 +58,7 @@ export function Checklist({
   onToggle: (item: ChecklistItem) => void;
 }) {
   return (
-    <Card role="region" aria-label={`${title} 체크리스트`}>
+    <Card role="region" aria-label={`${title} checklist`}>
       <CardHeader>
         <CardTitle asHeading={headingLevel} className="flex items-center gap-2">
           {title}
@@ -86,7 +86,7 @@ export function Checklist({
                     href={safeLink(item.linkUrl) ?? undefined}
                     target="_blank"
                     rel="noopener noreferrer"
-                    aria-label={`${item.name}: ${item.linkName ?? '프로젝트'} 열기`}
+                    aria-label={`${item.name}: Open ${item.linkName ?? 'project'}`}
                   >
                     <ExternalLink aria-hidden="true" />
                   </a>
