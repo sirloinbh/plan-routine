@@ -1,19 +1,19 @@
-# 앱 스킬의 낡은 설명 고치기 (sirloinbh/project-standards#313)
+# Fix outdated descriptions in the app skills (sirloinbh/project-standards#313)
 
-## 목적
+## Purpose
 
-앱 스킬 두 곳이 지금 상태와 다르게 적혀 있었다(sirloinbh/project-standards `docs/research/convention-survey.md` 3장).
+Two app skills described things differently from the current state (sirloinbh/project-standards `docs/research/convention-survey.md`, chapter 3).
 
-## 변경
+## Changes
 
-| 파일                                      | 전                                                | 후                                                                                 |
-| ----------------------------------------- | ------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| `skills/plan-routine-testing/SKILL.md`    | "아직 도입하지 않은 Vitest·Playwright"            | 프런트 Vitest·Testing Library, 백엔드 `node:test`가 설치돼 있음. Playwright는 없음 |
-| `skills/plan-routine-foundation/SKILL.md` | 디자인 토큰은 `frontend/src/style.css`의 CSS 변수 | `@sirloinbh/design-tokens`와 공통 UI 컴포넌트(`frontend/src/components/ui/`)       |
-| `.claude/skills/`                         | —                                                 | `npm run skills:sync`로 같은 내용 복제                                             |
+| File                                      | Before                                                      | After                                                                                                    |
+| ----------------------------------------- | ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `skills/plan-routine-testing/SKILL.md`    | "Vitest and Playwright, not yet adopted"                    | Frontend Vitest and Testing Library, and backend `node:test`, are installed. Playwright is not installed |
+| `skills/plan-routine-foundation/SKILL.md` | Design tokens are CSS variables in `frontend/src/style.css` | `@sirloinbh/design-tokens` and the shared UI components (`frontend/src/components/ui/`)                  |
+| `.claude/skills/`                         | —                                                           | Same content copied with `npm run skills:sync`                                                           |
 
-리뷰·병합 절차(`plan-routine-implementation`, `AGENTS.project.md`)는 바꾸지 않았다.
+The review and merge procedure (`plan-routine-implementation`, `AGENTS.project.md`) was not changed.
 
-## 검증
+## Verification
 
 - `node scripts/claude-skills.mjs`: `.claude/skills matches skills/.`

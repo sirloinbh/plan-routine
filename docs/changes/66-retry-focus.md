@@ -1,38 +1,38 @@
-# #66 다시 시도 뒤 키보드 포커스 유지하기
+# #66 Keep keyboard focus after a retry
 
-- 이슈: [#66](https://github.com/sirloinbh/plan-routine/issues/66)
-- 브랜치: `fix/66-retry-focus`
-- 일자: 2026-11-01 (Asia/Seoul)
+- Issue: [#66](https://github.com/sirloinbh/plan-routine/issues/66)
+- Branch: `fix/66-retry-focus`
+- Date: 2026-11-01 (Asia/Seoul)
 
-## 목적
+## Purpose
 
-"다시 시도" 버튼은 불러오기에 성공하면 사라져 포커스가 `body`로 빠졌다.
+The "Retry" button disappears when the fetch succeeds, so the focus fell to `body`.
 
-## 변경
+## Changes
 
-`frontend/src/retry-button.tsx`(새 파일). 이슈는 세 화면을 적었지만 같은 버튼이 11곳에 있어, 공용 버튼 하나로 모두 바꿨다: 오늘 체크, 일기, 기간 체크리스트, 기간 루틴 목록, 4주 안내, 기록, 달성률, 12주 목표, 프로젝트 목록.
+`frontend/src/retry-button.tsx` (new file). The issue named three screens, but the same button exists in 11 places, so all were changed to one shared button: today's check, the diary, the period checklist, the period routine list, the 4-week notice, records, achievement rate, 12-week goals, and the project list.
 
-버튼이 포커스를 가진 채 사라지면 포커스가 이름 있는 가장 가까운 영역으로 간다. 카드 안이면 그 카드, 아니면 페이지 제목으로 이름 붙은 페이지 영역이다. 이슈의 "날짜 제목 또는 카드 제목으로"를 이렇게 일반화했고, 이슈 코멘트에 기록했다. 낭독기는 영역의 이름, 곧 제목을 읽는다. 영역 전체에 윤곽선을 그리지 않고(`main`과 같다), 화면이 튀지 않게 스크롤하지 않는다. 사용자가 이미 다른 곳에 있으면 포커스를 옮기지 않는다.
+If the button disappears while it has focus, the focus goes to the nearest named region. If inside a card, that card; otherwise the page region named by the page heading. This generalized the issue's "to the date heading or the card heading", and it was recorded in the issue comment. The screen reader reads the name of the region, that is, the heading. It does not draw an outline around the whole region (same as `main`), and it does not scroll, so the screen does not jump. If the user is already elsewhere, the focus is not moved.
 
-## 테스트
+## Tests
 
-`frontend/src/retry-button.test.tsx`: 영역으로 이동, 카드 우선, 다른 곳에 있을 때 그대로. 이슈의 세 화면은 `diary.test.tsx`, `daily-checklist.test.tsx`, `twelve-week.test.tsx`에서 확인한다. `app.test.tsx`는 실제 페이지 영역을 확인한다.
+`frontend/src/retry-button.test.tsx`: moving to the region, the card taking priority, and staying as it is when elsewhere. The issue's three screens are checked in `diary.test.tsx`, `daily-checklist.test.tsx`, and `twelve-week.test.tsx`. `app.test.tsx` checks the real page region.
 
-## 검증
+## Verification
 
-- 로컬: `env -u TEST_DATABASE_URL npm run check` 통과. 백엔드 161개 중 142 pass / 0 fail / 19 skip(DB 테스트), 프론트엔드 294개 중 292 pass / 0 fail / 2 skip(다크 모드 전용 공통 테스트), `test:skills` 4개 pass.
-- 브라우저: 첫 불러오기가 실패하는 임시 API와 헤드리스 Chrome으로 1440×900, 390×844에서 오늘 체크, 일기, 12주, 설정의 다시 시도 버튼에 실제 Enter 키를 눌렀다. 포커스가 페이지 영역이나 카드로 가고, 윤곽선과 스크롤 이동은 없으며, 다음 Tab은 그 영역의 첫 조작 요소로 간다. 콘솔 오류는 없었다. 나머지 화면과 실제 화면 낭독기로는 확인하지 못했다.
+- Local: `env -u TEST_DATABASE_URL npm run check` passed. Backend 142 pass / 0 fail / 19 skip (DB tests) out of 161, frontend 292 pass / 0 fail / 2 skip (dark-mode-only shared tests) out of 294, and `test:skills` 4 pass.
+- Browser: with a temporary API whose first fetch fails and headless Chrome at 1440×900 and 390×844, I pressed the real Enter key on the retry buttons of today's check, the diary, 12-week, and settings. The focus goes to the page region or the card, there is no outline or scroll movement, and the next Tab goes to the first control of that region. There were no console errors. The other screens and a real screen reader were not checked.
 
-## 한계·후속
+## Limits and follow-up
 
-- 다시 시도가 또 실패할 때: 실패 상태를 바로 지우는 곳(체크리스트, 일기, 프로젝트 목록)은 버튼이 불러오는 중 표시로 바뀌었다가 돌아오므로 포커스가 영역에 남는다. 나머지(기록, 달성률, 12주 목표, 루틴 목록)는 버튼이 그대로 있어 포커스도 버튼에 남는다.
-- 페이지 영역으로 가면 다음 Tab이 페이지 맨 앞에서 시작한다. 앞에 조작 요소가 많은 "4주 루틴 다시 불러오기", 기간 체크리스트의 "다시 시도", "이 날 기록 다시 불러오기"는 그만큼 다시 지나야 한다. 드문 경우라 두었다.
+- When the retry fails again: in places that clear the failed state right away (the checklist, the diary, and the project list), the button turns into a loading indicator and then comes back, so the focus stays on the region. In the others (records, achievement rate, 12-week goals, and the routine list) the button stays as it is, so the focus also stays on the button.
+- Going to the page region makes the next Tab start from the very front of the page. For "Reload 4-week routines", which has many controls before it, "Retry" of the period checklist, and "Reload this day's records", you have to pass them again. I left it as it is rare.
 
-## 자동 코드 리뷰
+## Automated code review
 
-- 1차: 코드 결함은 없었다. 4건을 반영했다.
-  - (중간) 이슈의 세 화면 테스트와 실제 페이지 확인이 빠졌다. 추가했다. 이동 대상을 바꾼 결정을 이슈에 기록했다.
-  - (중간) 포커스 변경에 브라우저 확인이 빠졌고, 영역 전체에 윤곽선이 뜰 수 있었다. 윤곽선을 없애고 스크롤을 막았으며 실제 키보드로 확인했다.
-  - (낮음) Tab 위치가 페이지 맨 앞으로 돌아가는 경우를 한계에 적었다.
-  - (낮음) 다시 실패할 때의 설명과 교체 목록을 고쳤다.
-- 2차: 고칠 결함이 없었다. 윤곽선과 스크롤 동작은 자동 테스트가 없고 브라우저 확인만 근거다. 리뷰는 2회로 마친다.
+- First: no code defect. 4 applied.
+  - (Medium) The tests for the issue's three screens and a check on the real page were missing. Added them. Recorded in the issue the decision that changed the move target.
+  - (Medium) The browser check was missing for the focus change, and an outline could appear around the whole region. I removed the outline and blocked scrolling, and checked with a real keyboard.
+  - (Low) Wrote the case where the Tab position returns to the very front of the page in the limits.
+  - (Low) Fixed the explanation for failing again and the replacement list.
+- Second: no defect to fix. The outline and scroll behavior has no automated test and rests only on the browser check. The review ends at 2 rounds.

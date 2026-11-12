@@ -1,51 +1,51 @@
-# #47 잘못된 요청 본문에 한국어 오류로 답하기
+# #47 Answer an invalid request body with a user-facing error
 
-- 이슈: [#47](https://github.com/sirloinbh/plan-routine/issues/47)
-- 브랜치: `fix/47-request-body-errors`
-- 일자: 2026-11-01 (Asia/Seoul)
+- Issue: [#47](https://github.com/sirloinbh/plan-routine/issues/47)
+- Branch: `fix/47-request-body-errors`
+- Date: 2026-11-01 (Asia/Seoul)
 
-## 목적
+## Purpose
 
-깨진 JSON과 256KB 초과는 500이 되고, 본문이 배열이면 영어 메시지가 나갔다. 루틴 이름의 NUL 문자도 500이 될 수 있었다. 저장 데이터에는 영향이 없지만, 잘못된 요청은 한국어로 알려야 한다.
+Broken JSON and bodies over 256KB became a 500, and when the body was an array an English message went out. A NUL character in a routine name could also become a 500. Saved data is not affected, but an invalid request must be answered in a user-facing message.
 
-## 변경
+## Changes
 
-`backend/src/request-input.ts`(새 파일)에 일기와 목표가 따로 갖던 규칙을 모았다.
+Gathered the rules that the diary and the goals each had into `backend/src/request-input.ts` (new file). The response messages below are quoted in Korean as they were, with an English gloss.
 
-| 요청                               | 이전     | 이후                                  |
-| ---------------------------------- | -------- | ------------------------------------- |
-| 깨진 JSON, 숫자·불리언·문자열 본문 | 500      | 400 "요청 형식이 올바르지 않습니다"   |
-| 256KB 초과                         | 500      | 413 "요청 내용이 너무 큽니다"         |
-| 읽지 못하는 문자 인코딩            | 500      | 415 "지원하지 않는 요청 형식입니다"   |
-| 해독할 수 없는 주소                | 500      | 400 "요청 형식이 올바르지 않습니다"   |
-| 배열 본문(루틴, 일기)              | 400 영어 | 400 "요청 형식이 올바르지 않습니다"   |
-| 루틴 이름의 NUL 문자               | 500 가능 | 400 "쓸 수 없는 문자가 들어 있습니다" |
+| Request                                      | Before         | After                                                                            |
+| -------------------------------------------- | -------------- | -------------------------------------------------------------------------------- |
+| Broken JSON, number, boolean, or string body | 500            | 400 "요청 형식이 올바르지 않습니다" (the request format is not valid)            |
+| Over 256KB                                   | 500            | 413 "요청 내용이 너무 큽니다" (the request is too large)                         |
+| A character encoding that cannot be read     | 500            | 415 "지원하지 않는 요청 형식입니다" (an unsupported request format)              |
+| An address that cannot be decoded            | 500            | 400 "요청 형식이 올바르지 않습니다" (the request format is not valid)            |
+| Array body (routine, diary)                  | 400 in English | 400 "요청 형식이 올바르지 않습니다" (the request format is not valid)            |
+| NUL character in a routine name              | 500 possible   | 400 "쓸 수 없는 문자가 들어 있습니다" (contains a character that cannot be used) |
 
-`app.ts`의 오류 처리기는 4xx 상태를 가진 오류만 이렇게 답한다. 그 밖의 오류는 전처럼 로그를 남기고 500으로 답한다.
+The error handler in `app.ts` answers this way only for errors that have a 4xx status. Other errors are logged as before and answered with a 500.
 
-## 테스트
+## Tests
 
-`backend/test/request-input.test.ts`: 위 표의 경우마다 상태와 한국어 메시지를 확인하고, 이 요청들이 DB에 닿지 않음을 확인한다. 예상하지 못한 오류가 계속 500인지도 확인한다.
+`backend/test/request-input.test.ts`: checks the status and the message for each case in the table above, and checks that these requests do not reach the DB. It also checks that an unexpected error is still a 500.
 
-## 검증
+## Verification
 
-- 로컬: `env -u TEST_DATABASE_URL npm run check` 통과. 백엔드 99개 중 84 pass / 0 fail / 15 skip(DB 테스트), 프론트엔드 237개 중 235 pass / 0 fail / 2 skip(다크 모드 전용 공통 테스트), `test:skills` 4개 pass. 셸의 `TEST_DATABASE_URL`은 다른 프로젝트의 DB를 가리켜 DB 테스트는 로컬에서 돌리지 않았다.
+- Local: `env -u TEST_DATABASE_URL npm run check` passed. Backend 84 pass / 0 fail / 15 skip (DB tests) out of 99, frontend 235 pass / 0 fail / 2 skip (dark-mode-only shared tests) out of 237, and `test:skills` 4 pass. The `TEST_DATABASE_URL` in the shell points to another project's DB, so the DB tests were not run locally.
 
-- CI: 실제 DB를 포함한 `ci / verify`와 `ci / docker-build`가 통과했다. 이 PR은 DB 쿼리를 바꾸지 않았다.
+- CI: `ci / verify` including the real DB and `ci / docker-build` passed. This PR did not change DB queries.
 
-## 테스트 도우미 수정
+## Test helper fix
 
-작업 중 백엔드 테스트가 드물게 `fetch failed: bad port`로 실패했다. 병렬로 30회 돌려 1회 재현했다. `withApi`가 포트 0으로 서버를 여는데, Windows가 `fetch`가 막아 둔 낮은 포트를 줄 때 생긴다. 앱 코드와 무관하다. `backend/test/helpers.ts`가 그런 포트면 다시 열도록 고쳤다. 수정 뒤 같은 부하로 60회 돌려 실패가 없었다. 본래 드문 실패라 완전한 증명은 아니다.
+While working, a backend test failed rarely with `fetch failed: bad port`. I reproduced it once by running 30 times in parallel. `withApi` opens the server on port 0, and it happens when Windows gives a low port that `fetch` blocks. It is unrelated to the app code. `backend/test/helpers.ts` was fixed to open again if it gets such a port. After the fix, I ran 60 times under the same load and there was no failure. Because it is a rare failure, this is not a complete proof.
 
-## 한계·후속
+## Limits and follow-up
 
-- 입력 오류가 많으면 응답도 함께 커진다. 이 PR이 만든 문제가 아니라 [#70](https://github.com/sirloinbh/plan-routine/issues/70)으로 분리했다.
+- If there are many input errors, the response grows with them. This is not a problem this PR created, so it was split off to [#70](https://github.com/sirloinbh/plan-routine/issues/70).
 
-## 자동 코드 리뷰
+## Automated code review
 
-- 1차: 동작 코드에는 결함이 없었다. 입력 1,882건을 보낸 시험에서도 영어 메시지는 없었다. 낮음 4건을 반영했다(이전 동작 설명, `npm run check` 실행, 500 유지 테스트의 범위, 테스트 제목). 오류 응답 크기는 [#70](https://github.com/sirloinbh/plan-routine/issues/70)으로 분리했다.
-- 2차: 동작 코드에는 결함이 없었다. 1차 보완의 반영을 확인했다. 테스트 제목 낮음 1건을 반영했다. 리뷰는 2회로 마친다.
+- First: no defect in the behavior code. There were no English messages even in a test that sent 1,882 inputs. 4 low findings applied (the description of the earlier behavior, running `npm run check`, the scope of the keep-500 test, and the test title). The error response size was split off to [#70](https://github.com/sirloinbh/plan-routine/issues/70).
+- Second: no defect in the behavior code. Confirmed the first-review follow-ups were applied. 1 low finding about a test title was applied. The review ends at 2 rounds.
 
-## main 병합
+## Merge from main
 
-#68(zod 4 문법 전환)이 먼저 병합되어 `diary-routes.ts`, `goal-routes.ts`, `routine-routes.ts`, `routines.ts`가 충돌했다. main의 코드를 기준으로 이 PR의 변경을 다시 얹었다. `badRequest`는 zod 4의 `error` 옵션을 쓴다. 병합 뒤 `npm run check`를 다시 통과했다.
+#68 (the zod 4 syntax switch) was merged first, so `diary-routes.ts`, `goal-routes.ts`, `routine-routes.ts`, and `routines.ts` conflicted. I re-applied this PR's changes on top of main's code. `badRequest` uses the `error` option of zod 4. After the merge, `npm run check` passed again.

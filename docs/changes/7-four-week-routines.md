@@ -1,59 +1,59 @@
-# #7 4주 루틴 정하기와 체크
+# #7 Setting and checking 4-week routines
 
-- 이슈: [#7](https://github.com/sirloinbh/plan-routine/issues/7)
-- 브랜치: `feat/7-four-week-routines`
-- 일자: 2026-10-31 (Asia/Seoul)
+- Issue: [#7](https://github.com/sirloinbh/plan-routine/issues/7)
+- Branch: `feat/7-four-week-routines`
+- Date: 2026-10-31 (Asia/Seoul)
 
-## 목적
+## Purpose
 
-이불빨래처럼 4주에 한 번 하는 일을 정하고, 잊지 않도록 체크한다. 기간은 앱 첫 사용일이 속한 주의 일요일부터 28일씩이다(#3에서 확정).
+Set tasks done once every 4 weeks, such as washing bedding, and check them so they are not forgotten. A period is 28 days each, starting from the Sunday of the week that contains the app's first-use day (confirmed in #3).
 
-## 확정한 규칙 (사용자 확인, #7 코멘트 기록)
+## Confirmed rules (confirmed by the user, recorded in the #7 comment)
 
-- 4주 기간의 마지막 7일에만 미완료 항목을 "오늘 체크" 화면에 함께 보여 준다.
+- Show the incomplete items together on the "Today's check" screen only in the last 7 days of a 4-week period.
 
-## 구현하면서 정한 세부 규칙 (#7 코멘트 기록)
+## Detailed rules decided during implementation (recorded in the #7 comment)
 
-- 마지막 7일은 종료일까지 남은 일수가 0~6일인 날이다. 판정은 서버가 한다.
-- 오늘 체크 화면에서 완료한 항목은 그 자리에 체크된 채 남아 바로 되돌릴 수 있고, 메뉴를 옮기거나 새로고침한 뒤 빠진다.
-- 기본 예시(이불빨래, 소모품 교체, 대청소)는 #6처럼 입력칸 안내 문구로 보여 준다.
+- The last 7 days are the days where the days left until the end date are 0 to 6. The server makes the judgment.
+- An item completed on the today check screen stays there as checked so it can be undone right away, and drops out after switching menus or refreshing.
+- The default examples (washing bedding, replacing consumables, a deep cleaning) are shown as placeholder text in the input, as in #6.
 
-## 변경
+## Changes
 
-- API(`backend/src/check-routes.ts`): `GET /api/checklist` 응답에 `remainingDays`(오늘부터 기간 종료일까지 남은 일수)와 `endsSoon`(마지막 7일 여부)을 추가했다. `backend/src/periods.ts`에 `daysBetween`을 추가했다. DB 변경은 없다.
-- 화면
-  - `frontend/src/period-routines.tsx`(`weekly-routines.tsx`에서 이름 변경): 주간과 4주가 같은 화면을 쓴다. 4주는 남은 일수를 함께 보여 준다. 메뉴 "4주 루틴", `/four-week`.
-  - `frontend/src/four-week-due.tsx`: "오늘 체크" 화면의 "곧 끝나는 4주 루틴" 카드.
+- API (`backend/src/check-routes.ts`): added `remainingDays` (the days left from today to the period end date) and `endsSoon` (whether it is the last 7 days) to the `GET /api/checklist` response. Added `daysBetween` to `backend/src/periods.ts`. No DB change.
+- Screen
+  - `frontend/src/period-routines.tsx` (renamed from `weekly-routines.tsx`): weekly and 4-week use the same screen. The 4-week one also shows the days left. Menu "4-week routines", `/four-week`.
+  - `frontend/src/four-week-due.tsx`: the "4-week routines ending soon" card on the "Today's check" screen.
 
-## 테스트
+## Tests
 
 - `backend/test/periods.test.ts`: `daysBetween`.
-- `backend/test/check-routes.test.ts`: 남은 일수와 마지막 7일의 경계(7일 남음, 6일 남음, 마지막 날, 다음 기간 첫날), 지난 기간.
-- `backend/test/db.integration.test.ts`(실제 DB): 4주 경계(같은 기간의 재체크에도 1행, 다음 기간 초기화, 지난 기간 기록 보존, 첫 사용일 기준 계산).
-- `frontend/src/period-routines.test.tsx`: 4주 기간과 남은 일수, 마지막 날 문구, 추가 요청, 체크. 주간 테스트는 불러오는 경로만 바꿨다.
-- `frontend/src/four-week-due.test.tsx`: 마지막 7일이 아닐 때 숨김, 미완료 항목만 표시, 완료 후 자리 유지와 되돌리기, 화면을 떠난 뒤 제외, 다음 기간으로 넘어가지 않음, 모두 완료 시 숨김, 불러오기 실패와 재시도, 저장 실패 복구, 다른 곳에서 보관된 루틴의 404, 제목 수준.
-- `frontend/src/app.test.tsx`: 메뉴에서 4주 루틴 열기, 오늘 체크 화면의 4주 카드.
+- `backend/test/check-routes.test.ts`: the days left and the boundary of the last 7 days (7 days left, 6 days left, the last day, the first day of the next period), and a past period.
+- `backend/test/db.integration.test.ts` (real DB): the 4-week boundary (one row even when rechecked in the same period, the next period resets, past period records are kept, and calculation from the first-use day).
+- `frontend/src/period-routines.test.tsx`: the 4-week period and days left, the last-day text, the add request, and checks. The weekly test only changed the path it loads from.
+- `frontend/src/four-week-due.test.tsx`: hidden when it is not the last 7 days, only incomplete items shown, keeping the place after completion and undoing, excluded after leaving the screen, not carrying over to the next period, hidden when all are done, fetch failure and retry, recovery from a save failure, a 404 for a routine archived elsewhere, and the heading level.
+- `frontend/src/app.test.tsx`: opening 4-week routines from the menu, and the 4-week card on the today check screen.
 
-## 검증
+## Verification
 
-- 로컬(`TEST_DATABASE_URL` 제거): 포맷·lint·타입 검사·빌드 통과, 스킬 검사 4 pass. 백엔드 테스트 51개 중 41 pass / 0 fail / 10 skip이며, skip 10건은 DB 통합 테스트다. 프론트엔드 테스트는 `--testTimeout=60000`으로 119개 중 117 pass / 0 fail / 2 skip이다. skip 2건은 중앙 표준 동기화(#49)로 들어온 다크 모드 전용 앱용 테스트로, 이 앱에는 해당하지 않는다.
-- 브라우저 확인은 1차 보완 뒤에 다시 해서 같은 결과를 얻었다.
-- 브라우저: 메모리 기반 임시 API에 Vite 개발 서버를 연결하고 헤드리스 Chrome으로 확인했다. 콘솔 오류는 없었다. 실제 DB와 연결한 화면은 확인하지 못했다. 임시 API의 기간 계산은 실제 서버 코드가 아니므로, 기간과 남은 일수는 API·DB 테스트로 확인한다.
-  - 모바일 390×844: 가로 스크롤 없음(scrollWidth 390), 카드 한 열.
-  - PC 1440×900: 가로 스크롤 없음.
-  - 두 크기 공통: 4주 화면의 기간과 진행률, 마지막 날 문구. 오늘 체크 화면에 미완료 항목만 표시, 체크 후 자리 유지와 되돌리기.
+- Local (`TEST_DATABASE_URL` removed): format, lint, type checks, and build passed, the skill check 4 pass. Backend tests were 41 pass / 0 fail / 10 skip out of 51, and the 10 skips are DB integration tests. Frontend tests were 117 pass / 0 fail / 2 skip out of 119 with `--testTimeout=60000`. The 2 skips are tests for dark-mode-only apps that came in with the central standards sync (#49), and do not apply to this app.
+- The browser check was done again after the first follow-up, with the same result.
+- Browser: connected the Vite dev server to an in-memory temporary API and checked with headless Chrome. There were no console errors. The screen connected to a real DB was not checked. The period calculation of the temporary API is not the real server code, so the period and days left are confirmed by API and DB tests.
+  - Mobile 390×844: no horizontal scroll (scrollWidth 390), cards in one column.
+  - PC 1440×900: no horizontal scroll.
+  - Both sizes: the period and progress of the 4-week screen, and the last-day text. On the today check screen, only incomplete items shown, keeping the place after a check, and undoing.
 
-## 한계·후속
+## Limits and follow-up
 
-- 지난 기간의 체크를 화면에서 고칠 수 없다.
-- 화면을 계속 띄운 채 기간이 바뀌면 다시 불러오기 전까지 체크가 지난 기간으로 저장된다: [#44](https://github.com/sirloinbh/plan-routine/issues/44).
+- Checks of a past period cannot be fixed on the screen.
+- If the period changes while the screen is kept open, checks are saved to the past period until it is fetched again: [#44](https://github.com/sirloinbh/plan-routine/issues/44).
 
-## 자동 코드 리뷰
+## Automated code review
 
-- 1차: 병합을 막는 결함은 없었다. 보완 4건을 반영하고 1건은 이슈로 넘겼다.
-  - (중간) 4주 카드의 불러오기가 실패하면 다시 시도할 수단이 없었다. "4주 루틴 다시 불러오기" 버튼을 보여 준다. 테스트를 추가했다.
-  - (낮음) 하루 목록이 없을 때 제목 순서가 건너뛰었고, 지난 날짜 제목 아래에 오늘 기준 카드가 놓였다. 카드 제목을 h2로 올렸다.
-  - (낮음) 체크한 항목의 기록이 다음 기간까지 남았다. 기간별로 구분한다. 문서의 "다음에 불러올 때 빠진다"는 실제 동작에 맞게 고쳤다.
-  - (낮음) 카드 연결과 저장 실패 동작에 테스트가 없었다. 테스트를 추가했다.
-  - 넘긴 작업: [#44](https://github.com/sirloinbh/plan-routine/issues/44)에 4주 화면과 카드를 추가했다.
-- 2차: 고칠 결함이 없다. 1차 보완 4건의 반영을 확인했다. 테스트 코드 정리 2건(쓰지 않는 도우미 삭제, 가짜 응답에 새 필드 추가)만 반영했다. 리뷰는 2회로 마친다.
+- First: no defect blocking the merge. 4 follow-ups applied and 1 handed to an issue.
+  - (Medium) If the fetch of the 4-week card failed, there was no way to retry. A "Reload 4-week routines" button is shown. Added a test.
+  - (Low) When there was no daily list, the heading order skipped, and the card based on today was placed under the past date's heading. Raised the card title to h2.
+  - (Low) The record of a checked item stayed until the next period. It is now separated by period. Fixed the document's "drops out the next time it is fetched" to match the real behavior.
+  - (Low) Connecting the card and the save-failure behavior had no test. Added tests.
+  - Handed over: added the 4-week screen and the card to [#44](https://github.com/sirloinbh/plan-routine/issues/44).
+- Second: no defect to fix. Confirmed the 4 first-review follow-ups were applied. Only 2 test code cleanups (deleting an unused helper, adding the new field to a fake response) were applied. The review ends at 2 rounds.

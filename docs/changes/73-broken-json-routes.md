@@ -1,23 +1,23 @@
-# #73 깨진 JSON 본문이 500으로 응답되는 문제 고치기
+# #73 Fix broken JSON bodies being answered with a 500
 
-- 이슈: [#73](https://github.com/sirloinbh/plan-routine/issues/73)
-- 브랜치: `test/73-broken-json-routes`
-- 일자: 2026-11-01 (Asia/Seoul)
+- Issue: [#73](https://github.com/sirloinbh/plan-routine/issues/73)
+- Branch: `test/73-broken-json-routes`
+- Date: 2026-11-01 (Asia/Seoul)
 
-## 목적
+## Purpose
 
-깨진 JSON과 JSON 원시값 본문이 500이 되는 문제다. 동작은 [#47](47-request-body-errors.md)에서 이미 고쳐졌다. 이슈의 완료 기준인 "경로마다 이 입력을 확인하는 테스트"만 남아 있었다.
+This is the problem where broken JSON and primitive JSON value bodies become a 500. The behavior was already fixed in [#47](47-request-body-errors.md). Only the issue's done criterion, "a test that checks this input on every route", remained.
 
-## 변경
+## Changes
 
-`backend/test/request-input.test.ts`: 본문을 읽는 7개 경로와 이슈의 5개 본문(`{`, `null`, `1`, `"x"`, `true`) 조합 35개가 모두 한국어 400이고 DB에 닿지 않음을 확인한다. 앱 코드는 바꾸지 않았다.
+`backend/test/request-input.test.ts`: checks that all 35 combinations of the 7 routes that read a body and the issue's 5 bodies (`{`, `null`, `1`, `"x"`, `true`) are a 400 with a user-facing message and do not reach the DB. The app code was not changed.
 
-이슈는 health-log의 문구 `요청 본문의 JSON 형식이 올바르지 않습니다`를 예로 들지만, 완료 기준은 "400과 한국어 메시지"이므로 #47에서 정한 문구를 유지한다.
+The issue gives health-log's wording `요청 본문의 JSON 형식이 올바르지 않습니다` (the JSON format of the request body is not valid) as an example, but the done criterion is "a 400 and a user-facing message", so the wording decided in #47 is kept.
 
-## 검증
+## Verification
 
-- 로컬: `env -u TEST_DATABASE_URL npm run check` 통과. 백엔드 164개 중 145 pass / 0 fail / 19 skip(DB 테스트), 프론트엔드 306개 중 304 pass / 0 fail / 2 skip, `test:skills` 4개 pass.
+- Local: `env -u TEST_DATABASE_URL npm run check` passed. Backend 145 pass / 0 fail / 19 skip (DB tests) out of 164, frontend 304 pass / 0 fail / 2 skip out of 306, and `test:skills` 4 pass.
 
-## 한계·후속
+## Limits and follow-up
 
-없음.
+None.

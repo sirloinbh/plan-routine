@@ -1,41 +1,41 @@
-# #34 불러오는 중 표시를 공통 Skeleton·Spinner로 바꾸기
+# #34 Change the loading indicators to the shared Skeleton and Spinner
 
-- 이슈: [#34](https://github.com/sirloinbh/plan-routine/issues/34)
-- 브랜치: `chore/34-loading-states`
-- 일자: 2026-11-01 (Asia/Seoul)
+- Issue: [#34](https://github.com/sirloinbh/plan-routine/issues/34)
+- Branch: `chore/34-loading-states`
+- Date: 2026-11-01 (Asia/Seoul)
 
-## 목적
+## Purpose
 
-기능 화면이 "불러오는 중" 글자만 보여 줬다. 중앙 규칙(`sirloinbh/project-standards`의 `docs/ui-components.md`)대로 바꾼다.
+The feature screens showed only the text "Loading". Change this as the central rule (`docs/ui-components.md` in `sirloinbh/project-standards`) says.
 
-## 변경
+## Changes
 
-- `frontend/src/loading-region.tsx`(새 파일): 공통 Skeleton을 `aria-busy`와 이름이 있는 영역으로 감싼다. 불러온 뒤의 모양에 맞춰, 카드 격자(오늘 체크, 하루 루틴, 달성률, 날짜별 기록)와 카드 하나(기간 체크리스트, 달력, 12주 목표, 일기)는 `SkeletonCard`, 카드 안의 행 목록(기간 루틴, 연결 패널, 프로젝트 목록)은 `SkeletonList`를 쓴다.
-- 저장·삭제 버튼에 `Spinner size="sm"`을 넣었다: 루틴 추가·이름 저장·보관 확인, 목표 추가·저장·삭제 확인, 프로젝트 추가·삭제 확인, 일기 저장, 회고 저장, 연결 저장. 누른 버튼에만 나온다. 비활성화에 쓰는 공유 `busy`와 별도로, 어떤 버튼이 시작했는지를 `pending`으로 기억한다.
+- `frontend/src/loading-region.tsx` (new file): wraps the shared Skeleton in a region with `aria-busy` and a name. To match the shape after loading, card grids (today's check, daily routines, achievement rate, records by date) and a single card (the period checklist, the calendar, 12-week goals, the diary) use `SkeletonCard`, and row lists inside a card (period routines, the link panel, the project list) use `SkeletonList`.
+- Put `Spinner size="sm"` in the save and delete buttons: adding a routine, saving a name, and archive confirmation, adding, saving, and delete confirmation of goals, adding and delete confirmation of projects, saving the diary, saving the retrospective, and saving a link. It appears only on the pressed button. Separately from the shared `busy` used for disabling, it remembers which button started the action as `pending`.
 
-## 결정
+## Decision
 
-일기 저장, 회고 저장, 연결 저장 버튼은 `disabled`를 주지 않고 전처럼 코드로 중복을 막는다. 중앙 규칙과 이슈는 `disabled`를 요구하지만, 비활성화하면 눌린 버튼에서 포커스가 빠지므로 이 PR에서 예외로 둔다. 나머지 버튼은 이미 `disabled`다.
+The buttons for saving the diary, saving the retrospective, and saving a link are not given `disabled`, and still prevent duplicates in code as before. The central rule and the issue require `disabled`, but disabling takes the focus away from the pressed button, so this PR makes an exception. The other buttons are already `disabled`.
 
-## 테스트
+## Tests
 
-`loading-region.test.tsx`: 이름, `aria-busy`, 모양. `diary.test.tsx`: 첫 불러오기, 저장 버튼의 Spinner. `routines.test.tsx`: 누른 추가 버튼과 보관 확인에만 Spinner, 이동 때는 없음. `project-links.test.tsx`: 삭제 때 추가 버튼에는 없음. `records.test.tsx`: 이름 바뀐 영역.
+`loading-region.test.tsx`: the name, `aria-busy`, and the shape. `diary.test.tsx`: the first fetch and the Spinner of the save button. `routines.test.tsx`: the Spinner only on the pressed add button and archive confirmation, and none when moving. `project-links.test.tsx`: none on the add button when deleting. `records.test.tsx`: the renamed region.
 
-## 검증
+## Verification
 
-- 로컬: `env -u TEST_DATABASE_URL npm run check` 통과. 백엔드 161개 중 142 pass / 0 fail / 19 skip(DB 테스트), 프론트엔드 273개 중 271 pass / 0 fail / 2 skip, `test:skills` 4개 pass.
-- 브라우저: 임시 API로 1440×900, 375×812, 390×844에서 오늘 체크, 하루 루틴, 일기, 기록, 달성률, 12주(설정은 1440×900, 375×812)의 불러오는 중 상태를 확인했다. 이름 있는 `aria-busy` 영역이 나오고 "불러오는 중" 글자와 가로 스크롤은 없었다. 쓰기 응답을 늦춰 1440×900, 390×844에서 Spinner도 확인했다. 루틴 추가 때 누른 폼에만 1개 나오고, 끝나면 사라지며, 보관 때는 그 행의 "보관 확인"에만 나온다. 목표, 프로젝트, 연결, 회고의 Spinner는 브라우저로 보지 않았고, 일부만 화면 테스트로 확인했다.
+- Local: `env -u TEST_DATABASE_URL npm run check` passed. Backend 142 pass / 0 fail / 19 skip (DB tests) out of 161, frontend 271 pass / 0 fail / 2 skip out of 273, and `test:skills` 4 pass.
+- Browser: with a temporary API at 1440×900, 375×812, and 390×844, I checked the loading state of today's check, daily routines, the diary, records, achievement rate, and 12-week (settings at 1440×900 and 375×812). A named `aria-busy` region appeared, and there was no "Loading" text or horizontal scroll. I also checked the Spinner at 1440×900 and 390×844 by delaying write responses. When adding a routine it appears as one on the pressed form only and disappears when done, and when archiving it appears only on "Confirm archive" of that row. The Spinner of goals, projects, links, and retrospective was not seen in the browser, and only some were checked by screen tests.
 
-## 한계·후속
+## Limits and follow-up
 
-없음.
+None.
 
-## 자동 코드 리뷰
+## Automated code review
 
-- 1차: 5건을 반영했다.
-  - (중간) 공유 `busy` 때문에 누르지 않은 버튼의 Spinner까지 돌았다. 시작한 버튼을 기억한다. 테스트를 추가했다.
-  - (중간) 카드 화면에도 목록 모양 자리표시를 썼다. 불러온 뒤의 모양에 맞췄다.
-  - (낮음) `disabled` 예외의 근거가 부정확했다. 고쳤다.
-  - (낮음) 화면 확인이 390×844와 Spinner를 빠뜨렸다. 확인했다.
-  - (낮음) 끝난 카드 목록의 순서를 고쳤다.
-- 2차: 중간 이상의 결함은 없었다. 오늘 체크의 자리표시를 격자로 고치고, 테스트 제목을 바로잡았다. 목표, 회고, 연결, 이름 저장의 Spinner는 테스트와 브라우저 확인이 없다. 리뷰는 2회로 마친다.
+- First: 5 applied.
+  - (Medium) Because of the shared `busy`, even the Spinner of a button that was not pressed spun. It now remembers the button that started. Added a test.
+  - (Medium) A list-shaped placeholder was also used for card screens. It now matches the shape after loading.
+  - (Low) The basis of the `disabled` exception was inaccurate. Fixed.
+  - (Low) The screen check missed 390×844 and the Spinner. Checked them.
+  - (Low) Fixed the order of the finished card list.
+- Second: no defect of medium or above. Fixed the placeholder of today's check to a grid and corrected the test title. The Spinner of the goal, retrospective, link, and name save has neither a test nor a browser check. The review ends at 2 rounds.
