@@ -24,13 +24,13 @@ function api(seed: Project[] = []) {
       writes.push({ method, path, body });
       if (method === 'POST') {
         if (body!.url.startsWith('javascript:'))
-          return reply(400, { error: '주소는 https:// 또는 사설 접속 주소만 쓸 수 있습니다' });
+          return reply(400, { error: 'The URL must be https:// or a private access address' });
         const project = { id: String(nextId++), name: body!.name, url: body!.url };
         projects = [...projects, project];
         return reply(201, { project });
       }
       const id = path.split('/')[3];
-      if (id === '500') return reply(500, { error: '서버 오류가 발생했습니다' });
+      if (id === '500') return reply(500, { error: 'A server error occurred' });
       projects = projects.filter((project) => project.id !== id);
       return reply(200, { id });
     }),
@@ -43,102 +43,104 @@ const button = (name: string) => screen.getByRole('button', { name });
 const field = (name: string) => screen.getByRole('textbox', { name });
 const type = (name: string, value: string) => fireEvent.change(field(name), { target: { value } });
 
-const books = { id: '1', name: '독서 기록', url: 'https://books.example/' };
-const money = { id: '2', name: '가계부', url: 'http://nas.local/' };
+const books = { id: '1', name: 'Reading log', url: 'https://books.example/' };
+const money = { id: '2', name: 'Budget', url: 'http://nas.local/' };
 
 test('shows registered projects, or that there are none', async () => {
   api([books]);
   const { unmount } = render(<ProjectLinks />);
   await flush();
-  expect(screen.getByText('독서 기록')).toBeInTheDocument();
+  expect(screen.getByText('Reading log')).toBeInTheDocument();
   expect(screen.getByText('https://books.example/')).toBeInTheDocument();
   unmount();
   api();
   render(<ProjectLinks />);
   await flush();
-  expect(screen.getByText('아직 등록한 프로젝트가 없습니다')).toBeInTheDocument();
+  expect(screen.getByText('No projects registered yet')).toBeInTheDocument();
 });
 
 test('adding sends the form, clears it, and returns focus to the name field', async () => {
   const writes = api();
   render(<ProjectLinks />);
   await flush();
-  type('프로젝트 이름', '독서 기록');
-  type('프로젝트 주소', 'https://books.example');
-  fireEvent.click(button('추가'));
+  type('Project name', 'Reading log');
+  type('Project URL', 'https://books.example');
+  fireEvent.click(button('Add'));
   await flush();
   expect(writes[0]).toEqual({
     method: 'POST',
     path: '/api/project-links',
-    body: { name: '독서 기록', url: 'https://books.example' },
+    body: { name: 'Reading log', url: 'https://books.example' },
   });
-  expect(screen.getByRole('status')).toHaveTextContent("'독서 기록' 프로젝트를 추가했습니다");
-  expect(field('프로젝트 이름')).toHaveValue('');
-  expect(field('프로젝트 주소')).toHaveValue('');
-  expect(field('프로젝트 이름')).toHaveFocus();
+  expect(screen.getByRole('status')).toHaveTextContent("Added the project 'Reading log'");
+  expect(field('Project name')).toHaveValue('');
+  expect(field('Project URL')).toHaveValue('');
+  expect(field('Project name')).toHaveFocus();
   expect(screen.getByText('https://books.example')).toBeInTheDocument();
 });
 
-test('a refused address shows the Korean error and keeps what was typed', async () => {
+test('a refused address shows the English error and keeps what was typed', async () => {
   api();
   render(<ProjectLinks />);
   await flush();
-  type('프로젝트 이름', '나쁜 주소');
-  type('프로젝트 주소', 'javascript:alert(1)');
-  fireEvent.click(button('추가'));
+  type('Project name', 'Bad URL');
+  type('Project URL', 'javascript:alert(1)');
+  fireEvent.click(button('Add'));
   await flush();
-  expect(screen.getByRole('alert')).toHaveTextContent('https:// 또는 사설 접속 주소만');
-  expect(field('프로젝트 주소')).toHaveValue('javascript:alert(1)');
-  expect(field('프로젝트 주소')).toHaveFocus();
+  expect(screen.getByRole('alert')).toHaveTextContent(
+    'The URL must be https:// or a private access address',
+  );
+  expect(field('Project URL')).toHaveValue('javascript:alert(1)');
+  expect(field('Project URL')).toHaveFocus();
 });
 
 test('removing asks first, then moves focus to the next project', async () => {
   const writes = api([books, money]);
   render(<ProjectLinks />);
   await flush();
-  fireEvent.click(button('독서 기록 삭제'));
+  fireEvent.click(button('Delete Reading log'));
   expect(writes).toEqual([]);
-  fireEvent.click(button('독서 기록 삭제 확인'));
+  fireEvent.click(button('Confirm deleting Reading log'));
   await flush();
   expect(writes[0]).toMatchObject({ method: 'DELETE', path: '/api/project-links/1' });
-  expect(screen.queryByText('독서 기록')).not.toBeInTheDocument();
-  expect(button('가계부 삭제')).toHaveFocus();
+  expect(screen.queryByText('Reading log')).not.toBeInTheDocument();
+  expect(button('Delete Budget')).toHaveFocus();
 
-  fireEvent.click(button('가계부 삭제'));
-  fireEvent.click(button('가계부 삭제 확인'));
+  fireEvent.click(button('Delete Budget'));
+  fireEvent.click(button('Confirm deleting Budget'));
   await flush();
-  expect(field('프로젝트 이름')).toHaveFocus();
+  expect(field('Project name')).toHaveFocus();
 });
 
 test('a removal that fails stays on its own row', async () => {
   api([{ ...books, id: '500' }]);
   render(<ProjectLinks />);
   await flush();
-  fireEvent.click(button('독서 기록 삭제'));
-  fireEvent.click(button('독서 기록 삭제 확인'));
+  fireEvent.click(button('Delete Reading log'));
+  fireEvent.click(button('Confirm deleting Reading log'));
   await flush();
-  expect(screen.getByRole('alert')).toHaveTextContent('서버 오류가 발생했습니다');
-  expect(button('독서 기록 삭제')).toHaveFocus();
+  expect(screen.getByRole('alert')).toHaveTextContent('A server error occurred');
+  expect(button('Delete Reading log')).toHaveFocus();
 });
 
 test('a checklist item opens its project in a new tab, safely', () => {
   render(
     <Checklist
-      title="독서"
+      title="Reading"
       items={[
         {
           id: '1',
-          name: '30분 읽기',
+          name: 'Read 30 min',
           checked: false,
-          linkName: '독서 기록',
+          linkName: 'Reading log',
           linkUrl: 'https://books.example/',
         },
-        { id: '2', name: '메모하기', checked: false },
+        { id: '2', name: 'Take notes', checked: false },
       ]}
       onToggle={() => {}}
     />,
   );
-  const link = screen.getByRole('link', { name: '30분 읽기: 독서 기록 열기' });
+  const link = screen.getByRole('link', { name: 'Read 30 min: Open Reading log' });
   expect(link).toHaveAttribute('href', 'https://books.example/');
   expect(link).toHaveAttribute('target', '_blank');
   expect(link).toHaveAttribute('rel', 'noopener noreferrer');
@@ -148,13 +150,13 @@ test('a checklist item opens its project in a new tab, safely', () => {
 test('a checklist never renders an address that is not http or https', () => {
   render(
     <Checklist
-      title="독서"
+      title="Reading"
       items={[
         {
           id: '1',
-          name: '30분 읽기',
+          name: 'Read 30 min',
           checked: false,
-          linkName: '나쁜 주소',
+          linkName: 'Bad URL',
           linkUrl: 'javascript:alert(1)',
         },
       ]}
@@ -162,7 +164,7 @@ test('a checklist never renders an address that is not http or https', () => {
     />,
   );
   expect(screen.queryByRole('link')).not.toBeInTheDocument();
-  expect(within(screen.getByRole('region')).getByText('30분 읽기')).toBeInTheDocument();
+  expect(within(screen.getByRole('region')).getByText('Read 30 min')).toBeInTheDocument();
 });
 
 test('a list that fails to load does not claim there are none, and can be retried', async () => {
@@ -174,16 +176,16 @@ test('a list that fails to load does not claim there are none, and can be retrie
     vi.fn((path: string, init?: RequestInit) => {
       if (!fail) return working(path, init);
       fail = false;
-      return reply(500, { error: '서버 오류가 발생했습니다' });
+      return reply(500, { error: 'A server error occurred' });
     }),
   );
   render(<ProjectLinks />);
   await flush();
-  expect(screen.getByRole('alert')).toHaveTextContent('서버 오류가 발생했습니다');
-  expect(screen.queryByText('아직 등록한 프로젝트가 없습니다')).not.toBeInTheDocument();
-  fireEvent.click(button('프로젝트 다시 불러오기'));
+  expect(screen.getByRole('alert')).toHaveTextContent('A server error occurred');
+  expect(screen.queryByText('No projects registered yet')).not.toBeInTheDocument();
+  fireEvent.click(button('Reload projects'));
   await flush();
-  expect(screen.getByText('독서 기록')).toBeInTheDocument();
+  expect(screen.getByText('Reading log')).toBeInTheDocument();
   expect(screen.queryByRole('alert')).not.toBeInTheDocument();
 });
 
@@ -204,13 +206,13 @@ test('removing spins only that delete button, not the add button', async () => {
   );
   render(<ProjectLinks />);
   await flush();
-  fireEvent.click(button('독서 기록 삭제'));
-  fireEvent.click(button('독서 기록 삭제 확인'));
+  fireEvent.click(button('Delete Reading log'));
+  fireEvent.click(button('Confirm deleting Reading log'));
   await flush();
   expect(
-    within(button('독서 기록 삭제 확인')).getByRole('status', { name: '처리하는 중' }),
+    within(button('Confirm deleting Reading log')).getByRole('status', { name: 'Working' }),
   ).toBeInTheDocument();
-  expect(screen.queryByRole('status', { name: '저장하는 중' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('status', { name: 'Saving' })).not.toBeInTheDocument();
   release();
   await flush();
 });

@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { expect, test, vi } from 'vitest';
 
+import { formatDate } from './format-date';
 import { Records } from './records';
 
 const today = '2026-10-22';
@@ -33,19 +34,19 @@ function recordsApi() {
     '2026-10-20': {
       progress: { checked: 1, total: 2 },
       routines: [
-        routine('1', '6시 기상', 'wake', true),
-        routine('2', '그때 있던 루틴', 'exercise', false, true),
+        routine('1', 'Wake at 6', 'wake', true),
+        routine('2', 'Routine from then', 'exercise', false, true),
       ],
       diary: {
-        body: '잘 보낸 하루',
-        goodNote: '일찍 일어남',
+        body: 'A good day',
+        goodNote: 'Woke up early',
         regretNote: null,
         tomorrowNote: null,
       },
     },
     [today]: {
       progress: { checked: 0, total: 1 },
-      routines: [routine('1', '6시 기상', 'wake', false)],
+      routines: [routine('1', 'Wake at 6', 'wake', false)],
       diary: null,
     },
   };
@@ -63,7 +64,7 @@ function recordsApi() {
           held.set(key, () => resolve(response));
         })
       : response;
-  const serverError = () => reply(500, { error: '서버 오류가 발생했습니다' });
+  const serverError = () => reply(500, { error: 'A server error occurred' });
   vi.stubGlobal(
     'fetch',
     vi.fn((url: string, init?: RequestInit) => {
@@ -121,21 +122,24 @@ function recordsApi() {
 }
 
 const flush = () => act(() => new Promise((resolve) => setTimeout(resolve)));
-const dayButton = (date: string) => screen.getByRole('button', { name: new RegExp(`^${date} `) });
+const dayButton = (date: string) =>
+  screen.getByRole('button', { name: new RegExp(`^${formatDate(date, 'weekday')}: `) });
 const press = (name: string) => fireEvent.click(screen.getByRole('button', { name }));
 
 test('opens on this month and today, with each day summarised', async () => {
   recordsApi();
   render(<Records />);
   await flush();
-  expect(screen.getByRole('region', { name: '2026년 10월 달력' })).toBeVisible();
+  expect(screen.getByRole('region', { name: 'October 2026 calendar' })).toBeVisible();
   expect(
-    screen.getByRole('button', { name: '2026-10-20 화요일 하루 루틴 1/2 완료, 일기 있음' }),
+    screen.getByRole('button', { name: 'Tue, Oct 20: daily routines 1/2 done, diary written' }),
   ).toBeInTheDocument();
   expect(dayButton(today)).toHaveAttribute('aria-current', 'date');
   expect(dayButton(today)).toHaveAttribute('aria-pressed', 'true');
-  expect(screen.getByRole('heading', { level: 2, name: `오늘 (${today})` })).toBeVisible();
-  expect(screen.getByRole('button', { name: '다음 달' })).toBeDisabled();
+  expect(
+    screen.getByRole('heading', { level: 2, name: `Today (${formatDate(today)})` }),
+  ).toBeVisible();
+  expect(screen.getByRole('button', { name: 'Next month' })).toBeDisabled();
 });
 
 test('the first day sits under its weekday', async () => {
@@ -152,19 +156,19 @@ test('a chosen day shows its checks, archived routines and diary', async () => {
   await flush();
   fireEvent.click(dayButton('2026-10-20'));
   await flush();
-  const record = screen.getByRole('region', { name: '2026-10-20 기록' });
-  expect(within(record).getByText('하루 루틴 1/2 완료')).toBeInTheDocument();
+  const record = screen.getByRole('region', { name: 'Records for October 20, 2026' });
+  expect(within(record).getByText('Daily routines 1/2 done')).toBeInTheDocument();
   const items = within(record)
     .getAllByRole('listitem')
     .map((item) => item.textContent);
-  expect(items[0]).toContain('6시 기상');
-  expect(items[0]).toContain('완료');
-  expect(items[1]).toContain('그때 있던 루틴');
-  expect(items[1]).toContain('미완료');
-  expect(items[1]).toContain('보관됨');
-  expect(within(record).getByText('잘 보낸 하루')).toBeInTheDocument();
-  expect(within(record).getByText('일찍 일어남')).toBeInTheDocument();
-  expect(within(record).queryByText('아쉬운 점')).not.toBeInTheDocument();
+  expect(items[0]).toContain('Wake at 6');
+  expect(items[0]).toContain('Done');
+  expect(items[1]).toContain('Routine from then');
+  expect(items[1]).toContain('Not done');
+  expect(items[1]).toContain('Archived');
+  expect(within(record).getByText('A good day')).toBeInTheDocument();
+  expect(within(record).getByText('Woke up early')).toBeInTheDocument();
+  expect(within(record).queryByText('What could be better')).not.toBeInTheDocument();
 });
 
 test('a day with no record says so', async () => {
@@ -173,14 +177,14 @@ test('a day with no record says so', async () => {
   await flush();
   fireEvent.click(dayButton('2026-10-01'));
   await flush();
-  expect(screen.getByRole('heading', { level: 3, name: '이 날의 기록이 없습니다' })).toBeVisible();
+  expect(screen.getByRole('heading', { level: 3, name: 'No records for this day' })).toBeVisible();
 });
 
 test('a day with routines but no diary says the diary was not written', async () => {
   recordsApi();
   render(<Records />);
   await flush();
-  expect(screen.getByText('이 날은 일기를 쓰지 않았습니다')).toBeInTheDocument();
+  expect(screen.getByText('No diary entry for this day')).toBeInTheDocument();
 });
 
 test('records cannot be changed from this page', async () => {
@@ -200,14 +204,14 @@ test('months can be moved through while the chosen day stays', async () => {
   await flush();
   fireEvent.click(dayButton('2026-10-20'));
   await flush();
-  press('이전 달');
+  press('Previous month');
   await flush();
-  expect(screen.getByRole('region', { name: '2026년 9월 달력' })).toBeVisible();
+  expect(screen.getByRole('region', { name: 'September 2026 calendar' })).toBeVisible();
   expect(api.calls.map((call) => call.url)).toContain('/api/records?month=2026-09');
-  expect(screen.getByRole('region', { name: '2026-10-20 기록' })).toBeVisible();
-  press('다음 달');
+  expect(screen.getByRole('region', { name: 'Records for October 20, 2026' })).toBeVisible();
+  press('Next month');
   await flush();
-  expect(screen.getByRole('region', { name: '2026년 10월 달력' })).toBeVisible();
+  expect(screen.getByRole('region', { name: 'October 2026 calendar' })).toBeVisible();
 });
 
 test('a slow answer for an earlier day does not replace the day chosen after it', async () => {
@@ -218,30 +222,32 @@ test('a slow answer for an earlier day does not replace the day chosen after it'
   fireEvent.click(dayButton('2026-10-20'));
   await flush();
   // Nothing from the previous day stays on screen while the next one loads.
-  expect(screen.getByRole('region', { name: '이 날의 기록 불러오는 중' })).toBeInTheDocument();
+  expect(screen.getByRole('region', { name: "Loading this day's records" })).toBeInTheDocument();
   fireEvent.click(dayButton('2026-10-01'));
   await flush();
   api.release('2026-10-20');
   await flush();
-  expect(screen.getByRole('region', { name: '2026-10-01 기록' })).toBeVisible();
-  expect(screen.queryByRole('region', { name: '2026-10-20 기록' })).not.toBeInTheDocument();
+  expect(screen.getByRole('region', { name: 'Records for October 1, 2026' })).toBeVisible();
+  expect(
+    screen.queryByRole('region', { name: 'Records for October 20, 2026' }),
+  ).not.toBeInTheDocument();
 });
 
 test('a slow answer for an earlier month does not replace the month chosen after it', async () => {
   const api = recordsApi();
   render(<Records />);
   await flush();
-  press('이전 달');
+  press('Previous month');
   await flush();
   api.hold('2026-08');
-  press('이전 달');
+  press('Previous month');
   await flush();
-  press('다음 달');
+  press('Next month');
   await flush();
-  expect(screen.getByRole('region', { name: '2026년 10월 달력' })).toBeVisible();
+  expect(screen.getByRole('region', { name: 'October 2026 calendar' })).toBeVisible();
   api.release('2026-08');
   await flush();
-  expect(screen.getByRole('region', { name: '2026년 10월 달력' })).toBeVisible();
+  expect(screen.getByRole('region', { name: 'October 2026 calendar' })).toBeVisible();
 });
 
 const nextDay = (api: ReturnType<typeof recordsApi>) =>
@@ -260,7 +266,7 @@ test('a window left open moves on to the new day unless a day was picked', async
   await flush();
   await nextDay(api);
   await flush();
-  expect(screen.getByRole('heading', { level: 2, name: '오늘 (2026-10-23)' })).toBeVisible();
+  expect(screen.getByRole('heading', { level: 2, name: 'Today (October 23, 2026)' })).toBeVisible();
   expect(dayButton('2026-10-23')).toHaveAttribute('aria-pressed', 'true');
 });
 
@@ -274,7 +280,7 @@ test('a picked day stays when the date changes', async () => {
   await flush();
   await nextDay(api);
   await flush();
-  expect(screen.getByRole('region', { name: '2026-10-20 기록' })).toBeVisible();
+  expect(screen.getByRole('region', { name: 'Records for October 20, 2026' })).toBeVisible();
   expect(dayButton('2026-10-23')).toHaveAttribute('aria-current', 'date');
 });
 
@@ -289,7 +295,7 @@ test('picking a day clears the error of an earlier failed day', async () => {
   fireEvent.click(dayButton('2026-10-01'));
   expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   await flush();
-  expect(screen.getByRole('region', { name: '2026-10-01 기록' })).toBeVisible();
+  expect(screen.getByRole('region', { name: 'Records for October 1, 2026' })).toBeVisible();
 });
 
 test('picking the day that failed loads it again rather than waiting forever', async () => {
@@ -302,9 +308,9 @@ test('picking the day that failed loads it again rather than waiting forever', a
   expect(screen.getByRole('alert')).toBeInTheDocument();
   fireEvent.click(dayButton('2026-10-20'));
   await flush();
-  expect(screen.getByRole('region', { name: '2026-10-20 기록' })).toBeVisible();
+  expect(screen.getByRole('region', { name: 'Records for October 20, 2026' })).toBeVisible();
   expect(
-    screen.queryByRole('region', { name: '이 날의 기록 불러오는 중' }),
+    screen.queryByRole('region', { name: "Loading this day's records" }),
   ).not.toBeInTheDocument();
 });
 
@@ -312,17 +318,17 @@ test('the calendar heading is only the month, without its buttons', async () => 
   recordsApi();
   render(<Records />);
   await flush();
-  expect(screen.getByRole('heading', { level: 2, name: '2026년 10월' })).toBeVisible();
+  expect(screen.getByRole('heading', { level: 2, name: 'October 2026' })).toBeVisible();
 });
 
 test('a failed first load offers a retry', async () => {
   const api = recordsApi();
   api.failMonth();
   render(<Records />);
-  expect(await screen.findByRole('alert')).toHaveTextContent('서버 오류가 발생했습니다');
-  press('다시 시도');
+  expect(await screen.findByRole('alert')).toHaveTextContent('A server error occurred');
+  press('Try again');
   await flush();
-  expect(screen.getByRole('region', { name: '2026년 10월 달력' })).toBeVisible();
+  expect(screen.getByRole('region', { name: 'October 2026 calendar' })).toBeVisible();
   expect(screen.queryByRole('alert')).not.toBeInTheDocument();
 });
 
@@ -331,13 +337,13 @@ test('a failed month move can be retried and keeps the calendar', async () => {
   render(<Records />);
   await flush();
   api.failMonth();
-  press('이전 달');
+  press('Previous month');
   await flush();
-  expect(screen.getByRole('alert')).toHaveTextContent('서버 오류가 발생했습니다');
-  expect(screen.getByRole('region', { name: '2026년 10월 달력' })).toBeVisible();
-  press('다시 시도');
+  expect(screen.getByRole('alert')).toHaveTextContent('A server error occurred');
+  expect(screen.getByRole('region', { name: 'October 2026 calendar' })).toBeVisible();
+  press('Try again');
   await flush();
-  expect(screen.getByRole('region', { name: '2026년 9월 달력' })).toBeVisible();
+  expect(screen.getByRole('region', { name: 'September 2026 calendar' })).toBeVisible();
 });
 
 test('a failed day load offers its own retry', async () => {
@@ -347,10 +353,10 @@ test('a failed day load offers its own retry', async () => {
   api.failDay();
   fireEvent.click(dayButton('2026-10-20'));
   await flush();
-  expect(screen.getByRole('alert')).toHaveTextContent('서버 오류가 발생했습니다');
-  press('이 날 기록 다시 불러오기');
+  expect(screen.getByRole('alert')).toHaveTextContent('A server error occurred');
+  press("Reload this day's records");
   await waitFor(() =>
-    expect(screen.getByRole('region', { name: '2026-10-20 기록' })).toBeVisible(),
+    expect(screen.getByRole('region', { name: 'Records for October 20, 2026' })).toBeVisible(),
   );
   expect(screen.queryByRole('alert')).not.toBeInTheDocument();
 });

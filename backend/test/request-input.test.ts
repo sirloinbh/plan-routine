@@ -17,9 +17,9 @@ function untouchedPool() {
   } as unknown as Pool;
 }
 
-const refused = '요청 형식이 올바르지 않습니다';
+const refused = 'Invalid request format';
 
-test('broken JSON gets a Korean 400 whichever route it is sent to', async () => {
+test('broken JSON gets an English 400 whichever route it is sent to', async () => {
   await withApi(untouchedPool(), async (call) => {
     for (const [method, path] of [
       ['POST', '/api/routines'],
@@ -32,7 +32,7 @@ test('broken JSON gets a Korean 400 whichever route it is sent to', async () => 
       assert.equal(data.error, refused, path);
     }
     // The JSON parser takes only objects and arrays, so these are refused the same way.
-    for (const raw of ['5', 'true', '"글자"']) {
+    for (const raw of ['5', 'true', '"text"']) {
       const { status, data } = await call('/api/routines', { method: 'POST', raw });
       assert.equal(status, 400, raw);
       assert.equal(data.error, refused, raw);
@@ -40,18 +40,18 @@ test('broken JSON gets a Korean 400 whichever route it is sent to', async () => 
   });
 });
 
-test('a body over the limit gets a Korean 413', async () => {
+test('a body over the limit gets an English 413', async () => {
   await withApi(untouchedPool(), async (call) => {
     const { status, data } = await call('/api/routines', {
       method: 'POST',
       raw: JSON.stringify({ name: 'x'.repeat(300 * 1024) }),
     });
     assert.equal(status, 413);
-    assert.equal(data.error, '요청 내용이 너무 큽니다');
+    assert.equal(data.error, 'The request is too large');
   });
 });
 
-test('a character set the server cannot read gets a Korean 415', async () => {
+test('a character set the server cannot read gets an English 415', async () => {
   await withApi(untouchedPool(), async (call) => {
     const { status, data } = await call('/api/routines', {
       method: 'POST',
@@ -59,11 +59,11 @@ test('a character set the server cannot read gets a Korean 415', async () => {
       contentType: 'application/json; charset=latin1',
     });
     assert.equal(status, 415);
-    assert.equal(data.error, '지원하지 않는 요청 형식입니다');
+    assert.equal(data.error, 'Unsupported request format');
   });
 });
 
-test('an address that cannot be decoded gets a Korean 400', async () => {
+test('an address that cannot be decoded gets an English 400', async () => {
   await withApi(untouchedPool(), async (call) => {
     const { status, data } = await call('/api/routines/%E0%A4%A', { method: 'PATCH', body: {} });
     assert.equal(status, 400);
@@ -71,7 +71,7 @@ test('an address that cannot be decoded gets a Korean 400', async () => {
   });
 });
 
-test('a body that is not an object gets a Korean 400 on every route that reads one', async () => {
+test('a body that is not an object gets an English 400 on every route that reads one', async () => {
   await withApi(untouchedPool(), async (call) => {
     for (const [method, path] of [
       ['POST', '/api/routines'],
@@ -89,17 +89,17 @@ test('a body that is not an object gets a Korean 400 on every route that reads o
   });
 });
 
-test('a routine name with a NUL character gets a Korean 400', async () => {
+test('a routine name with a NUL character gets an English 400', async () => {
   await withApi(untouchedPool(), async (call) => {
     const created = await call('/api/routines', {
       method: 'POST',
       body: { name: 'a\0b', cadence: 'weekly' },
     });
     assert.equal(created.status, 400);
-    assert.equal(created.data.error, '쓸 수 없는 문자가 들어 있습니다');
+    assert.equal(created.data.error, 'Contains characters that are not allowed');
     const renamed = await call('/api/routines/1', { method: 'PATCH', body: { name: 'a\0b' } });
     assert.equal(renamed.status, 400);
-    assert.equal(renamed.data.error, '쓸 수 없는 문자가 들어 있습니다');
+    assert.equal(renamed.data.error, 'Contains characters that are not allowed');
   });
 });
 
@@ -116,7 +116,7 @@ test('an unexpected error stays a 500 unless it carries a 4xx status', async () 
       await withApi(pool, async (call) => {
         const response = await call('/api/health');
         assert.equal(response.status, 500);
-        assert.equal(response.data.error, '서버 오류가 발생했습니다');
+        assert.equal(response.data.error, 'A server error occurred');
       });
     }
   } finally {
@@ -133,7 +133,7 @@ test('a request with many errors gets at most ten messages and a count of the re
     assert.equal(status, 400);
     const parts = String(data.error).split(', ');
     assert.equal(parts.length, 11);
-    assert.equal(parts.at(-1), '외 5개');
+    assert.equal(parts.at(-1), '5 more');
   });
 });
 
@@ -146,11 +146,11 @@ test('ten errors are shown in full, with no count', async () => {
     assert.equal(status, 400);
     const parts = String(data.error).split(', ');
     assert.equal(parts.length, 10);
-    assert.doesNotMatch(String(data.error), /외 /);
+    assert.doesNotMatch(String(data.error), / more/);
   });
 });
 
-test('every route that reads a body answers broken JSON and bare values with the Korean 400', async () => {
+test('every route that reads a body answers broken JSON and bare values with the English 400', async () => {
   await withApi(untouchedPool(), async (call) => {
     for (const [method, path] of [
       ['POST', '/api/routines'],

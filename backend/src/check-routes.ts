@@ -19,9 +19,9 @@ const checkParams = z.object({ id: routineId, date: calendarDate });
 
 // ISO dates compare correctly as strings.
 function dateRangeError(date: string, today: string) {
-  if (date > today) return '미래 날짜는 체크할 수 없습니다';
+  if (date > today) return 'Future dates cannot be checked';
   if (date < addDays(today, -editableDays))
-    return `최근 ${editableDays}일까지만 체크할 수 있습니다`;
+    return `You can only check the last ${editableDays} days`;
   return null;
 }
 

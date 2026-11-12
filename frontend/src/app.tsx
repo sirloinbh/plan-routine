@@ -44,16 +44,16 @@ const pages = {
 
 // Main menu (LNB) items, in display order.
 const nav: NavItem[] = [
-  { to: pages.overview, label: '대시보드', icon: LayoutDashboard },
-  { to: pages.today, label: '오늘 체크', icon: CalendarCheck },
-  { to: pages.diary, label: '일기', icon: NotebookPen },
-  { to: pages.routines, label: '하루 루틴', icon: ListChecks },
-  { to: pages.weekly, label: '주간 루틴', icon: CalendarRange },
-  { to: pages.fourWeek, label: '4주 루틴', icon: CalendarDays },
-  { to: pages.twelveWeek, label: '12주 루틴', icon: Target },
-  { to: pages.records, label: '기록', icon: History },
-  { to: pages.stats, label: '달성률', icon: ChartNoAxesColumn },
-  { to: pages.settings, label: '설정', icon: Settings2 },
+  { to: pages.overview, label: 'Dashboard', icon: LayoutDashboard },
+  { to: pages.today, label: 'Today', icon: CalendarCheck },
+  { to: pages.diary, label: 'Diary', icon: NotebookPen },
+  { to: pages.routines, label: 'Daily routines', icon: ListChecks },
+  { to: pages.weekly, label: 'Weekly routines', icon: CalendarRange },
+  { to: pages.fourWeek, label: '4-week routines', icon: CalendarDays },
+  { to: pages.twelveWeek, label: '12-week routines', icon: Target },
+  { to: pages.records, label: 'Records', icon: History },
+  { to: pages.stats, label: 'Completion rates', icon: ChartNoAxesColumn },
+  { to: pages.settings, label: 'Settings', icon: Settings2 },
 ];
 
 function useHealth() {
@@ -65,10 +65,10 @@ function useHealth() {
         setHealth(
           response.ok && data.today
             ? { state: 'ok', today: data.today }
-            : { state: 'error', message: data.error ?? '서버 상태를 확인할 수 없습니다' },
+            : { state: 'error', message: data.error ?? 'Cannot check the server status' },
         );
       })
-      .catch(() => setHealth({ state: 'error', message: '서버에 연결할 수 없습니다' }));
+      .catch(() => setHealth({ state: 'error', message: 'Cannot reach the server' }));
   }, []);
   return health;
 }
@@ -101,8 +101,8 @@ function Page({
       </header>
       {children ?? (
         <EmptyState
-          title="아직 기능이 없습니다"
-          description="기능은 GitHub 이슈 카드로 등록한 뒤 하나씩 추가합니다."
+          title="No features yet"
+          description="Features are registered as GitHub issue cards, then added one at a time."
         />
       )}
     </section>
@@ -113,14 +113,14 @@ export function App() {
   const health = useHealth();
   return (
     <BrowserRouter>
-      <AppShell appName="계획·실천·루틴·피드백" nav={nav}>
+      <AppShell appName="Plan · Practice · Routine · Feedback" nav={nav}>
         <Routes>
           <Route
             path={pages.overview}
             element={
               <Page
-                title="대시보드"
-                description="계획을 세우고 실천과 루틴을 기록하며 피드백으로 개선하는 개인 서비스"
+                title="Dashboard"
+                description="A personal service to make plans, record practice and routines, and improve with feedback"
                 health={health}
               />
             }
@@ -129,14 +129,14 @@ export function App() {
             path={pages.today}
             element={
               <Page
-                title="오늘 체크"
-                description="오늘의 하루 루틴을 체크합니다. 지난 7일까지는 고칠 수 있습니다"
+                title="Today"
+                description="Check off today's daily routines. You can edit up to the last 7 days"
                 health={health}
               >
                 <DailyChecklist />
                 <FourWeekDue />
                 <Button asChild variant="outline" className="self-start">
-                  <Link to={pages.diary}>오늘 일기 쓰기</Link>
+                  <Link to={pages.diary}>Write today's diary</Link>
                 </Button>
               </Page>
             }
@@ -145,8 +145,8 @@ export function App() {
             path={pages.diary}
             element={
               <Page
-                title="일기"
-                description="오늘 하루를 돌아보고 피드백을 남깁니다"
+                title="Diary"
+                description="Look back on your day and leave feedback"
                 health={health}
               >
                 <Diary />
@@ -157,8 +157,8 @@ export function App() {
             path={pages.routines}
             element={
               <Page
-                title="하루 루틴"
-                description="기상·운동·식단·가사·관리·공부·독서별로 매일 할 일을 정합니다"
+                title="Daily routines"
+                description="Set what to do every day: wake-up, exercise, diet, housework, self-care, study, and reading"
                 health={health}
               >
                 <DailyRoutines />
@@ -169,8 +169,8 @@ export function App() {
             path={pages.weekly}
             element={
               <Page
-                title="주간 루틴"
-                description="매주 한 번 할 일을 정하고 이번 주 완료 여부를 체크합니다"
+                title="Weekly routines"
+                description="Set what to do once a week and check whether you finished it this week"
                 health={health}
               >
                 <WeeklyRoutines />
@@ -181,8 +181,8 @@ export function App() {
             path={pages.fourWeek}
             element={
               <Page
-                title="4주 루틴"
-                description="4주에 한 번 할 일을 정하고 이번 기간의 완료 여부를 체크합니다"
+                title="4-week routines"
+                description="Set what to do once every 4 weeks and check whether you finished it this period"
                 health={health}
               >
                 <FourWeekRoutines />
@@ -193,8 +193,8 @@ export function App() {
             path={pages.twelveWeek}
             element={
               <Page
-                title="12주 루틴"
-                description="12주마다 목표를 다시 세우고 지난 12주를 돌아봅니다"
+                title="12-week routines"
+                description="Set your goals again every 12 weeks and look back on the last 12 weeks"
                 health={health}
               >
                 <TwelveWeek />
@@ -205,8 +205,8 @@ export function App() {
             path={pages.records}
             element={
               <Page
-                title="기록"
-                description="지난 날의 하루 루틴 체크와 일기를 다시 봅니다"
+                title="Records"
+                description="Review past daily routine checks and diary entries"
                 health={health}
               >
                 <Records />
@@ -217,8 +217,8 @@ export function App() {
             path={pages.stats}
             element={
               <Page
-                title="달성률"
-                description="루틴을 얼마나 꾸준히 지켰는지 기간별로 봅니다"
+                title="Completion rates"
+                description="See how consistently you kept your routines, by period"
                 health={health}
               >
                 <Stats />
@@ -228,7 +228,11 @@ export function App() {
           <Route
             path={pages.settings}
             element={
-              <Page title="설정" description="앱 환경과 데이터 관리" health={health}>
+              <Page
+                title="Settings"
+                description="App environment and data management"
+                health={health}
+              >
                 <ProjectLinks />
               </Page>
             }

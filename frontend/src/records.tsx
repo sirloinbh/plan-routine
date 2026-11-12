@@ -5,6 +5,7 @@ import { Button } from './components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
 import { EmptyState } from './components/ui/empty-state';
 import { Notice } from './components/ui/notice';
+import { dateHeading, formatDate } from './format-date';
 import { requestJson } from './lib/api';
 import { useNotice } from './lib/use-notice';
 import { cn } from './lib/utils';
@@ -37,18 +38,22 @@ type DayData = {
   } | null;
 };
 
-const weekdays = ['일', '월', '화', '수', '목', '금', '토'];
+const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 const monthLabel = (month: string) => {
   const [year, number] = month.split('-');
-  return `${year}년 ${Number(number)}월`;
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(new Date(Date.UTC(Number(year), Number(number) - 1, 1)));
 };
 
 // Calendar dates, so the weekday does not depend on the device's time zone.
 const weekdayIndex = (date: string) => new Date(`${date}T00:00:00Z`).getUTCDay();
 
 const dayLabel = ({ date, checked, total, hasDiary }: DaySummary) =>
-  `${date} ${weekdays[weekdayIndex(date)]}요일 하루 루틴 ${checked}/${total} 완료, 일기 ${hasDiary ? '있음' : '없음'}`;
+  `${formatDate(date, 'weekday')}: daily routines ${checked}/${total} done, diary ${hasDiary ? 'written' : 'not written'}`;
 
 function Calendar({
   data,
@@ -104,7 +109,7 @@ function Calendar({
           </li>
         ))}
       </ol>
-      <p className="text-caption text-muted-foreground">점은 일기를 쓴 날입니다</p>
+      <p className="text-caption text-muted-foreground">A dot marks a day with a diary entry</p>
     </div>
   );
 }
@@ -113,28 +118,30 @@ function DayDetail({ day }: { day: DayData }) {
   const groups = groupByCategory(day.routines).filter((group) => group.routines.length > 0);
   const notes = day.diary
     ? [
-        { label: '잘한 점', text: day.diary.goodNote },
-        { label: '아쉬운 점', text: day.diary.regretNote },
-        { label: '내일 할 일', text: day.diary.tomorrowNote },
+        { label: 'What went well', text: day.diary.goodNote },
+        { label: 'What could be better', text: day.diary.regretNote },
+        { label: 'To do tomorrow', text: day.diary.tomorrowNote },
       ].filter((note) => note.text)
     : [];
 
   return (
-    <div className="flex flex-col gap-4" role="region" aria-label={`${day.date} 기록`}>
+    <div
+      className="flex flex-col gap-4"
+      role="region"
+      aria-label={`Records for ${formatDate(day.date)}`}
+    >
       <div>
-        <h2 className="text-body font-semibold">
-          {day.date === day.today ? `오늘 (${day.date})` : day.date}
-        </h2>
+        <h2 className="text-body font-semibold">{dateHeading(day.date, day.today)}</h2>
         {day.progress.total > 0 && (
           <p className="text-body-sm text-muted-foreground">
-            하루 루틴 {day.progress.checked}/{day.progress.total} 완료
+            Daily routines {day.progress.checked}/{day.progress.total} done
           </p>
         )}
       </div>
       {groups.length === 0 && !day.diary ? (
         <EmptyState
-          title="이 날의 기록이 없습니다"
-          description="루틴도 일기도 남아 있지 않습니다."
+          title="No records for this day"
+          description="There are no routines or diary entries."
           headingLevel="h3"
         />
       ) : (
@@ -142,7 +149,7 @@ function DayDetail({ day }: { day: DayData }) {
           {groups.length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle>하루 루틴</CardTitle>
+                <CardTitle>Daily routines</CardTitle>
               </CardHeader>
               <CardContent className="flex flex-col gap-3">
                 {groups.map((group) => (
@@ -161,9 +168,9 @@ function DayDetail({ day }: { day: DayData }) {
                             {routine.name}
                           </span>
                           <span className="text-caption text-muted-foreground">
-                            {routine.checked ? '완료' : '미완료'}
+                            {routine.checked ? 'Done' : 'Not done'}
                           </span>
-                          {routine.archived && <Badge variant="secondary">보관됨</Badge>}
+                          {routine.archived && <Badge variant="secondary">Archived</Badge>}
                         </li>
                       ))}
                     </ul>
@@ -174,7 +181,7 @@ function DayDetail({ day }: { day: DayData }) {
           )}
           <Card>
             <CardHeader>
-              <CardTitle>일기</CardTitle>
+              <CardTitle>Diary</CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col gap-3">
               {day.diary ? (
@@ -188,7 +195,7 @@ function DayDetail({ day }: { day: DayData }) {
                   ))}
                 </>
               ) : (
-                <p className="text-body-sm text-muted-foreground">이 날은 일기를 쓰지 않았습니다</p>
+                <p className="text-body-sm text-muted-foreground">No diary entry for this day</p>
               )}
             </CardContent>
           </Card>
@@ -292,15 +299,15 @@ export function Records() {
     return monthFailed ? (
       <div className="flex flex-col items-start gap-3">
         <Notice notice={monthNotice.notice} />
-        <RetryButton onClick={reload}>다시 시도</RetryButton>
+        <RetryButton onClick={reload}>Try again</RetryButton>
       </div>
     ) : (
-      <LoadingRegion label="기록 불러오는 중" shape="card" />
+      <LoadingRegion label="Loading records" shape="card" />
     );
 
   return (
     <div className="flex flex-col gap-6">
-      <Card role="region" aria-label={`${monthLabel(data.month)} 달력`}>
+      <Card role="region" aria-label={`${monthLabel(data.month)} calendar`}>
         <CardHeader className="flex flex-wrap items-center justify-between gap-2">
           <CardTitle asHeading="h2">{monthLabel(data.month)}</CardTitle>
           <div className="flex gap-2">
@@ -311,7 +318,7 @@ export function Records() {
               disabled={!data.previousMonth}
               onClick={() => data.previousMonth && moveMonth(data.previousMonth)}
             >
-              이전 달
+              Previous month
             </Button>
             <Button
               type="button"
@@ -320,7 +327,7 @@ export function Records() {
               disabled={!data.nextMonth}
               onClick={() => data.nextMonth && moveMonth(data.nextMonth)}
             >
-              다음 달
+              Next month
             </Button>
           </div>
         </CardHeader>
@@ -328,7 +335,7 @@ export function Records() {
           <Notice notice={monthNotice.notice} />
           {monthFailed && (
             <RetryButton className="self-start" onClick={reload}>
-              다시 시도
+              Try again
             </RetryButton>
           )}
           <Calendar data={data} selected={selected} onSelect={selectDay} />
@@ -337,13 +344,13 @@ export function Records() {
       <Notice notice={dayNotice.notice} />
       {dayFailed && (
         <RetryButton className="self-start" onClick={reload}>
-          이 날 기록 다시 불러오기
+          Reload this day's records
         </RetryButton>
       )}
       {day?.date === selected ? (
         <DayDetail day={day} />
       ) : (
-        !dayFailed && <LoadingRegion label="이 날의 기록 불러오는 중" shape="cards" />
+        !dayFailed && <LoadingRegion label="Loading this day's records" shape="cards" />
       )}
     </div>
   );

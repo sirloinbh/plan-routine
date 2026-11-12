@@ -15,39 +15,37 @@ export const routineCategories = [
 ] as const;
 
 export const routineCategoryLabels: Record<(typeof routineCategories)[number], string> = {
-  wake: '기상',
-  exercise: '운동',
-  diet: '식단',
-  housework: '가사',
-  care: '관리',
-  study: '공부',
-  reading: '독서',
+  wake: 'Wake-up',
+  exercise: 'Exercise',
+  diet: 'Diet',
+  housework: 'Housework',
+  care: 'Self-care',
+  study: 'Study',
+  reading: 'Reading',
 };
 
 export const routineCadence = z.enum(cadences, {
-  error: '루틴 주기는 매일, 매주, 4주, 12주 중 하나여야 합니다',
+  error: 'Routine cadence must be daily, weekly, four-week, or twelve-week',
 });
 
 // Not .min()/.max(): those also run on a non-string with a length and add a second message.
 export const routineName = z
   .string({
     error: (issue) =>
-      issue.input === undefined ? '루틴 이름을 입력해 주세요' : '루틴 이름은 글자여야 합니다',
+      issue.input === undefined ? 'Enter a routine name' : 'The routine name must be text',
   })
   .trim()
-  .refine((value) => value.length >= 1, '루틴 이름을 입력해 주세요')
-  .refine((value) => value.length <= 100, '루틴 이름은 100자 이하로 입력해 주세요')
+  .refine((value) => value.length >= 1, 'Enter a routine name')
+  .refine((value) => value.length <= 100, 'The routine name must be 100 characters or fewer')
   .refine(noNul, nulMessage);
 
-// Mirrors the routines table checks so bad input fails with a Korean message before the DB.
+// Mirrors the routines table checks so bad input fails with an English message before the DB.
 export const routineInput = z
   .object(
     {
       name: routineName,
       cadence: routineCadence,
-      category: z
-        .enum(routineCategories, { error: '하루 루틴 카테고리가 올바르지 않습니다' })
-        .nullish(),
+      category: z.enum(routineCategories, { error: 'Invalid daily routine category' }).nullish(),
     },
     badRequest,
   )
@@ -56,13 +54,13 @@ export const routineInput = z
       ctx.addIssue({
         code: 'custom',
         path: ['category'],
-        message: '하루 루틴은 카테고리를 선택해 주세요',
+        message: 'Choose a category for a daily routine',
       });
     if (value.cadence !== 'daily' && value.category)
       ctx.addIssue({
         code: 'custom',
         path: ['category'],
-        message: '카테고리는 하루 루틴에만 지정할 수 있습니다',
+        message: 'Only daily routines can have a category',
       });
   });
 

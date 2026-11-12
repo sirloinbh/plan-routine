@@ -16,16 +16,16 @@ beforeEach(() => {
 });
 
 const routines = [
-  { id: '1', name: '6시 기상', cadence: 'daily', category: 'wake', sortOrder: 0 },
-  { id: '2', name: '대청소', cadence: 'weekly', category: null, sortOrder: 0 },
-  { id: '3', name: '가계부 정리', cadence: 'four_week', category: null, sortOrder: 0 },
-  { id: '4', name: '목표 재설정', cadence: 'twelve_week', category: null, sortOrder: 0 },
+  { id: '1', name: 'Wake at 6', cadence: 'daily', category: 'wake', sortOrder: 0 },
+  { id: '2', name: 'Deep clean', cadence: 'weekly', category: null, sortOrder: 0 },
+  { id: '3', name: 'Tidy the budget', cadence: 'four_week', category: null, sortOrder: 0 },
+  { id: '4', name: 'Reset goals', cadence: 'twelve_week', category: null, sortOrder: 0 },
 ];
 
 const reply = (status: number, body: unknown) =>
   Promise.resolve({ ok: status < 400, status, json: () => Promise.resolve(body) });
 
-const saved = [{ id: '1', name: '6시 기상' }];
+const saved = [{ id: '1', name: 'Wake at 6' }];
 
 function api(options: { list?: typeof routines; failList?: boolean; failSave?: boolean } = {}) {
   const writes: { path: string; body: unknown }[] = [];
@@ -34,21 +34,21 @@ function api(options: { list?: typeof routines; failList?: boolean; failSave?: b
     vi.fn((url: string, init?: RequestInit) => {
       if ((init?.method ?? 'GET') === 'GET')
         return options.failList
-          ? reply(500, { error: '서버 오류가 발생했습니다' })
+          ? reply(500, { error: 'A server error occurred' })
           : reply(200, { routines: options.list ?? routines });
       writes.push({ path: url, body: JSON.parse(String(init?.body)) });
       return options.failSave
-        ? reply(400, { error: '연결할 수 없는 루틴이 있습니다' })
+        ? reply(400, { error: 'Some routines cannot be linked' })
         : reply(200, { routines: saved });
     }),
   );
   return writes;
 }
 
-const goal = { id: '9', title: '책 읽기', routines: [{ id: '1', name: '6시 기상' }] };
+const goal = { id: '9', title: 'Read a book', routines: [{ id: '1', name: 'Wake at 6' }] };
 const flush = () => act(() => new Promise((resolve) => setTimeout(resolve)));
-const opener = () => screen.getByRole('button', { name: '책 읽기 루틴 연결' });
-const panel = () => screen.getByRole('form', { name: '책 읽기 루틴 연결' });
+const opener = () => screen.getByRole('button', { name: 'Link routines to Read a book' });
+const panel = () => screen.getByRole('form', { name: 'Link routines to Read a book' });
 
 function show(overrides: Partial<typeof goal> = {}) {
   const onSaved = vi.fn();
@@ -86,10 +86,10 @@ test('shows what is linked, or that nothing is', () => {
       onOpenChange={vi.fn()}
     />,
   );
-  expect(screen.getByText('연결된 루틴: 6시 기상')).toBeInTheDocument();
+  expect(screen.getByText('Linked routines: Wake at 6')).toBeInTheDocument();
   unmount();
   show({ routines: [] });
-  expect(screen.getByText('연결된 루틴이 없습니다')).toBeInTheDocument();
+  expect(screen.getByText('No linked routines')).toBeInTheDocument();
 });
 
 test('offers daily and weekly routines only, with what is linked ticked and focus on the first', async () => {
@@ -97,26 +97,26 @@ test('offers daily and weekly routines only, with what is linked ticked and focu
   show();
   await openPanel();
   expect(within(panel()).getAllByRole('checkbox')).toHaveLength(2);
-  expect(within(panel()).queryByText('가계부 정리')).not.toBeInTheDocument();
-  expect(within(panel()).queryByText('목표 재설정')).not.toBeInTheDocument();
-  const first = within(panel()).getByRole('checkbox', { name: '6시 기상' });
+  expect(within(panel()).queryByText('Tidy the budget')).not.toBeInTheDocument();
+  expect(within(panel()).queryByText('Reset goals')).not.toBeInTheDocument();
+  const first = within(panel()).getByRole('checkbox', { name: 'Wake at 6' });
   expect(first).toBeChecked();
-  expect(within(panel()).getByRole('checkbox', { name: '대청소' })).not.toBeChecked();
+  expect(within(panel()).getByRole('checkbox', { name: 'Deep clean' })).not.toBeChecked();
   expect(first).toHaveFocus();
-  expect(screen.getByRole('group', { name: '주간 루틴' })).toBeInTheDocument();
+  expect(screen.getByRole('group', { name: 'Weekly routines' })).toBeInTheDocument();
 });
 
 test('saving sends what is ticked and returns focus to the button', async () => {
   const writes = api();
   const { onSaved } = show();
   await openPanel();
-  fireEvent.click(within(panel()).getByRole('checkbox', { name: '대청소' }));
-  const save = within(panel()).getByRole('button', { name: '연결 저장' });
+  fireEvent.click(within(panel()).getByRole('checkbox', { name: 'Deep clean' }));
+  const save = within(panel()).getByRole('button', { name: 'Save links' });
   save.focus();
   fireEvent.click(save);
   await flush();
   expect(writes).toEqual([{ path: '/api/goals/9/routines', body: { routineIds: ['1', '2'] } }]);
-  expect(onSaved).toHaveBeenCalledWith("'책 읽기' 목표에 루틴 2개를 연결했습니다", saved);
+  expect(onSaved).toHaveBeenCalledWith("Linked 2 routines to the goal 'Read a book'", saved);
   expect(screen.queryByRole('form')).not.toBeInTheDocument();
   expect(opener()).toHaveFocus();
 });
@@ -125,24 +125,24 @@ test('unticking everything clears the links and says so', async () => {
   const writes = api();
   const { onSaved } = show();
   await openPanel();
-  fireEvent.click(within(panel()).getByRole('checkbox', { name: '6시 기상' }));
-  fireEvent.click(within(panel()).getByRole('button', { name: '연결 저장' }));
+  fireEvent.click(within(panel()).getByRole('checkbox', { name: 'Wake at 6' }));
+  fireEvent.click(within(panel()).getByRole('button', { name: 'Save links' }));
   await flush();
   expect(writes[0].body).toEqual({ routineIds: [] });
-  expect(onSaved).toHaveBeenCalledWith("'책 읽기' 목표의 루틴 연결을 모두 해제했습니다", saved);
+  expect(onSaved).toHaveBeenCalledWith("Unlinked all routines from the goal 'Read a book'", saved);
 });
 
 test('a failed save keeps the panel and what was ticked, with focus on saving again', async () => {
   api({ failSave: true });
   const { onSaved, onFailed } = show();
   await openPanel();
-  fireEvent.click(within(panel()).getByRole('checkbox', { name: '대청소' }));
-  const save = within(panel()).getByRole('button', { name: '연결 저장' });
+  fireEvent.click(within(panel()).getByRole('checkbox', { name: 'Deep clean' }));
+  const save = within(panel()).getByRole('button', { name: 'Save links' });
   fireEvent.click(save);
   await flush();
   expect(onFailed).toHaveBeenCalledOnce();
   expect(onSaved).not.toHaveBeenCalled();
-  expect(within(panel()).getByRole('checkbox', { name: '대청소' })).toBeChecked();
+  expect(within(panel()).getByRole('checkbox', { name: 'Deep clean' })).toBeChecked();
   expect(save).toHaveFocus();
 });
 
@@ -150,13 +150,13 @@ test('closing discards the ticks and returns focus to the button', async () => {
   const writes = api();
   show();
   await openPanel();
-  fireEvent.click(within(panel()).getByRole('checkbox', { name: '대청소' }));
-  fireEvent.click(within(panel()).getByRole('button', { name: '닫기' }));
+  fireEvent.click(within(panel()).getByRole('checkbox', { name: 'Deep clean' }));
+  fireEvent.click(within(panel()).getByRole('button', { name: 'Close' }));
   await flush();
   expect(opener()).toHaveFocus();
   expect(writes).toEqual([]);
   await openPanel();
-  expect(within(panel()).getByRole('checkbox', { name: '대청소' })).not.toBeChecked();
+  expect(within(panel()).getByRole('checkbox', { name: 'Deep clean' })).not.toBeChecked();
 });
 
 test('a list that fails to load reports it and closes the panel', async () => {
@@ -172,8 +172,8 @@ test('with no routines to link it says so and focus goes to saving', async () =>
   api({ list: [routines[2]] });
   show({ routines: [] });
   await openPanel();
-  expect(screen.getByText(/연결할 하루·주간 루틴이 없습니다/)).toBeInTheDocument();
-  expect(within(panel()).getByRole('button', { name: '연결 저장' })).toHaveFocus();
+  expect(screen.getByText(/There are no daily or weekly routines to link/)).toBeInTheDocument();
+  expect(within(panel()).getByRole('button', { name: 'Save links' })).toHaveFocus();
 });
 
 test('a linked routine archived elsewhere is dropped, so saving is not refused for ever', async () => {
@@ -181,7 +181,7 @@ test('a linked routine archived elsewhere is dropped, so saving is not refused f
   show();
   await openPanel();
   expect(within(panel()).getAllByRole('checkbox')).toHaveLength(1);
-  fireEvent.click(within(panel()).getByRole('button', { name: '연결 저장' }));
+  fireEvent.click(within(panel()).getByRole('button', { name: 'Save links' }));
   await flush();
   expect(writes[0].body).toEqual({ routineIds: [] });
 });
@@ -191,12 +191,12 @@ test('after a refused save the list is fetched again, so the next save can succe
   const writes = api({ list, failSave: true });
   show();
   await openPanel();
-  fireEvent.click(within(panel()).getByRole('checkbox', { name: '대청소' }));
+  fireEvent.click(within(panel()).getByRole('checkbox', { name: 'Deep clean' }));
   list.splice(1, 1);
-  fireEvent.click(within(panel()).getByRole('button', { name: '연결 저장' }));
+  fireEvent.click(within(panel()).getByRole('button', { name: 'Save links' }));
   await flush();
-  expect(within(panel()).queryByRole('checkbox', { name: '대청소' })).not.toBeInTheDocument();
-  fireEvent.click(within(panel()).getByRole('button', { name: '연결 저장' }));
+  expect(within(panel()).queryByRole('checkbox', { name: 'Deep clean' })).not.toBeInTheDocument();
+  fireEvent.click(within(panel()).getByRole('button', { name: 'Save links' }));
   await flush();
   expect(writes.at(-1)?.body).toEqual({ routineIds: ['1'] });
 });
@@ -208,11 +208,11 @@ test('a list that fails after the user moved on leaves their focus alone', async
   });
   vi.stubGlobal(
     'fetch',
-    vi.fn(() => gate.then(() => reply(500, { error: '서버 오류가 발생했습니다' }))),
+    vi.fn(() => gate.then(() => reply(500, { error: 'A server error occurred' }))),
   );
   render(
     <>
-      <input aria-label="다른 칸" />
+      <input aria-label="Other field" />
       <GoalRoutineLinks
         goal={goal}
         disabled={false}
@@ -224,7 +224,7 @@ test('a list that fails after the user moved on leaves their focus alone', async
     </>,
   );
   await openPanel();
-  const other = screen.getByRole('textbox', { name: '다른 칸' });
+  const other = screen.getByRole('textbox', { name: 'Other field' });
   other.focus();
   release();
   await flush();
@@ -247,9 +247,9 @@ test('closing is ignored while saving', async () => {
   );
   show();
   await openPanel();
-  fireEvent.click(within(panel()).getByRole('button', { name: '연결 저장' }));
+  fireEvent.click(within(panel()).getByRole('button', { name: 'Save links' }));
   await flush();
-  fireEvent.click(within(panel()).getByRole('button', { name: '닫기' }));
+  fireEvent.click(within(panel()).getByRole('button', { name: 'Close' }));
   await flush();
   expect(panel()).toBeInTheDocument();
   release();
@@ -262,7 +262,7 @@ test('opening and saving each clear the earlier message', async () => {
   const { onBegin } = show();
   await openPanel();
   expect(onBegin).toHaveBeenCalledTimes(1);
-  fireEvent.click(within(panel()).getByRole('button', { name: '연결 저장' }));
+  fireEvent.click(within(panel()).getByRole('button', { name: 'Save links' }));
   await flush();
   expect(onBegin).toHaveBeenCalledTimes(2);
 });

@@ -56,14 +56,14 @@ export function createApp(pool: Pool, options: { today?: () => string } = {}) {
   app.use('/api/stats', statsRoutes(pool, today));
   app.use('/api/routines', routineRoutes(pool, today));
   app.use('/api', (_req, res) => {
-    res.status(404).json({ error: '요청한 API를 찾을 수 없습니다' });
+    res.status(404).json({ error: 'API not found' });
   });
   app.use(
     (err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
       if (err instanceof ZodError) {
         // A large invalid array can raise one issue per element; the first few are enough to fix it.
         const shown = err.issues.slice(0, MAX_ISSUES).map((issue) => issue.message);
-        if (err.issues.length > MAX_ISSUES) shown.push(`외 ${err.issues.length - MAX_ISSUES}개`);
+        if (err.issues.length > MAX_ISSUES) shown.push(`${err.issues.length - MAX_ISSUES} more`);
         res.status(400).json({ error: shown.join(', ') });
         return;
       }
@@ -74,7 +74,7 @@ export function createApp(pool: Pool, options: { today?: () => string } = {}) {
       }
       const error = typeof err === 'object' && err !== null ? (err as { code?: unknown }) : {};
       if (error.code === '23505') {
-        res.status(409).json({ error: '이미 등록된 항목입니다' });
+        res.status(409).json({ error: 'This item is already registered' });
         return;
       }
       console.error(
@@ -83,7 +83,7 @@ export function createApp(pool: Pool, options: { today?: () => string } = {}) {
           message: err instanceof Error ? err.message : String(err),
         }),
       );
-      res.status(500).json({ error: '서버 오류가 발생했습니다' });
+      res.status(500).json({ error: 'A server error occurred' });
     },
   );
   return app;

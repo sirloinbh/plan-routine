@@ -86,14 +86,14 @@ test('periodsFor returns every cadence for one date', () => {
   ]);
 });
 
-test('only real YYYY-MM-DD dates pass, with a Korean message otherwise', () => {
+test('only real YYYY-MM-DD dates pass, with an English message otherwise', () => {
   assert.equal(isCalendarDate('2028-02-29'), true);
   assert.equal(isCalendarDate('2026-02-29'), false);
   assert.equal(isCalendarDate('2026-13-01'), false);
   assert.equal(isCalendarDate('2026-1-01'), false);
   const result = calendarDate.safeParse('2026-02-30');
   assert.equal(result.success, false);
-  assert.equal(result.error?.issues[0].message, '날짜는 YYYY-MM-DD 형식의 실제 날짜여야 합니다');
+  assert.equal(result.error?.issues[0].message, 'Date must be a real date in YYYY-MM-DD format');
 });
 
 test('days between counts calendar days across months and years', () => {
@@ -105,6 +105,6 @@ test('days between counts calendar days across months and years', () => {
 
 test('a missing date and a date of the wrong type have different messages', () => {
   const message = (input: unknown) => calendarDate.safeParse(input).error?.issues[0].message;
-  assert.equal(message(undefined), '날짜를 입력해 주세요');
-  assert.equal(message(20261022), '날짜 형식이 올바르지 않습니다');
+  assert.equal(message(undefined), 'Enter a date');
+  assert.equal(message(20261022), 'Invalid date format');
 });

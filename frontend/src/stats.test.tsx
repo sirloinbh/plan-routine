@@ -12,7 +12,7 @@ const tally = (start: string, end: string, checked: number, total: number) => ({
 
 const dailyItem = {
   id: '1',
-  name: '6시 기상',
+  name: 'Wake at 6',
   cadence: 'daily',
   category: 'wake',
   sortOrder: 0,
@@ -28,7 +28,7 @@ const dailyItem = {
 };
 const weeklyItem = {
   id: '2',
-  name: '청소',
+  name: 'Clean',
   cadence: 'weekly',
   category: null,
   sortOrder: 0,
@@ -62,7 +62,7 @@ function statsApi(body: unknown = full) {
     'fetch',
     vi.fn((url: string, init?: RequestInit) => {
       calls(url, init?.method ?? 'GET');
-      if (failing) return reply(500, { error: '서버 오류가 발생했습니다' });
+      if (failing) return reply(500, { error: 'A server error occurred' });
       const response = reply(200, answer);
       if (!holdNext) return response;
       holdNext = false;
@@ -81,7 +81,7 @@ function statsApi(body: unknown = full) {
 }
 
 const flush = () => act(() => new Promise((resolve) => setTimeout(resolve)));
-const rates = (title: string) => screen.getByRole('region', { name: `${title} 달성률` });
+const rates = (title: string) => screen.getByRole('region', { name: `${title} completion rates` });
 const showPageAgain = () =>
   act(async () => {
     document.dispatchEvent(new Event('visibilitychange'));
@@ -92,26 +92,26 @@ test('each cadence shows its rate with the counts behind it', async () => {
   statsApi();
   render(<Stats />);
   await flush();
-  expect(within(rates('하루 루틴 주별')).getByText(/^67%/)).toHaveTextContent('2/3');
-  expect(within(rates('하루 루틴 월별')).getByText(/^100%/)).toHaveTextContent('7/7');
-  expect(within(rates('주간 루틴')).getByText(/^0%/)).toHaveTextContent('0/2');
-  expect(within(rates('12주 루틴')).getByText(/^25%/)).toHaveTextContent('1/4');
+  expect(within(rates('Daily routines by week')).getByText(/^67%/)).toHaveTextContent('2/3');
+  expect(within(rates('Daily routines by month')).getByText(/^100%/)).toHaveTextContent('7/7');
+  expect(within(rates('Weekly routines')).getByText(/^0%/)).toHaveTextContent('0/2');
+  expect(within(rates('12-week routines')).getByText(/^25%/)).toHaveTextContent('1/4');
 });
 
 test('a period with nothing to count says no record rather than 0%', async () => {
   statsApi();
   render(<Stats />);
   await flush();
-  expect(within(rates('4주 루틴')).getByText('기록 없음')).toBeInTheDocument();
-  expect(within(rates('4주 루틴')).queryByText(/%/)).not.toBeInTheDocument();
-  expect(within(rates('하루 루틴 주별')).getByText('기록 없음')).toBeInTheDocument();
+  expect(within(rates('4-week routines')).getByText('No records')).toBeInTheDocument();
+  expect(within(rates('4-week routines')).queryByText(/%/)).not.toBeInTheDocument();
+  expect(within(rates('Daily routines by week')).getByText('No records')).toBeInTheDocument();
 });
 
 test('a real 0% stays different from no record', async () => {
   statsApi();
   render(<Stats />);
   await flush();
-  expect(within(rates('주간 루틴')).queryByText('기록 없음')).not.toBeInTheDocument();
+  expect(within(rates('Weekly routines')).queryByText('No records')).not.toBeInTheDocument();
 });
 
 test('each routine shows its rate and history, oldest first, with every state in words', async () => {
@@ -119,23 +119,23 @@ test('each routine shows its rate and history, oldest first, with every state in
   render(<Stats />);
   await flush();
   // In words, in the list that opens under the row, rather than only in a hover title.
-  const history = within(screen.getByRole('list', { name: '6시 기상 최근 이력' }));
+  const history = within(screen.getByRole('list', { name: 'Wake at 6 recent history' }));
   expect(history.getAllByRole('listitem').map((row) => row.textContent)).toEqual([
-    '2026-10-19대상 아님',
-    '2026-10-20완료',
-    '2026-10-21미완료',
-    '2026-10-22진행 중',
+    'October 19, 2026Not applicable',
+    'October 20, 2026Done',
+    'October 21, 2026Not done',
+    'October 22, 2026In progress',
   ]);
-  expect(screen.getByText('6시 기상 기간별로 보기').tagName).toBe('SUMMARY');
+  expect(screen.getByText('Wake at 6 by period').tagName).toBe('SUMMARY');
   // The strip of marks is for the eye only: its cells are not read out as list items.
-  const wakeCard = within(screen.getByRole('region', { name: '기상 이력' }));
-  expect(wakeCard.queryByRole('listitem', { name: /완료/ })).not.toBeInTheDocument();
+  const wakeCard = within(screen.getByRole('region', { name: 'Wake-up history' }));
+  expect(wakeCard.queryByRole('listitem', { name: /Done/ })).not.toBeInTheDocument();
   expect(wakeCard.getAllByRole('list').map((list) => list.getAttribute('aria-label'))).toEqual([
     null,
-    '6시 기상 최근 이력',
+    'Wake at 6 recent history',
   ]);
-  const card = within(screen.getByRole('region', { name: '기상 이력' }));
-  expect(card.getByText('6시 기상')).toBeInTheDocument();
+  const card = within(screen.getByRole('region', { name: 'Wake-up history' }));
+  expect(card.getByText('Wake at 6')).toBeInTheDocument();
   expect(card.getByText(/^50%/)).toHaveTextContent('1/2');
 });
 
@@ -143,16 +143,16 @@ test('an archived routine is marked, and one with nothing to count says so', asy
   statsApi();
   render(<Stats />);
   await flush();
-  const card = within(screen.getByRole('region', { name: '주간 루틴 이력' }));
-  expect(card.getByText('보관됨')).toBeInTheDocument();
-  expect(card.getByText('기록 없음')).toBeInTheDocument();
+  const card = within(screen.getByRole('region', { name: 'Weekly routines history' }));
+  expect(card.getByText('Archived')).toBeInTheDocument();
+  expect(card.getByText('No records')).toBeInTheDocument();
 });
 
 test('with no routines at all it says there is no history yet', async () => {
   statsApi({ ...full, items: [] });
   render(<Stats />);
   await flush();
-  expect(screen.getByText('아직 이력이 없습니다')).toBeInTheDocument();
+  expect(screen.getByText('No history yet')).toBeInTheDocument();
 });
 
 test('the bar length matches the rate', async () => {
@@ -177,7 +177,7 @@ test('rounding never claims all or nothing while neither is true', async () => {
   });
   render(<Stats />);
   await flush();
-  const rows = within(rates('주간 루틴'))
+  const rows = within(rates('Weekly routines'))
     .getAllByRole('listitem')
     .map((row) => row.textContent);
   expect(rows[0]).toContain('99%');
@@ -199,11 +199,11 @@ test('a failed first load offers a retry', async () => {
   api.fail();
   render(<Stats />);
   await flush();
-  expect(screen.getByRole('alert')).toHaveTextContent('서버 오류가 발생했습니다');
+  expect(screen.getByRole('alert')).toHaveTextContent('A server error occurred');
   api.fail(false);
-  fireEvent.click(screen.getByRole('button', { name: '다시 시도' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
   await flush();
-  expect(rates('주간 루틴')).toBeVisible();
+  expect(rates('Weekly routines')).toBeVisible();
   expect(screen.queryByRole('alert')).not.toBeInTheDocument();
 });
 
@@ -214,8 +214,8 @@ test('a failed reload keeps what is on screen and offers a retry', async () => {
   api.fail();
   await showPageAgain();
   expect(screen.getByRole('alert')).toBeInTheDocument();
-  expect(rates('주간 루틴')).toBeVisible();
-  expect(screen.getByRole('button', { name: '다시 시도' })).toBeInTheDocument();
+  expect(rates('Weekly routines')).toBeVisible();
+  expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
 });
 
 test('a page shown again picks up new numbers', async () => {
@@ -224,7 +224,7 @@ test('a page shown again picks up new numbers', async () => {
   await flush();
   api.setAnswer({ ...full, weekly: [tally('2026-10-18', '2026-10-24', 1, 2)] });
   await showPageAgain();
-  expect(within(rates('주간 루틴')).getByText(/^50%/)).toHaveTextContent('1/2');
+  expect(within(rates('Weekly routines')).getByText(/^50%/)).toHaveTextContent('1/2');
 });
 
 test('a slow older answer does not replace a newer one', async () => {
@@ -235,10 +235,10 @@ test('a slow older answer does not replace a newer one', async () => {
   await showPageAgain();
   api.setAnswer({ ...full, weekly: [tally('2026-10-18', '2026-10-24', 2, 2)] });
   await showPageAgain();
-  expect(within(rates('주간 루틴')).getByText(/^100%/)).toBeInTheDocument();
+  expect(within(rates('Weekly routines')).getByText(/^100%/)).toBeInTheDocument();
   api.release();
   await flush();
-  expect(within(rates('주간 루틴')).getByText(/^100%/)).toBeInTheDocument();
+  expect(within(rates('Weekly routines')).getByText(/^100%/)).toBeInTheDocument();
 });
 
 test('an open window reloads when the date changes, and not before', async () => {

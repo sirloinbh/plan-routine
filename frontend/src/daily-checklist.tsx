@@ -4,6 +4,7 @@ import { Button } from './components/ui/button';
 import { EmptyState } from './components/ui/empty-state';
 import { Notice } from './components/ui/notice';
 import { useDateHeading } from './focus-moves';
+import { dateHeading } from './format-date';
 import { groupByCategory } from './routine-groups';
 import type { Routine } from './routines';
 import { useChecklist } from './use-checklist';
@@ -34,9 +35,11 @@ export function DailyChecklist() {
             tabIndex={-1}
             className="scroll-mt-[calc(env(safe-area-inset-top)+5rem)] text-body font-semibold"
           >
-            {isToday ? `오늘 (${data.date})` : data.date}
+            {dateHeading(data.date, data.today)}
           </h2>
-          <p className="text-body-sm text-muted-foreground">전체 {progressText(data.items)} 완료</p>
+          <p className="text-body-sm text-muted-foreground">
+            {progressText(data.items)} done overall
+          </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button
@@ -46,7 +49,7 @@ export function DailyChecklist() {
             disabled={!data.previousDate}
             onClick={() => data.previousDate && go(data.previousDate)}
           >
-            이전 날
+            Previous day
           </Button>
           <Button
             type="button"
@@ -55,11 +58,11 @@ export function DailyChecklist() {
             disabled={!data.nextDate}
             onClick={() => data.nextDate && go(data.nextDate === data.today ? null : data.nextDate)}
           >
-            다음 날
+            Next day
           </Button>
           {!isToday && (
             <Button type="button" variant="ghost" size="sm" onClick={() => go(null)}>
-              오늘로
+              Go to today
             </Button>
           )}
         </div>
@@ -67,8 +70,8 @@ export function DailyChecklist() {
       <Notice notice={notice} />
       {groups.length === 0 ? (
         <EmptyState
-          title="체크할 루틴이 없습니다"
-          description="하루 루틴 메뉴에서 매일 할 일을 먼저 추가해 주세요."
+          title="No routines to check"
+          description="Add your daily tasks in the Daily routines menu first."
         />
       ) : (
         <div className="grid gap-4 md:grid-cols-2">

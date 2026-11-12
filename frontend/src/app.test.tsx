@@ -81,41 +81,46 @@ const health = (body: object, status = 200) =>
 test('shows the server date from /api/health on the overview', async () => {
   health({ today: '2026-10-26' });
   render(<App />);
-  expect(screen.getByRole('heading', { level: 1, name: '대시보드' })).toBeInTheDocument();
+  expect(screen.getByRole('heading', { level: 1, name: 'Dashboard' })).toBeInTheDocument();
   expect(await screen.findByText('Server connected · 2026-10-26')).toBeInTheDocument();
 });
 
 test('reports a server error as an alert', async () => {
-  health({ error: '데이터베이스에 연결할 수 없습니다' }, 503);
+  health({ error: 'Cannot connect to the database' }, 503);
   render(<App />);
-  expect(await screen.findByRole('alert')).toHaveTextContent('데이터베이스에 연결할 수 없습니다');
+  expect(await screen.findByRole('alert')).toHaveTextContent('Cannot connect to the database');
 });
 
 test('each page has its own address and is marked in the main menu', async () => {
   health({ today: '2026-10-26' });
   render(<App />);
   const menu = screen.getByRole('navigation', { name: 'Main menu' });
-  fireEvent.click(within(menu).getByRole('link', { name: '하루 루틴' }));
+  fireEvent.click(within(menu).getByRole('link', { name: 'Daily routines' }));
   expect(window.location.pathname).toBe('/routines');
-  expect(await screen.findByRole('heading', { level: 1, name: '하루 루틴' })).toBeInTheDocument();
-  expect(within(menu).getByRole('link', { name: '하루 루틴' })).toHaveAttribute(
+  expect(
+    await screen.findByRole('heading', { level: 1, name: 'Daily routines' }),
+  ).toBeInTheDocument();
+  expect(within(menu).getByRole('link', { name: 'Daily routines' })).toHaveAttribute(
     'aria-current',
     'page',
   );
-  fireEvent.click(within(menu).getByRole('link', { name: '설정' }));
+  fireEvent.click(within(menu).getByRole('link', { name: 'Settings' }));
   expect(window.location.pathname).toBe('/settings');
-  expect(await screen.findByRole('heading', { level: 1, name: '설정' })).toBeInTheDocument();
-  expect(within(menu).getByRole('link', { name: '설정' })).toHaveAttribute('aria-current', 'page');
+  expect(await screen.findByRole('heading', { level: 1, name: 'Settings' })).toBeInTheDocument();
+  expect(within(menu).getByRole('link', { name: 'Settings' })).toHaveAttribute(
+    'aria-current',
+    'page',
+  );
 });
 
 test('the main menu opens the daily checklist page', async () => {
   health({ today: '2026-10-26' });
   render(<App />);
   const menu = screen.getByRole('navigation', { name: 'Main menu' });
-  fireEvent.click(within(menu).getByRole('link', { name: '오늘 체크' }));
+  fireEvent.click(within(menu).getByRole('link', { name: 'Today' }));
   expect(window.location.pathname).toBe('/today');
-  expect(await screen.findByRole('heading', { level: 1, name: '오늘 체크' })).toBeInTheDocument();
-  expect(await screen.findByText('체크할 루틴이 없습니다')).toBeInTheDocument();
+  expect(await screen.findByRole('heading', { level: 1, name: 'Today' })).toBeInTheDocument();
+  expect(await screen.findByText('No routines to check')).toBeInTheDocument();
   window.history.replaceState(null, '', '/');
 });
 
@@ -123,12 +128,14 @@ test('the diary opens from the main menu and from the daily checklist page', asy
   health({ today: '2026-10-26' });
   render(<App />);
   const menu = screen.getByRole('navigation', { name: 'Main menu' });
-  fireEvent.click(within(menu).getByRole('link', { name: '오늘 체크' }));
-  fireEvent.click(await screen.findByRole('link', { name: '오늘 일기 쓰기' }));
+  fireEvent.click(within(menu).getByRole('link', { name: 'Today' }));
+  fireEvent.click(await screen.findByRole('link', { name: "Write today's diary" }));
   expect(window.location.pathname).toBe('/diary');
-  expect(await screen.findByRole('heading', { level: 1, name: '일기' })).toBeInTheDocument();
-  expect(await screen.findByRole('textbox', { name: '하루 돌아보기' })).toBeInTheDocument();
-  expect(within(menu).getByRole('link', { name: '일기' })).toHaveAttribute('aria-current', 'page');
+  expect(await screen.findByRole('heading', { level: 1, name: 'Diary' })).toBeInTheDocument();
+  expect(
+    await screen.findByRole('textbox', { name: 'Looking back on the day' }),
+  ).toBeInTheDocument();
+  expect(within(menu).getByRole('link', { name: 'Diary' })).toHaveAttribute('aria-current', 'page');
   window.history.replaceState(null, '', '/');
 });
 
@@ -136,10 +143,12 @@ test('the main menu opens the weekly routine page', async () => {
   health({ today: '2026-10-26' });
   render(<App />);
   const menu = screen.getByRole('navigation', { name: 'Main menu' });
-  fireEvent.click(within(menu).getByRole('link', { name: '주간 루틴' }));
+  fireEvent.click(within(menu).getByRole('link', { name: 'Weekly routines' }));
   expect(window.location.pathname).toBe('/weekly');
-  expect(await screen.findByRole('heading', { level: 1, name: '주간 루틴' })).toBeInTheDocument();
-  expect(await screen.findByText('이번 주에 체크할 루틴이 없습니다')).toBeInTheDocument();
+  expect(
+    await screen.findByRole('heading', { level: 1, name: 'Weekly routines' }),
+  ).toBeInTheDocument();
+  expect(await screen.findByText('No routines to check for this week')).toBeInTheDocument();
   window.history.replaceState(null, '', '/');
 });
 
@@ -147,10 +156,12 @@ test('the main menu opens the four-week routine page', async () => {
   health({ today: '2026-10-26' });
   render(<App />);
   const menu = screen.getByRole('navigation', { name: 'Main menu' });
-  fireEvent.click(within(menu).getByRole('link', { name: '4주 루틴' }));
+  fireEvent.click(within(menu).getByRole('link', { name: '4-week routines' }));
   expect(window.location.pathname).toBe('/four-week');
-  expect(await screen.findByRole('heading', { level: 1, name: '4주 루틴' })).toBeInTheDocument();
-  expect(await screen.findByText('이번 4주에 체크할 루틴이 없습니다')).toBeInTheDocument();
+  expect(
+    await screen.findByRole('heading', { level: 1, name: '4-week routines' }),
+  ).toBeInTheDocument();
+  expect(await screen.findByText('No routines to check for these 4 weeks')).toBeInTheDocument();
   window.history.replaceState(null, '', '/');
 });
 
@@ -166,7 +177,7 @@ test('the daily checklist page shows unfinished four-week routines near the peri
                   ...emptyChecklist,
                   endsSoon: true,
                   remainingDays: 3,
-                  items: [{ id: '7', name: '이불빨래', checked: false }],
+                  items: [{ id: '7', name: 'Wash bedding', checked: false }],
                 }
               : url === '/api/health'
                 ? { today: '2026-10-26' }
@@ -179,8 +190,10 @@ test('the daily checklist page shows unfinished four-week routines near the peri
   );
   window.history.replaceState(null, '', '/today');
   render(<App />);
-  expect(await screen.findByRole('checkbox', { name: '이불빨래' })).toBeInTheDocument();
-  expect(screen.getByRole('region', { name: '곧 끝나는 4주 루틴 체크리스트' })).toBeVisible();
+  expect(await screen.findByRole('checkbox', { name: 'Wash bedding' })).toBeInTheDocument();
+  expect(
+    screen.getByRole('region', { name: '4-week routines ending soon checklist' }),
+  ).toBeVisible();
   window.history.replaceState(null, '', '/');
 });
 
@@ -188,10 +201,12 @@ test('the main menu opens the twelve-week page', async () => {
   health({ today: '2026-10-26' });
   render(<App />);
   const menu = screen.getByRole('navigation', { name: 'Main menu' });
-  fireEvent.click(within(menu).getByRole('link', { name: '12주 루틴' }));
+  fireEvent.click(within(menu).getByRole('link', { name: '12-week routines' }));
   expect(window.location.pathname).toBe('/twelve-week');
-  expect(await screen.findByRole('heading', { level: 1, name: '12주 루틴' })).toBeInTheDocument();
-  expect(await screen.findByText('아직 목표가 없습니다')).toBeInTheDocument();
+  expect(
+    await screen.findByRole('heading', { level: 1, name: '12-week routines' }),
+  ).toBeInTheDocument();
+  expect(await screen.findByText('No goals yet')).toBeInTheDocument();
   window.history.replaceState(null, '', '/');
 });
 
@@ -199,10 +214,10 @@ test('the main menu opens the records page', async () => {
   health({ today: '2026-10-26' });
   render(<App />);
   const menu = screen.getByRole('navigation', { name: 'Main menu' });
-  fireEvent.click(within(menu).getByRole('link', { name: '기록' }));
+  fireEvent.click(within(menu).getByRole('link', { name: 'Records' }));
   expect(window.location.pathname).toBe('/records');
-  expect(await screen.findByRole('heading', { level: 1, name: '기록' })).toBeInTheDocument();
-  expect(await screen.findByText('이 날의 기록이 없습니다')).toBeInTheDocument();
+  expect(await screen.findByRole('heading', { level: 1, name: 'Records' })).toBeInTheDocument();
+  expect(await screen.findByText('No records for this day')).toBeInTheDocument();
   window.history.replaceState(null, '', '/');
 });
 
@@ -210,10 +225,12 @@ test('the main menu opens the stats page', async () => {
   health({ today: '2026-10-26' });
   render(<App />);
   const menu = screen.getByRole('navigation', { name: 'Main menu' });
-  fireEvent.click(within(menu).getByRole('link', { name: '달성률' }));
+  fireEvent.click(within(menu).getByRole('link', { name: 'Completion rates' }));
   expect(window.location.pathname).toBe('/stats');
-  expect(await screen.findByRole('heading', { level: 1, name: '달성률' })).toBeInTheDocument();
-  expect(await screen.findByText('아직 이력이 없습니다')).toBeInTheDocument();
+  expect(
+    await screen.findByRole('heading', { level: 1, name: 'Completion rates' }),
+  ).toBeInTheDocument();
+  expect(await screen.findByText('No history yet')).toBeInTheDocument();
   window.history.replaceState(null, '', '/');
 });
 
@@ -221,7 +238,7 @@ test('an unknown address falls back to the overview', async () => {
   health({ today: '2026-10-26' });
   window.history.replaceState(null, '', '/no-such-page');
   render(<App />);
-  expect(await screen.findByRole('heading', { level: 1, name: '대시보드' })).toBeInTheDocument();
+  expect(await screen.findByRole('heading', { level: 1, name: 'Dashboard' })).toBeInTheDocument();
   expect(window.location.pathname).toBe('/');
 });
 
@@ -235,7 +252,7 @@ test('the real page is an area a retry button can hand focus to', async () => {
       if (url.startsWith('/api/diary') && failing) {
         failing = false;
         return Promise.resolve(
-          new Response(JSON.stringify({ error: '서버 오류가 발생했습니다' }), { status: 500 }),
+          new Response(JSON.stringify({ error: 'A server error occurred' }), { status: 500 }),
         );
       }
       return Promise.resolve(new Response(JSON.stringify(pageData(url))));
@@ -243,10 +260,10 @@ test('the real page is an area a retry button can hand focus to', async () => {
   );
   window.history.replaceState(null, '', '/diary');
   render(<App />);
-  const retry = await screen.findByRole('button', { name: '다시 시도' });
+  const retry = await screen.findByRole('button', { name: 'Try again' });
   retry.focus();
   fireEvent.click(retry);
-  await screen.findByRole('textbox', { name: '하루 돌아보기' });
-  expect(screen.getByRole('region', { name: '일기' })).toHaveFocus();
+  await screen.findByRole('textbox', { name: 'Looking back on the day' });
+  expect(screen.getByRole('region', { name: 'Diary' })).toHaveFocus();
   window.history.replaceState(null, '', '/');
 });

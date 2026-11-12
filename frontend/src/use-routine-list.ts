@@ -121,7 +121,7 @@ export function useRoutineList(cadence: string) {
   const add = async (draftKey: string, label: string, category?: string) => {
     const name = (drafts[draftKey] ?? '').trim();
     if (!name) {
-      setNotice({ kind: 'alert', text: '루틴 이름을 입력해 주세요' });
+      setNotice({ kind: 'alert', text: 'Enter a routine name' });
       return;
     }
     const ok = await run(
@@ -130,7 +130,7 @@ export function useRoutineList(cadence: string) {
           method: 'POST',
           body: { name, cadence, category },
         }),
-      `${label}에 '${name}' 루틴을 추가했습니다`,
+      `Added the routine '${name}' to ${label}`,
       `add:${draftKey}`,
     );
     requestFocus([focusKeys.add(draftKey)]);
@@ -141,12 +141,12 @@ export function useRoutineList(cadence: string) {
     if (!editing) return;
     const name = editing.name.trim();
     if (!name) {
-      setNotice({ kind: 'alert', text: '루틴 이름을 입력해 주세요' });
+      setNotice({ kind: 'alert', text: 'Enter a routine name' });
       return;
     }
     const ok = await run(
       () => requestJson(`/api/routines/${editing.id}`, { method: 'PATCH', body: { name } }),
-      `루틴 이름을 '${name}'(으)로 바꿨습니다`,
+      `Renamed the routine to '${name}'`,
       'rename',
     );
     // A failure keeps the form, unless the routine has gone or the edit was cancelled meanwhile.
@@ -168,7 +168,7 @@ export function useRoutineList(cadence: string) {
     await run(
       () =>
         requestJson(`/api/routines/${routine.id}/move`, { method: 'POST', body: { direction } }),
-      `'${routine.name}' 루틴을 ${direction === 'up' ? '위로' : '아래로'} 옮겼습니다`,
+      `Moved the routine '${routine.name}' ${direction === 'up' ? 'up' : 'down'}`,
     );
     // The same button again, or the other one once the row has reached the end of its group.
     const [same, other] =
@@ -182,7 +182,7 @@ export function useRoutineList(cadence: string) {
   const archive = async (routine: Routine, neighbours: string[], draftKey: string) => {
     const ok = await run(
       () => requestJson(`/api/routines/${routine.id}/archive`, { method: 'POST' }),
-      `'${routine.name}' 루틴을 보관했습니다. 지난 기록은 남아 있습니다`,
+      `Archived the routine '${routine.name}'. Past records are kept`,
       `archive:${routine.id}`,
     );
     // If it failed the row is still there, so stay on it.
@@ -206,8 +206,8 @@ export function useRoutineList(cadence: string) {
           body: { projectLinkId },
         }),
       projectLinkId
-        ? `'${routine.name}' 루틴에 프로젝트를 연결했습니다`
-        : `'${routine.name}' 루틴의 연결을 해제했습니다`,
+        ? `Linked a project to the routine '${routine.name}'`
+        : `Unlinked the routine '${routine.name}'`,
     );
     // Disabled while saving, which drops focus.
     requestFocus([`link-${routine.id}`, focusKeys.edit(routine.id)]);

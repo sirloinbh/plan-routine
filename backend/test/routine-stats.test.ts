@@ -10,7 +10,7 @@ const today = '2026-10-22'; // A Thursday.
 const anchorDate = '2026-05-03'; // A Sunday, so four-week periods include 2026-10-18 ~ 2026-11-14.
 
 const routine = (over: Partial<StatsRoutine> & { id: string }): StatsRoutine => ({
-  name: `루틴 ${over.id}`,
+  name: `Routine ${over.id}`,
   cadence: 'daily',
   category: 'wake',
   sortOrder: 0,

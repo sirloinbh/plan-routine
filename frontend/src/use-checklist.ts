@@ -110,7 +110,7 @@ export function useChecklist<T extends ChecklistItem>(
     const current = serviceDate();
     if (date === null && data && current !== shownOn.current && current > data.period.end) {
       loadErrorShown.current = false;
-      status('날짜가 바뀌어 새 기간을 불러왔습니다. 다시 체크해 주세요');
+      status('The date changed and a new period was loaded. Please check again');
       setVersion((value) => value + 1);
       return;
     }

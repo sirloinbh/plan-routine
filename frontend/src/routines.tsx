@@ -17,14 +17,14 @@ export type Routine = {
 export function DailyRoutines() {
   const list = useRoutineList('daily');
 
-  if (list.routines === null) return <LoadingRegion label="루틴 불러오는 중" shape="cards" />;
+  if (list.routines === null) return <LoadingRegion label="Loading routines" shape="cards" />;
 
   return (
     <div className="flex flex-col gap-4">
       <RoutineNotices notice={list.notice} />
       <div className="grid gap-4 md:grid-cols-2">
         {groupByCategory(list.routines).map((group) => (
-          <Card key={group.key} role="region" aria-label={`${group.label} 루틴`}>
+          <Card key={group.key} role="region" aria-label={`${group.label} routines`}>
             <CardHeader>
               <CardTitle asHeading="h2" className="flex items-center gap-2">
                 {group.label}
@@ -33,7 +33,7 @@ export function DailyRoutines() {
             </CardHeader>
             <CardContent className="flex flex-col gap-3">
               {group.routines.length === 0 ? (
-                <p className="text-body-sm text-muted-foreground">아직 루틴이 없습니다</p>
+                <p className="text-body-sm text-muted-foreground">No routines yet</p>
               ) : (
                 <RoutineItems list={list} routines={group.routines} draftKey={group.key} />
               )}

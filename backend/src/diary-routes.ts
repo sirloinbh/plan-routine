@@ -20,9 +20,9 @@ const diaryParams = z.object({ date: calendarDate });
 // A blank note is the same as no note.
 const diaryNote = (label: string) =>
   z
-    .string({ error: `${label}은 글자여야 합니다` })
+    .string({ error: `${label} must be text` })
     .trim()
-    .refine((value) => value.length <= 1000, `${label}은 1000자 이하로 입력해 주세요`)
+    .refine((value) => value.length <= 1000, `${label} must be 1000 characters or fewer`)
     .refine(noNul, nulMessage)
     .nullish()
     .transform((value) => value || null);
@@ -32,23 +32,23 @@ const diaryInput = z.object(
     body: z
       .string({
         error: (issue) =>
-          issue.input === undefined ? '일기 본문을 입력해 주세요' : '일기 본문은 글자여야 합니다',
+          issue.input === undefined ? 'Enter the diary entry' : 'The diary entry must be text',
       })
       .trim()
-      .refine((value) => value.length >= 1, '일기 본문을 입력해 주세요')
-      .refine((value) => value.length <= 5000, '일기 본문은 5000자 이하로 입력해 주세요')
+      .refine((value) => value.length >= 1, 'Enter the diary entry')
+      .refine((value) => value.length <= 5000, 'The diary entry must be 5000 characters or fewer')
       .refine(noNul, nulMessage),
-    goodNote: diaryNote('잘한 점'),
-    regretNote: diaryNote('아쉬운 점'),
-    tomorrowNote: diaryNote('내일 할 일'),
+    goodNote: diaryNote('Good points'),
+    regretNote: diaryNote('Regrets'),
+    tomorrowNote: diaryNote("Tomorrow's tasks"),
   },
   badRequest,
 );
 
 // ISO dates compare correctly as strings.
 function dateRangeError(date: string, today: string) {
-  if (date > today) return '미래 날짜의 일기는 쓸 수 없습니다';
-  if (date < earliestDate) return '2000년 이후 날짜의 일기만 쓸 수 있습니다';
+  if (date > today) return 'A diary entry cannot be written for a future date';
+  if (date < earliestDate) return 'Diary entries can only be written for dates after the year 2000';
   return null;
 }
 

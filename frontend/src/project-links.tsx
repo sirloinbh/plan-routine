@@ -76,7 +76,7 @@ export function ProjectLinks() {
   const add = async () => {
     const ok = await run(
       () => requestJson('/api/project-links', { method: 'POST', body: { name, url } }),
-      `'${name.trim()}' 프로젝트를 추가했습니다`,
+      `Added the project '${name.trim()}'`,
       'add',
     );
     if (ok) {
@@ -92,7 +92,7 @@ export function ProjectLinks() {
     const index = list.indexOf(project);
     const ok = await run(
       () => requestJson(`/api/project-links/${project.id}`, { method: 'DELETE' }),
-      `'${project.name}' 프로젝트를 지웠습니다. 연결했던 루틴은 그대로입니다`,
+      `Deleted the project '${project.name}'. The routines linked to it are unchanged`,
       `remove:${project.id}`,
     );
     setConfirming(null);
@@ -104,14 +104,14 @@ export function ProjectLinks() {
   };
 
   return (
-    <Card role="region" aria-label="연결할 프로젝트">
+    <Card role="region" aria-label="Projects to link">
       <CardHeader>
-        <CardTitle asHeading="h2">연결할 프로젝트</CardTitle>
+        <CardTitle asHeading="h2">Projects to link</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         <p className="text-body-sm text-muted-foreground">
-          가계부나 독서 기록처럼 다른 웹앱을 등록하면, 루틴에 연결해 오늘 체크에서 바로 열 수
-          있습니다.
+          Register other web apps, such as a budget or reading log, then link them to routines to
+          open them right from Today.
         </p>
         <Notice notice={notice} className="wrap-anywhere" />
         {loadFailed && (
@@ -123,13 +123,13 @@ export function ProjectLinks() {
               reload();
             }}
           >
-            프로젝트 다시 불러오기
+            Reload projects
           </RetryButton>
         )}
         {projects === null ? (
-          !loadFailed && <LoadingRegion label="프로젝트 불러오는 중" rows={2} />
+          !loadFailed && <LoadingRegion label="Loading projects" rows={2} />
         ) : projects.length === 0 ? (
-          <p className="text-body-sm text-muted-foreground">아직 등록한 프로젝트가 없습니다</p>
+          <p className="text-body-sm text-muted-foreground">No projects registered yet</p>
         ) : (
           <ul className="flex flex-col divide-y">
             {projects.map((project) => (
@@ -145,26 +145,24 @@ export function ProjectLinks() {
                     type="button"
                     variant="destructive"
                     size="sm"
-                    aria-label={`${project.name} 삭제 확인`}
+                    aria-label={`Confirm deleting ${project.name}`}
                     disabled={busy}
                     onClick={() => void remove(project)}
                   >
-                    {pending === `remove:${project.id}` && (
-                      <Spinner size="sm" label="처리하는 중" />
-                    )}
-                    삭제 확인
+                    {pending === `remove:${project.id}` && <Spinner size="sm" label="Working" />}
+                    Confirm delete
                   </Button>
                 ) : (
                   <Button
                     type="button"
                     variant="ghost"
                     size="sm"
-                    aria-label={`${project.name} 삭제`}
+                    aria-label={`Delete ${project.name}`}
                     data-focus-key={keys.remove(project.id)}
                     disabled={busy}
                     onClick={() => setConfirming(project.id)}
                   >
-                    삭제
+                    Delete
                   </Button>
                 )}
               </li>
@@ -173,7 +171,7 @@ export function ProjectLinks() {
         )}
         <form
           className="flex flex-col gap-2 sm:flex-row"
-          aria-label="프로젝트 추가"
+          aria-label="Add a project"
           onSubmit={(event) => {
             event.preventDefault();
             void add();
@@ -181,16 +179,16 @@ export function ProjectLinks() {
         >
           <Input
             className="min-w-0 sm:basis-1/3"
-            aria-label="프로젝트 이름"
+            aria-label="Project name"
             data-focus-key={keys.name}
-            placeholder="가계부"
+            placeholder="Budget"
             value={name}
             maxLength={100}
             onChange={(event) => setName(event.target.value)}
           />
           <Input
             className="min-w-0 sm:flex-1"
-            aria-label="프로젝트 주소"
+            aria-label="Project URL"
             data-focus-key={keys.url}
             placeholder="https://example.com"
             inputMode="url"
@@ -199,8 +197,8 @@ export function ProjectLinks() {
             onChange={(event) => setUrl(event.target.value)}
           />
           <Button type="submit" disabled={busy}>
-            {pending === 'add' && <Spinner size="sm" label="저장하는 중" />}
-            추가
+            {pending === 'add' && <Spinner size="sm" label="Saving" />}
+            Add
           </Button>
         </form>
       </CardContent>

@@ -17,7 +17,7 @@ function routineApi(seed: Seed[] = []) {
   const writes: { method: string; path: string; body?: unknown }[] = [];
   const reply = (status: number, body: unknown) =>
     Promise.resolve(new Response(JSON.stringify(body), { status }));
-  const notFound = () => reply(404, { error: '루틴을 찾을 수 없습니다' });
+  const notFound = () => reply(404, { error: 'Routine not found' });
   vi.stubGlobal(
     'fetch',
     vi.fn((url: string, init?: RequestInit) => {
@@ -29,7 +29,8 @@ function routineApi(seed: Seed[] = []) {
       const id = path.split('/')[3];
       const found = routines.find((r) => r.id === id);
       if (method === 'POST' && path === '/api/routines') {
-        if (body.name === '중복') return reply(409, { error: '이미 등록된 항목입니다' });
+        if (body.name === 'Duplicate')
+          return reply(409, { error: 'This item is already registered' });
         const sortOrder = routines.filter((r) => r.category === body.category).length + 1;
         routines = [...routines, { ...body, id: String(nextId++), sortOrder }];
         return reply(201, {});
@@ -44,12 +45,13 @@ function routineApi(seed: Seed[] = []) {
         return reply(200, {});
       }
       if (path.endsWith('/archive')) {
-        if (found.name === '보관 실패') return reply(500, { error: '서버 오류가 발생했습니다' });
+        if (found.name === 'Archive fails') return reply(500, { error: 'A server error occurred' });
         routines = routines.filter((r) => r !== found);
         return reply(200, {});
       }
-      if (body.name === '중복') return reply(409, { error: '이미 등록된 항목입니다' });
-      if (body.name === '실패') return reply(500, { error: '서버 오류가 발생했습니다' });
+      if (body.name === 'Duplicate')
+        return reply(409, { error: 'This item is already registered' });
+      if (body.name === 'Fail') return reply(500, { error: 'A server error occurred' });
       found.name = body.name;
       return reply(200, {});
     }),
@@ -60,7 +62,7 @@ function routineApi(seed: Seed[] = []) {
   };
 }
 
-const region = (label: string) => screen.getByRole('region', { name: `${label} 루틴` });
+const region = (label: string) => screen.getByRole('region', { name: `${label} routines` });
 const names = (label: string) =>
   within(region(label))
     .queryAllByRole('listitem')
@@ -68,9 +70,9 @@ const names = (label: string) =>
 
 test('groups routines by category in the backend order and by sort order inside a group', () => {
   const groups = groupByCategory([
-    { id: '2', name: '스트레칭', cadence: 'daily', category: 'exercise', sortOrder: 2 },
-    { id: '1', name: '물 한 잔', cadence: 'daily', category: 'wake', sortOrder: 1 },
-    { id: '3', name: '푸시업', cadence: 'daily', category: 'exercise', sortOrder: 1 },
+    { id: '2', name: 'Stretch', cadence: 'daily', category: 'exercise', sortOrder: 2 },
+    { id: '1', name: 'Drink water', cadence: 'daily', category: 'wake', sortOrder: 1 },
+    { id: '3', name: 'Push-ups', cadence: 'daily', category: 'exercise', sortOrder: 1 },
   ]);
   expect(groups.map((g) => g.key)).toEqual([
     'wake',
@@ -81,260 +83,272 @@ test('groups routines by category in the backend order and by sort order inside 
     'study',
     'reading',
   ]);
-  expect(groups[1].routines.map((r) => r.name)).toEqual(['푸시업', '스트레칭']);
+  expect(groups[1].routines.map((r) => r.name)).toEqual(['Push-ups', 'Stretch']);
 });
 
 test('the daily routine page lists all seven categories with empty states', async () => {
   routineApi();
   render(<DailyRoutines />);
-  for (const label of ['기상', '운동', '식단', '가사', '관리', '공부', '독서']) {
-    const group = await screen.findByRole('region', { name: `${label} 루틴` });
+  for (const label of [
+    'Wake-up',
+    'Exercise',
+    'Diet',
+    'Housework',
+    'Self-care',
+    'Study',
+    'Reading',
+  ]) {
+    const group = await screen.findByRole('region', { name: `${label} routines` });
     expect(within(group).getByRole('heading', { level: 2, name: new RegExp(label) })).toBeVisible();
-    expect(within(group).getByText('아직 루틴이 없습니다')).toBeInTheDocument();
+    expect(within(group).getByText('No routines yet')).toBeInTheDocument();
   }
 });
 
 test('adding a routine posts it to its category and shows it in the list', async () => {
   const api = routineApi();
   render(<DailyRoutines />);
-  const reading = await screen.findByRole('region', { name: '독서 루틴' });
-  fireEvent.change(within(reading).getByRole('textbox', { name: '독서 새 루틴 이름' }), {
-    target: { value: '10쪽 읽기' },
+  const reading = await screen.findByRole('region', { name: 'Reading routines' });
+  fireEvent.change(within(reading).getByRole('textbox', { name: 'New Reading routine name' }), {
+    target: { value: 'Read 10 pages' },
   });
-  fireEvent.click(within(reading).getByRole('button', { name: '추가' }));
-  expect(await screen.findByText("독서에 '10쪽 읽기' 루틴을 추가했습니다")).toBeInTheDocument();
+  fireEvent.click(within(reading).getByRole('button', { name: 'Add' }));
+  expect(
+    await screen.findByText("Added the routine 'Read 10 pages' to Reading"),
+  ).toBeInTheDocument();
   expect(api.writes).toEqual([
     {
       method: 'POST',
       path: '/api/routines',
-      body: { name: '10쪽 읽기', cadence: 'daily', category: 'reading' },
+      body: { name: 'Read 10 pages', cadence: 'daily', category: 'reading' },
     },
   ]);
-  await waitFor(() => expect(names('독서')).toEqual(['10쪽 읽기']));
-  expect(within(region('독서')).getByRole('textbox', { name: '독서 새 루틴 이름' })).toHaveValue(
-    '',
-  );
+  await waitFor(() => expect(names('Reading')).toEqual(['Read 10 pages']));
+  expect(
+    within(region('Reading')).getByRole('textbox', { name: 'New Reading routine name' }),
+  ).toHaveValue('');
 });
 
-test('an empty name or a server error shows a Korean alert and keeps the draft', async () => {
+test('an empty name or a server error shows an English alert and keeps the draft', async () => {
   const api = routineApi();
   render(<DailyRoutines />);
-  const wake = await screen.findByRole('region', { name: '기상 루틴' });
-  fireEvent.click(within(wake).getByRole('button', { name: '추가' }));
-  expect(await screen.findByRole('alert')).toHaveTextContent('루틴 이름을 입력해 주세요');
+  const wake = await screen.findByRole('region', { name: 'Wake-up routines' });
+  fireEvent.click(within(wake).getByRole('button', { name: 'Add' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('Enter a routine name');
   expect(api.writes).toEqual([]);
 
-  const input = within(wake).getByRole('textbox', { name: '기상 새 루틴 이름' });
-  fireEvent.change(input, { target: { value: '중복' } });
-  fireEvent.click(within(wake).getByRole('button', { name: '추가' }));
+  const input = within(wake).getByRole('textbox', { name: 'New Wake-up routine name' });
+  fireEvent.change(input, { target: { value: 'Duplicate' } });
+  fireEvent.click(within(wake).getByRole('button', { name: 'Add' }));
   await waitFor(() =>
-    expect(screen.getByRole('alert')).toHaveTextContent('이미 등록된 항목입니다'),
+    expect(screen.getByRole('alert')).toHaveTextContent('This item is already registered'),
   );
-  expect(within(region('기상')).getByRole('textbox', { name: '기상 새 루틴 이름' })).toHaveValue(
-    '중복',
-  );
+  expect(
+    within(region('Wake-up')).getByRole('textbox', { name: 'New Wake-up routine name' }),
+  ).toHaveValue('Duplicate');
 });
 
 test('routines can be reordered, renamed and archived after confirmation', async () => {
   const api = routineApi([
-    { id: '1', name: '6시 기상', category: 'wake' },
-    { id: '2', name: '물 한 잔', category: 'wake' },
+    { id: '1', name: 'Wake at 6', category: 'wake' },
+    { id: '2', name: 'Drink water', category: 'wake' },
   ]);
   render(<DailyRoutines />);
-  await screen.findByText('6시 기상');
-  expect(names('기상')).toEqual(['6시 기상', '물 한 잔']);
-  expect(screen.getByRole('button', { name: '6시 기상 위로 이동' })).toBeDisabled();
+  await screen.findByText('Wake at 6');
+  expect(names('Wake-up')).toEqual(['Wake at 6', 'Drink water']);
+  expect(screen.getByRole('button', { name: 'Move Wake at 6 up' })).toBeDisabled();
 
-  fireEvent.click(screen.getByRole('button', { name: '물 한 잔 위로 이동' }));
-  await waitFor(() => expect(names('기상')).toEqual(['물 한 잔', '6시 기상']));
+  fireEvent.click(screen.getByRole('button', { name: 'Move Drink water up' }));
+  await waitFor(() => expect(names('Wake-up')).toEqual(['Drink water', 'Wake at 6']));
   expect(api.writes.at(-1)).toEqual({
     method: 'POST',
     path: '/api/routines/2/move',
     body: { direction: 'up' },
   });
 
-  fireEvent.click(screen.getByRole('button', { name: '6시 기상 이름 수정' }));
-  fireEvent.change(screen.getByRole('textbox', { name: '6시 기상 새 이름' }), {
-    target: { value: '6시 30분 기상' },
+  fireEvent.click(screen.getByRole('button', { name: 'Rename Wake at 6' }));
+  fireEvent.change(screen.getByRole('textbox', { name: 'New name for Wake at 6' }), {
+    target: { value: 'Wake at 6:30' },
   });
-  fireEvent.click(screen.getByRole('button', { name: '저장' }));
-  await waitFor(() => expect(names('기상')).toEqual(['물 한 잔', '6시 30분 기상']));
+  fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+  await waitFor(() => expect(names('Wake-up')).toEqual(['Drink water', 'Wake at 6:30']));
   expect(api.writes.at(-1)).toEqual({
     method: 'PATCH',
     path: '/api/routines/1',
-    body: { name: '6시 30분 기상' },
+    body: { name: 'Wake at 6:30' },
   });
 
   // The first press only asks for confirmation; nothing is archived yet.
-  fireEvent.click(screen.getByRole('button', { name: '물 한 잔 보관' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Archive Drink water' }));
   expect(api.writes.at(-1)?.method).toBe('PATCH');
-  fireEvent.click(screen.getByRole('button', { name: '물 한 잔 보관 확인' }));
-  await waitFor(() => expect(names('기상')).toEqual(['6시 30분 기상']));
+  fireEvent.click(screen.getByRole('button', { name: 'Confirm archiving Drink water' }));
+  await waitFor(() => expect(names('Wake-up')).toEqual(['Wake at 6:30']));
   expect(api.writes.at(-1)).toEqual({
     method: 'POST',
     path: '/api/routines/2/archive',
     body: undefined,
   });
-  expect(screen.getByRole('status')).toHaveTextContent('지난 기록은 남아 있습니다');
+  expect(screen.getByRole('status')).toHaveTextContent('Past records are kept');
 });
 
-test('a routine changed elsewhere shows the Korean 404 and the list reloads', async () => {
+test('a routine changed elsewhere shows the English 404 and the list reloads', async () => {
   const api = routineApi([
-    { id: '1', name: '6시 기상', category: 'wake' },
-    { id: '2', name: '물 한 잔', category: 'wake' },
+    { id: '1', name: 'Wake at 6', category: 'wake' },
+    { id: '2', name: 'Drink water', category: 'wake' },
   ]);
   render(<DailyRoutines />);
-  await screen.findByText('물 한 잔');
+  await screen.findByText('Drink water');
   api.archiveElsewhere('2');
-  fireEvent.click(screen.getByRole('button', { name: '물 한 잔 위로 이동' }));
-  expect(await screen.findByRole('alert')).toHaveTextContent('루틴을 찾을 수 없습니다');
-  await waitFor(() => expect(names('기상')).toEqual(['6시 기상']));
+  fireEvent.click(screen.getByRole('button', { name: 'Move Drink water up' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('Routine not found');
+  await waitFor(() => expect(names('Wake-up')).toEqual(['Wake at 6']));
 });
 
 const twoRoutines = [
-  { id: '1', name: '6시 기상', category: 'wake' },
-  { id: '2', name: '물 한 잔', category: 'wake' },
+  { id: '1', name: 'Wake at 6', category: 'wake' },
+  { id: '2', name: 'Drink water', category: 'wake' },
 ];
 const button = (name: string) => screen.getByRole('button', { name });
 
 test('saving a rename returns focus to its edit button', async () => {
   routineApi(twoRoutines);
   render(<DailyRoutines />);
-  await screen.findByText('6시 기상');
-  fireEvent.click(button('6시 기상 이름 수정'));
-  const input = screen.getByRole('textbox', { name: '6시 기상 새 이름' });
+  await screen.findByText('Wake at 6');
+  fireEvent.click(button('Rename Wake at 6'));
+  const input = screen.getByRole('textbox', { name: 'New name for Wake at 6' });
   expect(input).toHaveFocus();
-  fireEvent.change(input, { target: { value: '일찍 기상' } });
-  fireEvent.click(button('저장'));
-  await waitFor(() => expect(button('일찍 기상 이름 수정')).toHaveFocus());
+  fireEvent.change(input, { target: { value: 'Wake up early' } });
+  fireEvent.click(button('Save'));
+  await waitFor(() => expect(button('Rename Wake up early')).toHaveFocus());
 });
 
 test('cancelling a rename returns focus to its edit button', async () => {
   routineApi(twoRoutines);
   render(<DailyRoutines />);
-  await screen.findByText('6시 기상');
-  fireEvent.click(button('6시 기상 이름 수정'));
-  fireEvent.click(button('취소'));
-  await waitFor(() => expect(button('6시 기상 이름 수정')).toHaveFocus());
+  await screen.findByText('Wake at 6');
+  fireEvent.click(button('Rename Wake at 6'));
+  fireEvent.click(button('Cancel'));
+  await waitFor(() => expect(button('Rename Wake at 6')).toHaveFocus());
 });
 
 test('a rename that fails keeps the form and returns focus to its field', async () => {
   routineApi(twoRoutines);
   render(<DailyRoutines />);
-  await screen.findByText('6시 기상');
-  fireEvent.click(button('6시 기상 이름 수정'));
-  const input = screen.getByRole('textbox', { name: '6시 기상 새 이름' });
-  fireEvent.change(input, { target: { value: '중복' } });
+  await screen.findByText('Wake at 6');
+  fireEvent.click(button('Rename Wake at 6'));
+  const input = screen.getByRole('textbox', { name: 'New name for Wake at 6' });
+  fireEvent.change(input, { target: { value: 'Duplicate' } });
   input.blur();
-  fireEvent.click(button('저장'));
+  fireEvent.click(button('Save'));
   await screen.findByRole('alert');
   await waitFor(() =>
-    expect(screen.getByRole('textbox', { name: '6시 기상 새 이름' })).toHaveFocus(),
+    expect(screen.getByRole('textbox', { name: 'New name for Wake at 6' })).toHaveFocus(),
   );
-  expect(screen.getByRole('textbox', { name: '6시 기상 새 이름' })).toHaveValue('중복');
+  expect(screen.getByRole('textbox', { name: 'New name for Wake at 6' })).toHaveValue('Duplicate');
 });
 
 test('renaming a routine that has gone moves focus to the add field', async () => {
   const api = routineApi(twoRoutines);
   render(<DailyRoutines />);
-  await screen.findByText('6시 기상');
-  fireEvent.click(button('6시 기상 이름 수정'));
+  await screen.findByText('Wake at 6');
+  fireEvent.click(button('Rename Wake at 6'));
   api.archiveElsewhere('1');
-  fireEvent.click(button('저장'));
+  fireEvent.click(button('Save'));
   await screen.findByRole('alert');
   await waitFor(() =>
-    expect(screen.queryByRole('textbox', { name: '6시 기상 새 이름' })).not.toBeInTheDocument(),
+    expect(
+      screen.queryByRole('textbox', { name: 'New name for Wake at 6' }),
+    ).not.toBeInTheDocument(),
   );
   await waitFor(() =>
-    expect(screen.getByRole('textbox', { name: '기상 새 루틴 이름' })).toHaveFocus(),
+    expect(screen.getByRole('textbox', { name: 'New Wake-up routine name' })).toHaveFocus(),
   );
 });
 
 test('moving a routine that has gone moves focus to the add field', async () => {
   const api = routineApi(twoRoutines);
   render(<DailyRoutines />);
-  await screen.findByText('물 한 잔');
+  await screen.findByText('Drink water');
   api.archiveElsewhere('2');
-  fireEvent.click(button('물 한 잔 위로 이동'));
+  fireEvent.click(button('Move Drink water up'));
   await screen.findByRole('alert');
   await waitFor(() =>
-    expect(screen.getByRole('textbox', { name: '기상 새 루틴 이름' })).toHaveFocus(),
+    expect(screen.getByRole('textbox', { name: 'New Wake-up routine name' })).toHaveFocus(),
   );
 });
 
 test('an archive that fails stays on its own row', async () => {
-  routineApi([{ id: '1', name: '보관 실패', category: 'wake' }, twoRoutines[1]]);
+  routineApi([{ id: '1', name: 'Archive fails', category: 'wake' }, twoRoutines[1]]);
   render(<DailyRoutines />);
-  await screen.findByText('보관 실패');
-  fireEvent.click(button('보관 실패 보관'));
-  fireEvent.click(button('보관 실패 보관 확인'));
+  await screen.findByText('Archive fails');
+  fireEvent.click(button('Archive Archive fails'));
+  fireEvent.click(button('Confirm archiving Archive fails'));
   await screen.findByRole('alert');
-  await waitFor(() => expect(button('보관 실패 이름 수정')).toHaveFocus());
+  await waitFor(() => expect(button('Rename Archive fails')).toHaveFocus());
 });
 
 test('moving a routine keeps focus on the same button', async () => {
-  routineApi([...twoRoutines, { id: '3', name: '스트레칭', category: 'wake' }]);
+  routineApi([...twoRoutines, { id: '3', name: 'Stretch', category: 'wake' }]);
   render(<DailyRoutines />);
-  await screen.findByText('스트레칭');
-  fireEvent.click(button('스트레칭 위로 이동'));
-  await waitFor(() => expect(names('기상')).toEqual(['6시 기상', '스트레칭', '물 한 잔']));
-  await waitFor(() => expect(button('스트레칭 위로 이동')).toHaveFocus());
+  await screen.findByText('Stretch');
+  fireEvent.click(button('Move Stretch up'));
+  await waitFor(() => expect(names('Wake-up')).toEqual(['Wake at 6', 'Stretch', 'Drink water']));
+  await waitFor(() => expect(button('Move Stretch up')).toHaveFocus());
 });
 
 test('a routine moved to the end of its group hands focus to the other direction', async () => {
   routineApi(twoRoutines);
   render(<DailyRoutines />);
-  await screen.findByText('물 한 잔');
+  await screen.findByText('Drink water');
   // The pressed button keeps focus while disabled, as some browsers do; that is not moving on.
-  button('물 한 잔 위로 이동').focus();
-  fireEvent.click(button('물 한 잔 위로 이동'));
-  await waitFor(() => expect(names('기상')).toEqual(['물 한 잔', '6시 기상']));
-  expect(button('물 한 잔 위로 이동')).toBeDisabled();
-  await waitFor(() => expect(button('물 한 잔 아래로 이동')).toHaveFocus());
+  button('Move Drink water up').focus();
+  fireEvent.click(button('Move Drink water up'));
+  await waitFor(() => expect(names('Wake-up')).toEqual(['Drink water', 'Wake at 6']));
+  expect(button('Move Drink water up')).toBeDisabled();
+  await waitFor(() => expect(button('Move Drink water down')).toHaveFocus());
 });
 
 test('archiving moves focus to the next routine, then the previous one', async () => {
-  routineApi([...twoRoutines, { id: '3', name: '스트레칭', category: 'wake' }]);
+  routineApi([...twoRoutines, { id: '3', name: 'Stretch', category: 'wake' }]);
   render(<DailyRoutines />);
-  await screen.findByText('스트레칭');
-  fireEvent.click(button('물 한 잔 보관'));
-  fireEvent.click(button('물 한 잔 보관 확인'));
-  await waitFor(() => expect(button('스트레칭 이름 수정')).toHaveFocus());
+  await screen.findByText('Stretch');
+  fireEvent.click(button('Archive Drink water'));
+  fireEvent.click(button('Confirm archiving Drink water'));
+  await waitFor(() => expect(button('Rename Stretch')).toHaveFocus());
 
-  fireEvent.click(button('스트레칭 보관'));
-  fireEvent.click(button('스트레칭 보관 확인'));
-  await waitFor(() => expect(button('6시 기상 이름 수정')).toHaveFocus());
+  fireEvent.click(button('Archive Stretch'));
+  fireEvent.click(button('Confirm archiving Stretch'));
+  await waitFor(() => expect(button('Rename Wake at 6')).toHaveFocus());
 });
 
 test('archiving the last routine of a group moves focus to the add field', async () => {
-  routineApi([{ id: '1', name: '6시 기상', category: 'wake' }]);
+  routineApi([{ id: '1', name: 'Wake at 6', category: 'wake' }]);
   render(<DailyRoutines />);
-  await screen.findByText('6시 기상');
-  fireEvent.click(button('6시 기상 보관'));
-  fireEvent.click(button('6시 기상 보관 확인'));
+  await screen.findByText('Wake at 6');
+  fireEvent.click(button('Archive Wake at 6'));
+  fireEvent.click(button('Confirm archiving Wake at 6'));
   await waitFor(() =>
-    expect(screen.getByRole('textbox', { name: '기상 새 루틴 이름' })).toHaveFocus(),
+    expect(screen.getByRole('textbox', { name: 'New Wake-up routine name' })).toHaveFocus(),
   );
 });
 
 test('adding a routine returns focus to the add field, ready for the next one', async () => {
   routineApi();
   render(<DailyRoutines />);
-  const reading = await screen.findByRole('region', { name: '독서 루틴' });
-  fireEvent.change(within(reading).getByRole('textbox', { name: '독서 새 루틴 이름' }), {
-    target: { value: '10쪽 읽기' },
+  const reading = await screen.findByRole('region', { name: 'Reading routines' });
+  fireEvent.change(within(reading).getByRole('textbox', { name: 'New Reading routine name' }), {
+    target: { value: 'Read 10 pages' },
   });
-  fireEvent.click(within(reading).getByRole('button', { name: '추가' }));
-  await screen.findByText('10쪽 읽기');
+  fireEvent.click(within(reading).getByRole('button', { name: 'Add' }));
+  await screen.findByText('Read 10 pages');
   await waitFor(() =>
-    expect(screen.getByRole('textbox', { name: '독서 새 루틴 이름' })).toHaveFocus(),
+    expect(screen.getByRole('textbox', { name: 'New Reading routine name' })).toHaveFocus(),
   );
 });
 
 test('a change does not take focus back once the user has moved on', async () => {
   routineApi(twoRoutines);
   render(<DailyRoutines />);
-  await screen.findByText('6시 기상');
+  await screen.findByText('Wake at 6');
   // Answers wait until released, as on a slow connection.
   const working = vi.mocked(fetch).getMockImplementation()!;
   let release = () => {};
@@ -345,15 +359,15 @@ test('a change does not take focus back once the user has moved on', async () =>
     'fetch',
     vi.fn((url: string, init?: RequestInit) => gate.then(() => working(url, init))),
   );
-  const wake = screen.getByRole('textbox', { name: '기상 새 루틴 이름' });
+  const wake = screen.getByRole('textbox', { name: 'New Wake-up routine name' });
   wake.focus();
-  fireEvent.change(wake, { target: { value: '기지개' } });
-  fireEvent.click(within(region('기상')).getByRole('button', { name: '추가' }));
+  fireEvent.change(wake, { target: { value: 'Morning stretch' } });
+  fireEvent.click(within(region('Wake-up')).getByRole('button', { name: 'Add' }));
 
-  const reading = screen.getByRole('textbox', { name: '독서 새 루틴 이름' });
+  const reading = screen.getByRole('textbox', { name: 'New Reading routine name' });
   reading.focus();
   release();
-  await screen.findByText('기지개');
+  await screen.findByText('Morning stretch');
   await act(() => new Promise((resolve) => setTimeout(resolve)));
   expect(reading).toHaveFocus();
 });
@@ -361,8 +375,8 @@ test('a change does not take focus back once the user has moved on', async () =>
 test('a reload from elsewhere does not move focus', async () => {
   routineApi(twoRoutines);
   render(<DailyRoutines />);
-  await screen.findByText('6시 기상');
-  const add = screen.getByRole('textbox', { name: '운동 새 루틴 이름' });
+  await screen.findByText('Wake at 6');
+  const add = screen.getByRole('textbox', { name: 'New Exercise routine name' });
   add.focus();
   const loads = vi.mocked(fetch).mock.calls.length;
   document.dispatchEvent(new Event('visibilitychange'));
@@ -377,14 +391,14 @@ test('on a touch screen no field takes focus, so no keyboard pops up unasked', a
     'matchMedia',
     vi.fn((query: string) => ({ matches: query === '(pointer: coarse)' })),
   );
-  routineApi([{ id: '1', name: '6시 기상', category: 'wake' }]);
+  routineApi([{ id: '1', name: 'Wake at 6', category: 'wake' }]);
   render(<DailyRoutines />);
-  await screen.findByText('6시 기상');
-  fireEvent.click(button('6시 기상 보관'));
-  fireEvent.click(button('6시 기상 보관 확인'));
-  await waitFor(() => expect(screen.queryByText('6시 기상')).not.toBeInTheDocument());
+  await screen.findByText('Wake at 6');
+  fireEvent.click(button('Archive Wake at 6'));
+  fireEvent.click(button('Confirm archiving Wake at 6'));
+  await waitFor(() => expect(screen.queryByText('Wake at 6')).not.toBeInTheDocument());
   await act(() => new Promise((resolve) => setTimeout(resolve)));
-  expect(screen.getByRole('textbox', { name: '기상 새 루틴 이름' })).not.toHaveFocus();
+  expect(screen.getByRole('textbox', { name: 'New Wake-up routine name' })).not.toHaveFocus();
 });
 
 // Projects and project links on top of a routine fake; a save follows failLink.
@@ -399,7 +413,7 @@ function linkApi(seed: Seed[], options: { failLink?: boolean } = {}) {
         return Promise.resolve(
           new Response(
             JSON.stringify({
-              projects: [{ id: '7', name: '독서 기록', url: 'https://books.example/' }],
+              projects: [{ id: '7', name: 'Reading log', url: 'https://books.example/' }],
             }),
           ),
         );
@@ -407,7 +421,7 @@ function linkApi(seed: Seed[], options: { failLink?: boolean } = {}) {
         linkWrites.push({ url, body: JSON.parse(String(init?.body)) });
         return Promise.resolve(
           options.failLink
-            ? new Response(JSON.stringify({ error: '루틴이나 프로젝트를 찾을 수 없습니다' }), {
+            ? new Response(JSON.stringify({ error: 'Routine or project not found' }), {
                 status: 404,
               })
             : new Response(JSON.stringify({ routine: {} })),
@@ -419,47 +433,45 @@ function linkApi(seed: Seed[], options: { failLink?: boolean } = {}) {
   return linkWrites;
 }
 
-const linkSelect = () => screen.findByRole('combobox', { name: '30분 읽기 연결할 프로젝트' });
+const linkSelect = () => screen.findByRole('combobox', { name: 'Project to link to Read 30 min' });
 
 test('a routine can be linked to a registered project, and focus stays on the choice', async () => {
-  const writes = linkApi([{ id: '1', name: '30분 읽기', category: 'reading' }]);
+  const writes = linkApi([{ id: '1', name: 'Read 30 min', category: 'reading' }]);
   render(<DailyRoutines />);
   const select = await linkSelect();
   expect(select).toHaveValue('');
   select.focus();
   fireEvent.change(select, { target: { value: '7' } });
-  await screen.findByText("'30분 읽기' 루틴에 프로젝트를 연결했습니다");
+  await screen.findByText("Linked a project to the routine 'Read 30 min'");
   expect(writes).toEqual([{ url: '/api/routines/1/project-link', body: { projectLinkId: '7' } }]);
   await waitFor(async () => expect(await linkSelect()).toHaveFocus());
 });
 
 test('a routine already linked shows its project, and unlinking sends null', async () => {
   const writes = linkApi([
-    { id: '1', name: '30분 읽기', category: 'reading', projectLinkId: '7' } as Seed,
+    { id: '1', name: 'Read 30 min', category: 'reading', projectLinkId: '7' } as Seed,
   ]);
   render(<DailyRoutines />);
   const select = await linkSelect();
   await waitFor(() => expect(select).toHaveValue('7'));
   fireEvent.change(select, { target: { value: '' } });
-  await screen.findByText("'30분 읽기' 루틴의 연결을 해제했습니다");
+  await screen.findByText("Unlinked the routine 'Read 30 min'");
   expect(writes).toEqual([{ url: '/api/routines/1/project-link', body: { projectLinkId: null } }]);
 });
 
-test('a link that fails shows the Korean error and leaves the choice as it was', async () => {
-  linkApi([{ id: '1', name: '30분 읽기', category: 'reading' }], { failLink: true });
+test('a link that fails shows the English error and leaves the choice as it was', async () => {
+  linkApi([{ id: '1', name: 'Read 30 min', category: 'reading' }], { failLink: true });
   render(<DailyRoutines />);
   const select = await linkSelect();
   fireEvent.change(select, { target: { value: '7' } });
-  expect(await screen.findByRole('alert')).toHaveTextContent(
-    '루틴이나 프로젝트를 찾을 수 없습니다',
-  );
+  expect(await screen.findByRole('alert')).toHaveTextContent('Routine or project not found');
   expect(await linkSelect()).toHaveValue('');
 });
 
 test('with no projects registered a routine offers no link', async () => {
   routineApi(twoRoutines);
   render(<DailyRoutines />);
-  await screen.findByText('6시 기상');
+  await screen.findByText('Wake at 6');
   await act(() => new Promise((resolve) => setTimeout(resolve)));
   expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
 });
@@ -483,40 +495,40 @@ function holdWrites() {
 test('only the add button that was pressed spins', async () => {
   routineApi(twoRoutines);
   render(<DailyRoutines />);
-  await screen.findByText('6시 기상');
+  await screen.findByText('Wake at 6');
   const release = holdWrites();
-  fireEvent.change(screen.getByRole('textbox', { name: '기상 새 루틴 이름' }), {
-    target: { value: '기지개' },
+  fireEvent.change(screen.getByRole('textbox', { name: 'New Wake-up routine name' }), {
+    target: { value: 'Morning stretch' },
   });
-  fireEvent.click(within(region('기상')).getByRole('button', { name: '추가' }));
+  fireEvent.click(within(region('Wake-up')).getByRole('button', { name: 'Add' }));
   await act(() => new Promise((resolve) => setTimeout(resolve)));
-  expect(screen.getAllByRole('status', { name: '저장하는 중' })).toHaveLength(1);
-  expect(within(region('기상')).getByRole('status', { name: '저장하는 중' })).toBeInTheDocument();
+  expect(screen.getAllByRole('status', { name: 'Saving' })).toHaveLength(1);
+  expect(within(region('Wake-up')).getByRole('status', { name: 'Saving' })).toBeInTheDocument();
   release();
-  await screen.findByText('기지개');
+  await screen.findByText('Morning stretch');
   await waitFor(() =>
-    expect(screen.queryByRole('status', { name: '저장하는 중' })).not.toBeInTheDocument(),
+    expect(screen.queryByRole('status', { name: 'Saving' })).not.toBeInTheDocument(),
   );
 });
 
 test('moving a routine spins nothing, and an archive spins only its own row', async () => {
   routineApi(twoRoutines);
   render(<DailyRoutines />);
-  await screen.findByText('6시 기상');
+  await screen.findByText('Wake at 6');
   const release = holdWrites();
-  fireEvent.click(button('물 한 잔 위로 이동'));
+  fireEvent.click(button('Move Drink water up'));
   await act(() => new Promise((resolve) => setTimeout(resolve)));
-  expect(screen.queryByRole('status', { name: /하는 중/ })).not.toBeInTheDocument();
+  expect(screen.queryByRole('status', { name: /ing/ })).not.toBeInTheDocument();
   release();
-  await waitFor(() => expect(button('물 한 잔 이름 수정')).not.toBeDisabled());
+  await waitFor(() => expect(button('Rename Drink water')).not.toBeDisabled());
 
   const again = holdWrites();
-  fireEvent.click(button('6시 기상 보관'));
-  fireEvent.click(button('6시 기상 보관 확인'));
+  fireEvent.click(button('Archive Wake at 6'));
+  fireEvent.click(button('Confirm archiving Wake at 6'));
   await act(() => new Promise((resolve) => setTimeout(resolve)));
   expect(
-    within(button('6시 기상 보관 확인')).getByRole('status', { name: '처리하는 중' }),
+    within(button('Confirm archiving Wake at 6')).getByRole('status', { name: 'Working' }),
   ).toBeInTheDocument();
-  expect(screen.getAllByRole('status', { name: /하는 중/ })).toHaveLength(1);
+  expect(screen.getAllByRole('status', { name: /ing/ })).toHaveLength(1);
   again();
 });

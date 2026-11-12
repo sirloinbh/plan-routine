@@ -7,7 +7,7 @@ import { withApi } from './helpers.js';
 
 const saved = {
   date: '2026-10-22',
-  body: '오늘은 잘 보냈다',
+  body: 'Had a good day',
   goodNote: null,
   regretNote: null,
   tomorrowNote: null,
@@ -74,7 +74,7 @@ test('saving trims the text, treats blank notes as none and upserts by date', as
     async (call) => {
       const { status, data } = await call(
         '/api/diary/2026-10-22',
-        put({ body: ' 오늘은 잘 보냈다 ', goodNote: ' 일찍 일어남 ', regretNote: '   ' }),
+        put({ body: ' Had a good day ', goodNote: ' Woke up early ', regretNote: '   ' }),
       );
       assert.equal(status, 200);
       assert.deepEqual(data.entry, saved);
@@ -84,30 +84,33 @@ test('saving trims the text, treats blank notes as none and upserts by date', as
   assert.match(queries[0].sql, /ON CONFLICT \(entry_date\) DO UPDATE/);
   assert.deepEqual(queries[0].params, [
     '2026-10-22',
-    '오늘은 잘 보냈다',
-    '일찍 일어남',
+    'Had a good day',
+    'Woke up early',
     null,
     null,
   ]);
 });
 
-test('an empty or too long entry is a Korean 400 before any query', async () => {
+test('an empty or too long entry is an English 400 before any query', async () => {
   const { pool, queries } = fakePool();
   await withApi(
     pool,
     async (call) => {
       for (const [body, message] of [
-        [undefined, '일기 본문을 입력해 주세요'],
-        [{ body: '   ' }, '일기 본문을 입력해 주세요'],
-        [{ body: 3 }, '일기 본문은 글자여야 합니다'],
-        [{ body: '가'.repeat(5001) }, '일기 본문은 5000자 이하로 입력해 주세요'],
-        [{ body: '본문', goodNote: '가'.repeat(1001) }, '잘한 점은 1000자 이하로 입력해 주세요'],
-        [{ body: '본문', regretNote: 1 }, '아쉬운 점은 글자여야 합니다'],
-        [{ body: 'a\0b' }, '쓸 수 없는 문자가 들어 있습니다'],
-        [{ body: '본문', goodNote: 'a\0b' }, '쓸 수 없는 문자가 들어 있습니다'],
+        [undefined, 'Enter the diary entry'],
+        [{ body: '   ' }, 'Enter the diary entry'],
+        [{ body: 3 }, 'The diary entry must be text'],
+        [{ body: 'a'.repeat(5001) }, 'The diary entry must be 5000 characters or fewer'],
         [
-          { body: '본문', tomorrowNote: '가'.repeat(1001) },
-          '내일 할 일은 1000자 이하로 입력해 주세요',
+          { body: 'Body', goodNote: 'a'.repeat(1001) },
+          'Good points must be 1000 characters or fewer',
+        ],
+        [{ body: 'Body', regretNote: 1 }, 'Regrets must be text'],
+        [{ body: 'a\0b' }, 'Contains characters that are not allowed'],
+        [{ body: 'Body', goodNote: 'a\0b' }, 'Contains characters that are not allowed'],
+        [
+          { body: 'Body', tomorrowNote: 'a'.repeat(1001) },
+          "Tomorrow's tasks must be 1000 characters or fewer",
         ],
       ] as const) {
         const { status, data } = await call('/api/diary/2026-10-22', put(body));
@@ -127,7 +130,7 @@ test('the longest allowed entry and today are accepted', async () => {
     async (call) => {
       const { status } = await call(
         '/api/diary/2026-10-22',
-        put({ body: '가'.repeat(5000), goodNote: '나'.repeat(1000) }),
+        put({ body: 'a'.repeat(5000), goodNote: 'b'.repeat(1000) }),
       );
       assert.equal(status, 200);
     },
@@ -136,30 +139,30 @@ test('the longest allowed entry and today are accepted', async () => {
   assert.equal(queries.length, 1);
 });
 
-test('future, too old and impossible dates are Korean 400s before any query', async () => {
+test('future, too old and impossible dates are English 400s before any query', async () => {
   const { pool, queries } = fakePool();
   await withApi(
     pool,
     async (call) => {
       for (const request of [
-        call('/api/diary/2026-10-23', put({ body: '본문' })),
+        call('/api/diary/2026-10-23', put({ body: 'Body' })),
         call('/api/diary?date=2026-10-23'),
       ]) {
         const { status, data } = await request;
         assert.equal(status, 400);
-        assert.equal(data.error, '미래 날짜의 일기는 쓸 수 없습니다');
+        assert.equal(data.error, 'A diary entry cannot be written for a future date');
       }
       for (const request of [
-        call('/api/diary/0000-01-01', put({ body: '본문' })),
+        call('/api/diary/0000-01-01', put({ body: 'Body' })),
         call('/api/diary?date=1999-12-31'),
       ]) {
         const { status, data } = await request;
         assert.equal(status, 400);
-        assert.equal(data.error, '2000년 이후 날짜의 일기만 쓸 수 있습니다');
+        assert.equal(data.error, 'Diary entries can only be written for dates after the year 2000');
       }
-      const impossible = await call('/api/diary/2026-02-30', put({ body: '본문' }));
+      const impossible = await call('/api/diary/2026-02-30', put({ body: 'Body' }));
       assert.equal(impossible.status, 400);
-      assert.equal(impossible.data.error, '날짜는 YYYY-MM-DD 형식의 실제 날짜여야 합니다');
+      assert.equal(impossible.data.error, 'Date must be a real date in YYYY-MM-DD format');
     },
     { today },
   );
@@ -186,13 +189,13 @@ test('notes left out or blank are saved as no note', async () => {
     async (call) => {
       const { status } = await call(
         '/api/diary/2026-10-22',
-        put({ body: ' 본문 ', regretNote: '   ', tomorrowNote: null }),
+        put({ body: ' Body ', regretNote: '   ', tomorrowNote: null }),
       );
       assert.equal(status, 200);
     },
     { today },
   );
-  assert.deepEqual(queries[0].params, ['2026-10-22', '본문', null, null, null]);
+  assert.deepEqual(queries[0].params, ['2026-10-22', 'Body', null, null, null]);
 });
 
 test('diary text that is not text answers with one message, even if it has a length', async () => {
@@ -202,13 +205,13 @@ test('diary text that is not text answers with one message, even if it has a len
     async (call) => {
       const empty = await call('/api/diary/2026-10-22', put({ body: [] }));
       assert.equal(empty.status, 400);
-      assert.equal(empty.data.error, '일기 본문은 글자여야 합니다');
+      assert.equal(empty.data.error, 'The diary entry must be text');
       const note = await call(
         '/api/diary/2026-10-22',
-        put({ body: '본문', goodNote: Array.from({ length: 1001 }, () => 'a') }),
+        put({ body: 'Body', goodNote: Array.from({ length: 1001 }, () => 'a') }),
       );
       assert.equal(note.status, 400);
-      assert.equal(note.data.error, '잘한 점은 글자여야 합니다');
+      assert.equal(note.data.error, 'Good points must be text');
     },
     { today },
   );

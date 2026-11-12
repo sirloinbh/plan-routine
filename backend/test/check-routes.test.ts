@@ -25,7 +25,7 @@ function fakePool(routine: { cadence: string } | null = { cadence: 'daily' }) {
 
 const wake = {
   id: '1',
-  name: '6시 기상',
+  name: 'Wake at 6',
   cadence: 'daily',
   category: 'wake',
   sortOrder: 0,
@@ -111,7 +111,7 @@ test('a period already over has no days left and does not end soon', async () =>
   );
 });
 
-test('dates outside the editable range are Korean 400s before any query', async () => {
+test('dates outside the editable range are English 400s before any query', async () => {
   const { pool, queries } = fakePool();
   await withApi(
     pool,
@@ -123,7 +123,7 @@ test('dates outside the editable range are Korean 400s before any query', async 
       ]) {
         const future = await call(request.path, { method: request.method });
         assert.equal(future.status, 400);
-        assert.equal(future.data.error, '미래 날짜는 체크할 수 없습니다');
+        assert.equal(future.data.error, 'Future dates cannot be checked');
       }
       for (const request of [
         { path: '/api/routines/1/checks/2026-10-14', method: 'PUT' },
@@ -132,7 +132,7 @@ test('dates outside the editable range are Korean 400s before any query', async 
       ]) {
         const old = await call(request.path, { method: request.method });
         assert.equal(old.status, 400);
-        assert.equal(old.data.error, '최근 7일까지만 체크할 수 있습니다');
+        assert.equal(old.data.error, 'You can only check the last 7 days');
       }
     },
     { today },
@@ -195,14 +195,14 @@ test('unchecking deletes the check of that period', async () => {
   assert.deepEqual(issued(queries, 'DELETE FROM routine_checks')[0].params, ['1', '2026-10-22']);
 });
 
-test('a missing or archived routine is a Korean 404 and writes no check', async () => {
+test('a missing or archived routine is an English 404 and writes no check', async () => {
   const { pool, queries } = fakePool(null);
   await withApi(
     pool,
     async (call) => {
       const { status, data } = await call('/api/routines/9/checks/2026-10-22', { method: 'PUT' });
       assert.equal(status, 404);
-      assert.equal(data.error, '루틴을 찾을 수 없습니다');
+      assert.equal(data.error, 'Routine not found');
     },
     { today },
   );
@@ -211,18 +211,21 @@ test('a missing or archived routine is a Korean 404 and writes no check', async 
   assert.equal(issued(queries, 'COMMIT').length, 0);
 });
 
-test('bad ids, dates and cadences are Korean 400s', async () => {
+test('bad ids, dates and cadences are English 400s', async () => {
   const { pool, queries } = fakePool();
   await withApi(
     pool,
     async (call) => {
       const badId = await call('/api/routines/abc/checks/2026-10-22', { method: 'PUT' });
-      assert.equal(badId.data.error, '루틴 번호가 올바르지 않습니다');
+      assert.equal(badId.data.error, 'Invalid routine ID');
       const badDate = await call('/api/routines/1/checks/2026-02-30', { method: 'PUT' });
-      assert.equal(badDate.data.error, '날짜는 YYYY-MM-DD 형식의 실제 날짜여야 합니다');
+      assert.equal(badDate.data.error, 'Date must be a real date in YYYY-MM-DD format');
       const badCadence = await call('/api/checklist?cadence=monthly');
       assert.equal(badCadence.status, 400);
-      assert.equal(badCadence.data.error, '루틴 주기는 매일, 매주, 4주, 12주 중 하나여야 합니다');
+      assert.equal(
+        badCadence.data.error,
+        'Routine cadence must be daily, weekly, four-week, or twelve-week',
+      );
     },
     { today },
   );
