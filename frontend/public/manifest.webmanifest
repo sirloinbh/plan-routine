@@ -1,8 +1,8 @@
 {
-  "name": "계획·실천·루틴·피드백",
-  "short_name": "계획·실천·루틴·피드백",
-  "description": "계획을 세우고 실천과 루틴을 기록하며 피드백으로 개선하는 개인 서비스. 사용자는 본인 한 명이며 로그인은 없다. 외부 공개 전에는 사설 접속 또는 인증을 먼저 설계한다.",
-  "lang": "ko",
+  "name": "Plan · Practice · Routine · Feedback",
+  "short_name": "Plan Routine",
+  "description": "A personal service for making plans, recording practice and routines, and improving them through feedback. There is one user (me) and no login. Before any public exposure, design private access or authentication first.",
+  "lang": "en",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
