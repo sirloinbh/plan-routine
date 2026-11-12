@@ -1,3 +1,3 @@
-# 계획·실천·루틴·피드백 backend
+# Plan, Practice, Routine, Feedback backend
 
-우산 저장소 `sirloinbh/plan-routine`의 `backend/`에서 subtree로 동기화한 배포용 저장소입니다. 변경은 우산 저장소에서 이슈·PR로 진행합니다.
+A deployment repository synced by subtree from `backend/` in the umbrella repository `sirloinbh/plan-routine`. Changes go through issues and PRs in the umbrella repository.

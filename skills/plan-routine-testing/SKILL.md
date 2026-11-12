@@ -3,31 +3,31 @@ name: plan-routine-testing
 description: Write or update behavior-focused tests with plan-routine implementations and fixes, run them before commits and PR creation or updates, and record actual results. Use with plan-routine-implementation; for documentation-only changes validate the changed artifacts instead of adding unrelated app tests.
 ---
 
-# 계획·실천·루틴·피드백 테스트 작성과 실행
+# Plan, Practice, Routine, Feedback: writing and running tests
 
-프로젝트의 AGENTS.md와 plan-routine-implementation 절차를 함께 따른다. 이 스킬은 테스트 작성·실행 기준이며 이슈·브랜치·docs·PR 절차와 PR 후 자동 코드 리뷰(최대 2회) → CI 통과 후 병합 정책을 유지한다.
+Follow the project's AGENTS.md and the plan-routine-implementation procedure together. This skill is the standard for writing and running tests, and it keeps the issue, branch, docs, and PR procedure and the policy of automated code review after the PR (up to 2 rounds) → merge after CI passes.
 
-## 구현·수정과 함께 작성
+## Write with the implementation or fix
 
-- 기능을 구현하거나 동작을 수정할 때 해당 요구사항을 검증하는 테스트 코드를 함께 추가·수정하고, 구현과 테스트를 같은 작업 커밋에 포함한다. 기존 테스트 실행만으로 새 기능의 검증을 대신하지 않는다.
-- 버그 수정에는 해당 버그의 재발을 잡는 회귀 테스트를 추가한다. 가능하면 수정 전 실패·수정 후 성공을 확인하고, 재현하지 못하면 그 한계를 기록한다.
-- 리팩터링은 기존 동작 보존을 검증한다. 관련 테스트가 충분하면 그대로 유지할 수 있지만, 부족한 시나리오는 보강한다.
-- 내부 구현을 그대로 반복하는 테스트보다 사용자에게 보이는 결과와 도메인 규칙을 검증한다. 정상 경로와 변경에 관련된 입력 오류·경계·실패 경로를 선택한다.
-- 업무 로직은 단위, API·DB 저장·트랜잭션은 통합, 화면 입력·저장 흐름은 컴포넌트 또는 브라우저 테스트를 선택한다. 모든 변경에 모든 종류를 추가하지 않는다.
-- 현재 설치된 테스트 도구와 명령을 `package.json`에서 확인한다. 프런트는 Vitest·Testing Library(대상 옆 `*.test.tsx`), 백엔드는 `node:test`(`backend/test/*.test.ts`)다. Playwright처럼 설치되지 않은 도구를 쓴 것처럼 보고하지 않는다.
-- 테스트 데이터는 운영·사용자 데이터와 분리한다. 시간·날짜·무작위 값에 의존하는 검사는 실행 환경이 바뀌어도 같은 의미를 검증하도록 작성한다.
+- When you implement a feature or fix behavior, add or update test code that verifies that requirement, and include the implementation and the tests in the same work commit. Do not let running existing tests stand in for verifying the new feature.
+- For a bug fix, add a regression test that catches the bug coming back. If possible, confirm it fails before the fix and passes after, and if you cannot reproduce it, record that limit.
+- For a refactor, verify that the existing behavior is kept. If the related tests are enough you can keep them as they are, but strengthen the scenarios that fall short.
+- Rather than tests that repeat the internal implementation, verify results the user can see and domain rules. Choose the normal path and the input errors, boundaries, and failure paths that relate to the change.
+- Choose unit tests for business logic, integration tests for API, DB saves, and transactions, and component or browser tests for screen input and save flows. Do not add every kind to every change.
+- Check the installed test tools and commands in `package.json`. The frontend uses Vitest and Testing Library (`*.test.tsx` next to the target), and the backend uses `node:test` (`backend/test/*.test.ts`). Do not report as if you used a tool that is not installed, such as Playwright.
+- Keep test data separate from production and user data. Write checks that depend on time, dates, or random values so they verify the same meaning when the run environment changes.
 
-## 커밋 전
+## Before a commit
 
-- 최종 커밋 대상의 변경과 테스트를 확인하고 관련 테스트를 실제로 실행한다. 구현·테스트·docs 기록을 같은 커밋에 포함한다.
-- 테스트 코드 경로, 검증한 동작, 실행 명령과 결과를 docs/changes의 해당 이슈 기록에 남긴다.
-- 실패한 테스트를 skip·삭제하거나 assertion을 약화해 통과시키지 않는다. 실패를 해결한 뒤 커밋한다.
-- 필요한 실행 환경을 준비할 수 없다면 실행하지 않았음을 기록한다. 검증되지 않은 구현을 완료로 보고하지 않으며, 남은 검증이 있는 PR은 draft로 전달한다.
+- Check the changes and tests that will be in the final commit, and actually run the related tests. Include the implementation, tests, and docs record in the same commit.
+- Leave the test code path, the verified behavior, and the run command and result in the matching issue record under docs/changes.
+- Do not make a failing test pass by skipping or deleting it or by weakening an assertion. Resolve the failure and then commit.
+- If you cannot prepare the needed run environment, record that you did not run it. Do not report an unverified implementation as complete, and hand over a PR with remaining verification as a draft.
 
-## PR 생성·갱신 전
+## Before creating or updating a PR
 
-- 최종 diff에 대해 관련 테스트와 프로젝트 필수 검사를 실행하고 성공을 확인한다. 커밋 후 변경이 없고 동일한 대상의 결과가 유효하면 불필요하게 같은 검사를 반복할 필요는 없다.
-- PR에 추가·수정한 테스트, 실행 명령, pass/fail/skip, 미실행 이유를 기록한다. DB 환경변수 미설정으로 건너뛴 통합 테스트는 성공으로 계산하지 않는다.
-- PR 이후 코드·테스트를 고치면 영향받는 검사를 다시 실행하고 docs·PR 결과를 갱신한다. CI 실패도 해결한다.
-- 문서·스킬·포맷만 바뀌고 앱 동작 변경이 없으면 그 산출물의 검증기·포맷·링크 검사로 검증하고 앱 테스트를 추가하지 않은 이유를 적는다. 실행 코드·검사 스크립트의 동작 변경은 관련 테스트 또는 실행 검증을 포함한다.
-- 자동 코드 리뷰 보완 커밋에도 관련 테스트를 함께 담고, 마지막 커밋 기준으로 관련 테스트를 다시 실행한다. 최종 head의 필수 CI 검사가 모두 통과하기 전에는 병합하지 않는다. 리뷰·병합 절차는 plan-routine-implementation을 따른다.
+- Run the related tests and the project's required checks on the final diff and confirm they pass. If nothing changed after the commit and the result for the same target is still valid, you do not need to repeat the same check.
+- Record in the PR the tests you added or changed, the run commands, pass/fail/skip, and the reason for anything not run. Do not count an integration test skipped because the DB environment variable was not set as a success.
+- If you fix code or tests after the PR, run the affected checks again and update the docs and PR results. Resolve CI failures too.
+- If only documents, skills, or formatting changed and app behavior did not change, verify with the validator, formatter, and link check for those artifacts and write why you did not add app tests. A behavior change in executable code or a check script includes the related tests or a run verification.
+- Include the related tests in the follow-up commits of the automated code review too, and run the related tests again on the last commit. Do not merge before all required CI checks on the final head pass. For the review and merge procedure, follow plan-routine-implementation.
