@@ -1,24 +1,24 @@
-# 계획·실천·루틴·피드백 PostgreSQL
+# Plan, Practice, Routine, Feedback PostgreSQL
 
-PostgreSQL 17. 마이그레이션 원본은 `migrations/NNN_<설명>.sql` 한 곳뿐이다. 빈 Docker 볼륨에서는 최초 실행 시 모든 파일이 이름순으로 자동 적용되고, CI도 모든 파일을 순서대로 적용한다.
+PostgreSQL 17. The only source of migrations is `migrations/NNN_<description>.sql`. On an empty Docker volume, all files are applied automatically in name order on the first start, and CI also applies all files in order.
 
-빈 볼륨을 처음 띄운 직후에는 `npm run db:migrate`를 한 번 돌려 기록을 남긴다. 그래야 나중에 첫 실행이 모든 파일을 다시 적용하지 않는다.
+Right after you first start an empty volume, run `npm run db:migrate` once to leave a record. That way the first run later does not apply every file again.
 
-기존 DB에는 실행기로 적용한다. 규칙의 원본은 `sirloinbh/project-standards`의 `docs/conventions/database.md`다.
-
-```powershell
-npm run db:migrate             # 대기 중인 파일 적용
-npm run db:migrate -- --status # 적용됨·대기 목록만 확인
-```
-
-실행기는 `schema_migrations` 표에 적용한 파일과 체크섬을 기록한다. 이미 적용한 파일은 다시 실행하지 않으며, 내용이 바뀌었으면 멈춘다. 그래서 **적용한 파일은 고치지 않고** 새 번호의 파일로 바꾼다. 기록 표가 없는 DB에서는 처음 한 번 001부터 모두 다시 적용한다. `deploy/remote-deploy.sh`는 배포 때 `dist/migrate.js`로 같은 실행기를 돌린다. 파일 안에 psql 메타 명령, `BEGIN`·`COMMIT`, `CREATE INDEX CONCURRENTLY`를 쓰지 않는다.
-
-실행기를 쓸 수 없을 때만 컨테이너에 마운트된 파일로 직접 적용한다. 이 경우 기록이 남지 않는다.
+Apply to an existing DB with the runner. The source of the rules is `docs/conventions/database.md` in `sirloinbh/project-standards`.
 
 ```powershell
-docker compose exec -T db psql -U plan -d plan -v ON_ERROR_STOP=1 -f /docker-entrypoint-initdb.d/NNN_<설명>.sql
+npm run db:migrate             # apply pending files
+npm run db:migrate -- --status # only show the applied and pending lists
 ```
 
-`Get-Content … | docker compose exec … psql`처럼 PowerShell 파이프로 넘기지 않는다. Windows PowerShell 5.1은 외부 프로그램으로 ASCII를 보내 한글이 `?`로 깨진다.
+The runner records the applied files and their checksums in the `schema_migrations` table. It does not run an applied file again, and it stops if the content has changed. So **do not edit an applied file**; change it with a new numbered file. On a DB without the record table, the first run applies everything again from 001. `deploy/remote-deploy.sh` runs the same runner with `dist/migrate.js` at deploy time. Do not use psql meta commands, `BEGIN`/`COMMIT`, or `CREATE INDEX CONCURRENTLY` inside a file.
 
-규칙: 모든 마이그레이션은 재실행해도 안전하게 쓴다. 병렬 브랜치는 착수 시 번호를 예약한다. 기존 데이터의 의미를 보존하고, 확인하지 못한 값은 NULL로 둔다. SQL의 한글 리터럴은 가능하면 `U&'\\XXXX'` 이스케이프를 쓴다.
+Only when the runner cannot be used, apply directly with the file mounted in the container. In this case no record is left.
+
+```powershell
+docker compose exec -T db psql -U plan -d plan -v ON_ERROR_STOP=1 -f /docker-entrypoint-initdb.d/NNN_<description>.sql
+```
+
+Do not pass the file through a PowerShell pipe such as `Get-Content … | docker compose exec … psql`. Windows PowerShell 5.1 sends ASCII to external programs, so Korean text turns into `?`.
+
+Rules: write every migration so it is safe to run again. A parallel branch reserves its number when it starts. Keep the meaning of existing data, and leave values you could not confirm as NULL. For Korean literals in SQL, use the `U&'\\XXXX'` escape when possible.

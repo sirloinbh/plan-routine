@@ -1,44 +1,44 @@
-# 다음 작업
+# Next steps
 
-최종 갱신일: **2026-11-03 (Asia/Seoul)**.
+Last updated: **2026-11-03 (Asia/Seoul)**.
 
-기본 기능의 처음 카드 목록은 로드맵 [#14](https://github.com/sirloinbh/plan-routine/issues/14)에 있다. 지금 상태는 이 문서와 이슈 목록을 기준으로 본다. 끝난 기능 카드: #3, #4, #5, #6, #7, #8, #9, #10, #11, #12, #19, #34, #41, #42, #44, #45, #47, #52, #60, #64, #66, #70, #73, #75, #76, #87.
+The first list of cards for the basic features is in roadmap [#14](https://github.com/sirloinbh/plan-routine/issues/14). Read the current state from this document and the issue list. Finished feature cards: #3, #4, #5, #6, #7, #8, #9, #10, #11, #12, #19, #34, #41, #42, #44, #45, #47, #52, #60, #64, #66, #70, #73, #75, #76, #87.
 
-## 이어서 할 일
+## What to do next
 
-1. **#79 확인.** 사용자가 나중에 하기로 했다(2026-11-03). 지금은 Docker 엔진이 시작되지 않아 막혀 있다. 2026-11-02에 Docker Desktop을 켜 보니 `no virtualization available`이 나왔고, `VirtualizationFirmwareEnabled`와 `HypervisorPresent`가 모두 False였다. WSL에 설치된 배포판도 없다.
-   - 사용자: PC를 다시 시작해 BIOS/UEFI에서 CPU 가상화(Intel VT-x 또는 AMD SVM)를 켜고, 켰다고 알린다. 그 뒤에도 Docker가 시작되지 않으면 WSL 상태를 다시 본다.
-   - 에이전트: `docker compose up -d --build`가 전처럼 동작하는지 본다. 기존 볼륨을 건드리지 않도록 별도 프로젝트 이름(`-p`)과 일회용 `POSTGRES_PASSWORD`로 빈 볼륨 첫 실행을 확인하고, 그 프로젝트만 지운다. 첫 실행은 이미지 이름이 바뀌어 다시 빌드하므로 셸에 `NODE_AUTH_TOKEN`이 필요하다. 첫 초기화 소요 시간도 본다(헬스 체크 여유 약 75초). 문제가 없으면 [#79](https://github.com/sirloinbh/plan-routine/issues/79)를 닫는다.
-2. **기존 DB 적용.** 2026-11-03에 찾아본 결과 이 PC에는 이 프로젝트의 DB가 없어 실행하지 않았다. 로컬 PostgreSQL 17(포트 5432)에는 `cert`, `cert_test`, `postgres`, `study_test`만 있고, Docker 데이터 디스크도 없다. 다른 곳에 쓰던 DB가 있으면 `npm run db:migrate`를 실행한다. 첫 실행은 모든 파일을 다시 적용하므로, 이름을 바꾼 '목표 재설정'이 있으면 원래 이름의 항목이 다시 생길 수 있다.
-3. **가능하면 실제 환경 확인.** 실제 DB에 연결한 화면, 실제 휴대폰과 화면 낭독기, 다크 모드의 연결 선택칸, 탭 닫기 경고 창, 목표·회고·연결·이름 저장 버튼의 Spinner를 아직 보지 못했다.
+1. **Check #79.** The user decided to do it later (2026-11-03). It is blocked now because the Docker engine does not start. When Docker Desktop was started on 2026-11-02, it showed `no virtualization available`, and both `VirtualizationFirmwareEnabled` and `HypervisorPresent` were False. No distribution is installed in WSL either.
+   - User: restart the PC, turn on CPU virtualization in the BIOS/UEFI (Intel VT-x or AMD SVM), and tell the agent it is on. If Docker still does not start after that, look at the WSL state again.
+   - Agent: check that `docker compose up -d --build` works as before. To avoid touching the existing volume, check the first run on an empty volume with a separate project name (`-p`) and a throwaway `POSTGRES_PASSWORD`, then remove only that project. The first run rebuilds because the image name changed, so the shell needs `NODE_AUTH_TOKEN`. Also look at how long the first initialization takes (health check allowance is about 75 seconds). If there is no problem, close [#79](https://github.com/sirloinbh/plan-routine/issues/79).
+2. **Apply to an existing DB.** A search on 2026-11-03 found no DB for this project on this PC, so nothing was run. The local PostgreSQL 17 (port 5432) has only `cert`, `cert_test`, `postgres`, and `study_test`, and there is no Docker data disk either. If a DB used elsewhere exists, run `npm run db:migrate`. The first run applies every file again, so if a renamed '목표 재설정' (reset goals) routine exists, an entry with the original name may appear again.
+3. **Check the real environment when possible.** Not yet seen: the screens connected to a real DB, a real phone and screen reader, the link select box in dark mode, the tab-close warning dialog, and the Spinner on the goal, retrospective, link, and name save buttons.
 
-정리된 일(2026-11-03): 임시 브랜치 `tmp/42-no-lock`을 지웠다. 추천안으로 정한 결정(#52, #12, #64, #45, #34, #66)은 사용자가 확인했다. #13 통합 허브 설계는 다른 프로젝트에서 다루기로 해 "계획 안 함"으로 닫았다. `minimatch` 경고는 [#99](https://github.com/sirloinbh/plan-routine/issues/99)에서 고쳤다.
+Cleanup done (2026-11-03): the temporary branch `tmp/42-no-lock` was deleted. The user confirmed the decisions made as recommendations (#52, #12, #64, #45, #34, #66). The #13 integration hub design will be handled in another project, so it was closed as "not planned". The `minimatch` warning was fixed in [#99](https://github.com/sirloinbh/plan-routine/issues/99).
 
-열린 카드는 #79와 [#101](https://github.com/sirloinbh/plan-routine/issues/101)(ESLint가 `minimatch` 11을 받아들이면 `overrides` 지우기, 후순위)이다. 중앙 저장소에는 [project-standards#392](https://github.com/sirloinbh/project-standards/issues/392)가 있다.
+The open cards are #79 and [#101](https://github.com/sirloinbh/plan-routine/issues/101) (remove `overrides` once ESLint accepts `minimatch` 11, low priority). The central repository has [project-standards#392](https://github.com/sirloinbh/project-standards/issues/392).
 
-## 열려 있는 PR
+## Open PRs
 
-없음.
+None.
 
-## 알아 둘 점
+## Things to know
 
-- **로컬 테스트 전에 `TEST_DATABASE_URL`을 지운다.** 셸의 이 변수가 다른 프로젝트 DB(`study_test`)를 가리킨다. 2026-10-31에 테스트가 그 DB에 빈 테이블 2개를 만들어, 사용자 승인으로 지웠다. 이 프로젝트의 테스트 DB는 `plan_test`다.
-- **로컬 프론트엔드 테스트가 시간 초과로 실패하면 `--testTimeout=60000`을 붙인다.** 2026-11-01 후반에는 `npm run check`가 기본 제한으로 통과했지만, PC가 바쁘면 시간 초과가 날 수 있다.
-- **"오늘 체크"와 "기록"의 지난 날짜 진행률은 다를 수 있다.** 오늘 체크는 나중에 만든 루틴도 지난 날짜에 체크할 수 있게 지금 있는 루틴을 모두 보여 주고, 기록은 그날 있던 루틴을 센다(#10).
-- **실제 DB에 연결한 화면 확인을 아직 못 했다.** 로컬에 이 프로젝트의 DB가 없어 #4 이후 브라우저 확인은 임시 API로 했다. API·DB 동작은 CI의 DB 통합 테스트로 확인한다.
-- **기존 DB에는 `npm run db:migrate`로 적용한다.** 기록 표가 없는 DB의 첫 실행은 001부터 모두 다시 적용하므로, 이름을 바꾼 '목표 재설정'이 다시 생길 수 있다. 절차는 [DB 문서](../../database/README.md)에 있다.
-- **이전의 간헐 실패 원인을 찾았다.** 백엔드 테스트의 `fetch failed: bad port`는 임의 포트가 `fetch`가 막는 포트일 때 생겼고 #47에서 고쳤다.
-- **CodeQL `js/missing-rate-limiting` 경고는 에이전트가 닫는다.** 사용자가 2026-10-31에 승인했다. 사유는 `frontend/nginx.conf`의 `/api/` 요청 제한이고, 다른 규칙의 경고는 사용자에게 묻는다.
-- **병합 명령은 앞선 작업의 결과를 본 뒤 단독으로 실행한다.** 병렬로 실행해 수정 전 커밋이 병합된 적이 있다(#85).
+- **Clear `TEST_DATABASE_URL` before local tests.** This variable in the shell points to another project's DB (`study_test`). On 2026-10-31 a test created 2 empty tables in that DB, and they were deleted with the user's approval. This project's test DB is `plan_test`.
+- **If a local frontend test fails with a timeout, add `--testTimeout=60000`.** In late 2026-11-01, `npm run check` passed with the default limit, but a timeout can happen when the PC is busy.
+- **The progress for past dates can differ between "Today's check" and "Records".** Today's check shows every routine that exists now, so a routine created later can still be checked on a past date, while Records counts the routines that existed on that day (#10).
+- **The screens connected to a real DB have not been checked yet.** There is no DB for this project locally, so the browser checks after #4 used a temporary API. API and DB behavior is checked by the DB integration tests in CI.
+- **Apply to an existing DB with `npm run db:migrate`.** The first run on a DB without the record table applies everything again from 001, so a renamed '목표 재설정' (reset goals) routine may appear again. The steps are in the [DB document](../../database/README.md).
+- **The cause of the earlier intermittent failure was found.** The `fetch failed: bad port` error in backend tests happened when a random port was a port that `fetch` blocks. It was fixed in #47.
+- **The agent closes CodeQL `js/missing-rate-limiting` alerts.** The user approved this on 2026-10-31. The reason is the `/api/` request limit in `frontend/nginx.conf`. For alerts of other rules, ask the user.
+- **Run the merge command alone, after looking at the result of the earlier work.** Running them in parallel once merged a commit from before the fix (#85).
 
-## 라벨
+## Labels
 
-- 우선순위: `priority/P0`~`priority/P4`. 기준은 `std-backlog` 2장에 있다.
-- 종류: `type/feature`, `type/docs`, `type/security`, `type/chore`, `type/research`
-- 기능: `기능: 루틴`, `기능: 체크리스트`, `기능: 일기`, `기능: 기록·열람`, `기능: 프로젝트 연계`
-- 작업 성격: `작업: DB`, `작업: API`, `작업: UI`, `작업: 설계`
-- 기타: `추적`(여러 카드를 묶는 이슈), `accessibility`
+- Priority: `priority/P0` to `priority/P4`. The criteria are in chapter 2 of `std-backlog`.
+- Type: `type/feature`, `type/docs`, `type/security`, `type/chore`, `type/research`
+- Feature: `기능: 루틴` (feature: routine), `기능: 체크리스트` (feature: checklist), `기능: 일기` (feature: diary), `기능: 기록·열람` (feature: records and viewing), `기능: 프로젝트 연계` (feature: project link)
+- Kind of work: `작업: DB` (work: DB), `작업: API` (work: API), `작업: UI` (work: UI), `작업: 설계` (work: design)
+- Other: `추적` (tracking; an issue that groups several cards), `accessibility`
 
-## 실행 경계
+## Execution boundary
 
-배포, 하위 저장소 동기화, AWS 리소스 생성은 별도 요청 시에만 한다. 공유 인프라의 ECR 저장소는 첫 배포 때 `shared-aws-infrastructure`의 목록에 추가한다.
+Deployment, syncing the sub-repositories, and creating AWS resources are done only on separate request. The ECR repository for the shared infrastructure is added to the list in `shared-aws-infrastructure` at the first deployment.
