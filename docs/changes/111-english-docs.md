@@ -10,7 +10,7 @@ Part of sirloinbh/project-standards#487. Every markdown file outside `docs/chang
 
 ## Changes
 
-- Translated `README.md`, `backend/README.md`, `frontend/README.md`, `database/README.md`, `docs/next-steps/README.md`, and `docs/project-setup.md`.
+- Translated `README.md`, `backend/README.md`, `frontend/README.md`, `database/README.md`, `docs/next-steps/README.md`, `docs/project-setup.md`, and `AGENTS.project.md` (added 2026-11-14; it is project-owned, not managed by the central repository).
 - Translated the project skills `skills/plan-routine-{foundation,implementation,testing}/SKILL.md` and copied them to `.claude/skills/` (the copy is kept equal by `npm run skills:check`).
 - Commands, paths, identifiers, code blocks, issue numbers, and dates are unchanged.
 - Skipped: files in `.standards/manifest.json` and files with the "Managed file" header (`AGENTS.md`, `CLAUDE.md`, `skills/std-*`, `.claude/skills/std-*`, and so on). The central repository translates them.
