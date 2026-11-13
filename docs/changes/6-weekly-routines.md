@@ -1,59 +1,59 @@
-# #6 주간 루틴 정하기와 체크
+# #6 Setting and checking weekly routines
 
-- 이슈: [#6](https://github.com/sirloinbh/plan-routine/issues/6)
-- 브랜치: `feat/6-weekly-routines`
-- 일자: 2026-10-31 (Asia/Seoul)
+- Issue: [#6](https://github.com/sirloinbh/plan-routine/issues/6)
+- Branch: `feat/6-weekly-routines`
+- Date: 2026-10-31 (Asia/Seoul)
 
-## 목적
+## Purpose
 
-매주 한 번 하면 되는 일을 정하고 이번 주 완료 여부를 체크한다. 주는 일요일부터 토요일까지다(#3에서 확정).
+Set tasks that need to be done once a week, and check whether they are done this week. The week runs from Sunday to Saturday (confirmed in #3).
 
-## 구현하면서 정한 규칙
+## Rules decided during implementation
 
-- 이슈의 "기본 예시"(독후감 쓰기, 청소, 가계부 쓰기)는 미리 넣지 않고 입력칸 안내 문구로 보여 준다. 사용자가 원하지 않는 항목이 저절로 생기지 않게 하기 위해서다.
-- 화면은 이번 주만 다룬다. 지난주 체크 수정은 API로는 #5의 날짜 범위 안에서 가능하지만 화면에는 두지 않았다.
+- The "default examples" of the issue (writing a book report, cleaning, keeping a household ledger) are not put in beforehand, and are shown as placeholder text in the input. This is so that items the user does not want do not appear by themselves.
+- The screen handles only this week. Editing last week's checks is possible through the API within the date range of #5, but it is not placed on the screen.
 
-## 변경
+## Changes
 
-- 화면(`frontend/src/weekly-routines.tsx`, 메뉴 "주간 루틴", `/weekly`): 이번 주 기간 표시, 체크리스트와 진행률, 항목 추가·순서 변경·이름 수정·보관.
-- 공통화(4주·12주 카드에서 재사용)
-  - `frontend/src/use-checklist.ts`: `daily-checklist.tsx`의 불러오기·저장 로직을 주기별로 쓸 수 있게 옮겼다.
-  - `frontend/src/use-routine-list.ts`, `routine-list.tsx`: `routines.tsx`의 항목 관리 로직과 화면 조각을 옮겼다. 하루 루틴 화면의 접근성 이름은 그대로다. 동작은 두 가지가 함께 달라졌다. 화면이 다시 보이면 목록을 다시 불러오고, 다음 불러오기가 성공하면 불러오기 오류를 지운다.
-  - `frontend/src/checklist.tsx`: 첫 로딩 중·실패 표시 `ChecklistPending`을 추가했다.
-- 항목 관리 줄의 이름 칸에 최소 폭을 줬다. 모바일에서 긴 이름이 버튼에 밀려 아주 좁게 줄바꿈되던 문제다. 공간이 모자라면 버튼이 아랫줄로 내려간다. 하루 루틴 화면에도 함께 적용된다.
-- API·DB 변경은 없다. #3~#5에서 만든 주간 기간 계산과 체크 API를 쓴다.
+- Screen (`frontend/src/weekly-routines.tsx`, menu "Weekly routines", `/weekly`): the display of this week's period, the checklist and progress, and adding, reordering, renaming, and archiving items.
+- Made shared (reused by the 4-week and 12-week cards)
+  - `frontend/src/use-checklist.ts`: moved the fetch and save logic of `daily-checklist.tsx` so it can be used per cadence.
+  - `frontend/src/use-routine-list.ts`, `routine-list.tsx`: moved the item management logic and the screen pieces of `routines.tsx`. The accessible names of the daily routines screen are unchanged. Two behaviors changed together: the list is fetched again when the screen is visible again, and the fetch error is cleared when the next fetch succeeds.
+  - `frontend/src/checklist.tsx`: added `ChecklistPending`, the display for the first loading and failure.
+- Gave the name cell of the item management row a minimum width. This fixes the problem on mobile where a long name was squeezed by the buttons and wrapped very narrowly. When there is not enough room, the buttons drop to the next line. It also applies to the daily routines screen.
+- No API or DB change. It uses the weekly period calculation and the check API built in #3 to #5.
 
-## 테스트
+## Tests
 
-- `frontend/src/weekly-routines.test.tsx`(화면): 일요일~토요일 기간과 진행률, 체크 저장과 새로 불러온 뒤 유지, 같은 주 유지와 새 주 초기화·지난주 기록 보존, 추가 시 카테고리 없음과 두 목록 반영, 보관 확인 후 체크리스트에서 제외, 다른 곳에서 보관된 루틴의 404, 체크리스트 로딩 실패 후 재시도.
-- `backend/test/db.integration.test.ts`(실제 DB): 주 경계(목요일 체크가 토요일까지 유지, 같은 주 재체크에도 1행, 일요일에 새 주 시작, 지난주 기록 보존, 해제).
-- `frontend/src/app.test.tsx`: 메뉴에서 주간 루틴 열기.
-- 공통화의 회귀는 기존 `routines.test.tsx`, `daily-checklist.test.tsx`를 고치지 않고 그대로 통과시켜 확인한다.
+- `frontend/src/weekly-routines.test.tsx` (screen): the Sunday to Saturday period and progress, saving a check and keeping it after a fresh fetch, keeping within the same week and resetting for a new week while keeping last week's records, no category when adding and reflecting it in both lists, excluded from the checklist after the archive confirmation, a 404 for a routine archived elsewhere, and retrying after the checklist fails to load.
+- `backend/test/db.integration.test.ts` (real DB): the week boundary (a Thursday check lasts until Saturday, one row even when rechecked in the same week, a new week starts on Sunday, last week's records are kept, and unchecking).
+- `frontend/src/app.test.tsx`: opening weekly routines from the menu.
+- Regressions from making things shared are confirmed by passing the existing `routines.test.tsx` and `daily-checklist.test.tsx` without changing them.
 
-## 검증
+## Verification
 
-- 로컬(`TEST_DATABASE_URL` 제거): 포맷·lint·타입 검사·빌드 통과, 스킬 검사 4 pass. 백엔드 테스트 47개 중 38 pass / 0 fail / 9 skip이며, skip 9건은 DB 통합 테스트다. 프론트엔드 테스트는 `--testTimeout=60000`으로 100개 모두 통과했다.
-- 간헐 실패 1건: 처음 실행 때 건드리지 않은 `diary-routes.test.ts`의 "saving trims the text" 1개가 실패했다. 출력을 걸러 실패 내용을 남기지 못했다. 이후 전체 실행 4회와 부하를 준 반복 실행 36회에서는 재현되지 않았다. 원인은 확인하지 못했다.
-- 브라우저: 메모리 기반 임시 API에 Vite 개발 서버를 연결하고 헤드리스 Chrome으로 확인했다. 콘솔 오류는 없었다. 실제 DB와 연결한 화면은 확인하지 못했다.
-  - 모바일 390×844: 가로 스크롤 없음(scrollWidth 390), 긴 이름 줄바꿈.
-  - PC 1440×900: 가로 스크롤 없음.
-  - 두 크기 공통: 기간 표시, 체크와 진행률, 체크 후 포커스 유지, 추가 후 두 목록 반영, 보관 후 제외, 새로고침 후 유지. 공통화 회귀 확인으로 "하루 루틴", "오늘 체크" 화면이 뜨는 것도 확인했다. 위로 이동은 모바일에서 확인했고, PC에서는 임시 API의 순서값이 겹쳐 확인되지 않았다. 주간 항목의 이동은 DB 테스트로 확인한다.
+- Local (`TEST_DATABASE_URL` removed): format, lint, type checks, and build passed, the skill check 4 pass. Backend tests were 38 pass / 0 fail / 9 skip out of 47, and the 9 skips are DB integration tests. Frontend tests all 100 passed with `--testTimeout=60000`.
+- 1 intermittent failure: on the first run, 1 test, "saving trims the text" in `diary-routes.test.ts`, which I did not touch, failed. I did not keep the failure content because I filtered the output. It did not reproduce in the 4 full runs and 36 repeated runs under load afterwards. I could not confirm the cause.
+- Browser: connected the Vite dev server to an in-memory temporary API and checked with headless Chrome. There were no console errors. The screen connected to a real DB was not checked.
+  - Mobile 390×844: no horizontal scroll (scrollWidth 390), long names wrap.
+  - PC 1440×900: no horizontal scroll.
+  - Both sizes: the period display, checks and progress, focus kept after a check, both lists reflecting an add, exclusion after archiving, and kept after a refresh. As a regression check of the sharing, I also confirmed that the "Daily routines" and "Today's check" screens show up. Moving up was checked on mobile, and on PC it could not be checked because the order values of the temporary API overlapped. Moving weekly items is confirmed by the DB test.
 
-## 한계·후속
+## Limits and follow-up
 
-- 지난주 체크를 화면에서 고칠 수 없다.
-- 화면을 계속 띄운 채 주가 바뀌면 다시 불러오기 전까지 체크가 지난주로 저장된다: [#44](https://github.com/sirloinbh/plan-routine/issues/44).
-- 수정·보관 후 키보드 포커스 복귀: [#19](https://github.com/sirloinbh/plan-routine/issues/19). 같은 부품을 쓴다.
+- Last week's checks cannot be fixed on the screen.
+- If the week changes while the screen is kept open, checks are saved to last week until it is fetched again: [#44](https://github.com/sirloinbh/plan-routine/issues/44).
+- Returning keyboard focus after editing or archiving: [#19](https://github.com/sirloinbh/plan-routine/issues/19). It uses the same part.
 
-## 자동 코드 리뷰
+## Automated code review
 
-- 1차: 병합을 막는 결함은 없었다. 리팩터링은 동작을 보존했다. 보완 4건을 반영하고 1건은 #44로 넘겼다.
-  - (낮음) 목록 첫 로딩 실패 때 "아직 루틴이 없습니다"가 남고 복구 수단이 없었다. 재시도 버튼을 보여 준다. 테스트를 추가했다.
-  - (낮음) 두 목록이 어긋날 수 있었다. 화면이 다시 보일 때와 체크 저장 실패 때 관리 목록도 다시 불러온다. 테스트를 추가했다.
-  - (낮음) 다시 불러오기가 실패하면 재시도 수단이 없었다. 재시도 버튼을 보여 준다. 테스트를 추가했다.
-  - (낮음) 주간 항목의 이동·이름 수정에 테스트가 없었다. DB·화면 테스트를 추가했고 기록의 부정확한 문장을 고쳤다.
-  - (중간) 화면을 켜 둔 채 주가 바뀌면 체크가 지난주로 저장된다. [#44](https://github.com/sirloinbh/plan-routine/issues/44)의 범위를 주간 화면까지 넓히고 우선순위를 P2로 올렸다.
-- 2차: 병합을 막는 결함은 없었다. 낮음 3건을 모두 반영했다. 리뷰는 2회로 마친다.
-  - 항목이 있는 관리 목록의 다시 불러오기가 실패하면 재시도 버튼이 없어, 다시 추가하다 중복이 생길 수 있었다. 항상 재시도 버튼을 보여 준다. 테스트를 추가했다.
-  - 변경과 겹친 불러오기 실패가 변경 결과 메시지를 지울 수 있었다. 변경이 끝날 때 표시를 초기화한다. 체크리스트 훅에도 적용했다.
-  - 기록의 "동작은 그대로다" 문장을 지금 동작에 맞게 고쳤다.
+- First: no defect blocking the merge. The refactor preserved behavior. 4 follow-ups applied and 1 handed to #44.
+  - (Low) When the first load of the list failed, "No routines yet" stayed and there was no way to recover. A retry button is shown. Added a test.
+  - (Low) The two lists could get out of sync. The management list is also fetched again when the screen is visible again and when saving a check fails. Added a test.
+  - (Low) If fetching again failed, there was no way to retry. A retry button is shown. Added a test.
+  - (Low) Moving and renaming weekly items had no test. Added DB and screen tests and fixed an inaccurate sentence in the record.
+  - (Medium) If the week changes with the screen kept on, checks are saved to last week. Widened the scope of [#44](https://github.com/sirloinbh/plan-routine/issues/44) to the weekly screen and raised its priority to P2.
+- Second: no defect blocking the merge. All 3 low findings applied. The review ends at 2 rounds.
+  - If fetching again failed on a management list that has items, there was no retry button, so adding again could create a duplicate. A retry button is always shown. Added a test.
+  - A fetch failure overlapping with a change could erase the change result message. The display is reset when the change ends. Also applied to the checklist hook.
+  - Fixed the sentence "behavior is unchanged" in the record to match the current behavior.

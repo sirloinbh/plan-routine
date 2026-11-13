@@ -1,66 +1,66 @@
-# #11 루틴별 이력과 달성률 열람
+# #11 Viewing history and achievement rate per routine
 
-- 이슈: [#11](https://github.com/sirloinbh/plan-routine/issues/11)
-- 브랜치: `feat/11-routine-stats`
-- 일자: 2026-11-01 (Asia/Seoul)
+- Issue: [#11](https://github.com/sirloinbh/plan-routine/issues/11)
+- Branch: `feat/11-routine-stats`
+- Date: 2026-11-01 (Asia/Seoul)
 
-## 목적
+## Purpose
 
-루틴을 얼마나 꾸준히 지켰는지 기간별로 보고, 피드백으로 개선한다.
+See by period how steadily routines were kept, and improve through feedback.
 
-## 확정한 규칙 (사용자 확인, #11 코멘트 기록)
+## Confirmed rules (confirmed by the user, recorded in the #11 comment)
 
-- 달성률 분모는 해당 기간에 활성 상태였던 항목만 포함한다. 만들기 전과 보관한 뒤의 기간은 제외한다.
-- 연속 달성(streak) 표시는 이번에 넣지 않는다.
+- The denominator of the achievement rate includes only items that were active in that period. Periods before creation and after archiving are excluded.
+- A streak display is not added this time.
 
-## 구현하면서 정한 세부 규칙 (#11 코멘트 기록)
+## Detailed rules decided during implementation (recorded in the #11 comment)
 
-- 기간별 상태는 다음 순서로 정한다. 날짜는 `Asia/Seoul` 기준이다.
-  - 그 기간에 체크가 있으면 **완료**.
-  - 기간이 끝나기 전에 아직 만들지 않았거나, 기간이 끝나기 전에 보관했으면 **대상 아님**. #10의 "그날 있던 루틴"과 같은 기준이다.
-  - 아직 끝나지 않은 기간이면 **진행 중**. 분모에 넣지 않는다. 완료하면 넣는다.
-  - 그 밖에는 **미완료**.
-- 달성률은 완료 수 ÷ (완료 수 + 미완료 수)다. 분모가 0이면 0%가 아니라 "기록 없음"이다.
-- 보여 주는 범위: 하루 루틴은 최근 8주와 6개월, 항목별로 최근 14일. 주간은 최근 8주, 4주는 최근 6기간, 12주는 최근 4기간이다.
-- 범위 안에 대상 기간이 없는 보관 항목은 목록에서 뺀다.
+- The status per period is decided in the following order. Dates are based on `Asia/Seoul`.
+  - If there is a check in that period, it is **Done**.
+  - If the item was not yet created before the period ended, or was archived before the period ended, it is **Not applicable**. This is the same basis as "a routine that existed on that day" in #10.
+  - If the period has not ended yet, it is **In progress**. It is not put in the denominator. If it is done, it is put in.
+  - Otherwise it is **Not done**.
+- The achievement rate is done ÷ (done + not done). If the denominator is 0, it is "No data", not 0%.
+- The range shown: for daily routines, the latest 8 weeks and 6 months, and per item the latest 14 days. Weekly is the latest 8 weeks, 4-week is the latest 6 periods, and 12-week is the latest 4 periods.
+- An archived item that has no applicable period in the range is removed from the list.
 
-## 변경
+## Changes
 
-- `backend/src/routine-stats.ts`: 집계 규칙. DB를 쓰지 않는 함수라 경계 사례를 단위 테스트로 확인한다.
-- API(`backend/src/stats-routes.ts`): `GET /api/stats`. 주기별 달성률과 항목별 이력.
-- 화면(`frontend/src/stats.tsx`, 메뉴 "달성률", `/stats`): 주기별 달성률과 항목별 이력. 읽기 전용이다.
-  - 시각화: 비율 막대는 색 하나로, 수치를 옆에 함께 쓴다. 이력의 상태는 색만으로 구분하지 않고 기호를 함께 쓰며, 행 아래의 "기간별로 보기"를 펼치면 기간과 상태를 글자로 볼 수 있다. 터치·키보드·화면 낭독기로도 같은 내용을 본다.
+- `backend/src/routine-stats.ts`: the aggregation rules. It is a function that does not use the DB, so boundary cases are checked by unit tests.
+- API (`backend/src/stats-routes.ts`): `GET /api/stats`. The achievement rate per cadence and the history per item.
+- Screen (`frontend/src/stats.tsx`, menu "Achievement rate", `/stats`): the achievement rate per cadence and the history per item. It is read-only.
+  - Visualization: the ratio bar uses a single color, with the number written beside it. The statuses in the history are not told apart by color alone but also with symbols, and opening "View by period" under a row shows the periods and statuses as text. The same content can be read by touch, keyboard, and screen reader.
 
-## 테스트
+## Tests
 
-- `backend/test/routine-stats.test.ts`(단위, API): 상태 판정의 경계(만든 날, 보관한 날, 진행 중, 체크 우선), 하루 루틴의 주·월 집계와 오늘, 달 경계와 연말, 긴 주기의 기간 경계, 항목별 이력, 보관 항목의 포함·제외, 불러오는 범위.
-- `backend/test/db.integration.test.ts`(실제 DB): 만든 날·보관한 날의 `Asia/Seoul` 경계, 주기별 집계, 보관 항목의 체크 유지.
-- `frontend/src/stats.test.tsx`(화면): 달성률과 수치, "기록 없음"과 0%의 구분, 항목별 이력 순서와 상태 이름, 보관 표시, 빈 상태, 막대 길이, 반올림이 0%·100%로 잘못 표시되지 않음, 읽기 전용, 불러오기 실패와 재시도, 화면 복귀와 날짜 변경 때 다시 불러오기, 늦은 응답 무시.
-- `frontend/src/app.test.tsx`: 메뉴에서 달성률 열기.
+- `backend/test/routine-stats.test.ts` (unit, API): the boundaries of the status judgment (the creation day, the archive day, in progress, check first), the weekly and monthly aggregation of daily routines and today, month boundaries and year end, the period boundary of long cadences, the history per item, including and excluding archived items, and the range fetched.
+- `backend/test/db.integration.test.ts` (real DB): the `Asia/Seoul` boundary of the creation day and archive day, aggregation per cadence, and keeping the checks of an archived item.
+- `frontend/src/stats.test.tsx` (screen): the achievement rate and numbers, the difference between "No data" and 0%, the order of the history per item and the status names, the archived display, the empty state, the bar length, rounding not being shown wrongly as 0% or 100%, read-only, a fetch failure and retry, fetching again on returning to the screen and on a date change, and ignoring late responses.
+- `frontend/src/app.test.tsx`: opening achievement rate from the menu.
 
-## 검증
+## Verification
 
-- 로컬(`TEST_DATABASE_URL` 제거): 포맷·lint·타입 검사·빌드 통과, 스킬 검사 4 pass. 백엔드 테스트 84개 중 70 pass / 0 fail / 14 skip이며, skip 14건은 DB 통합 테스트다. 프론트엔드 테스트는 `--testTimeout=60000`으로 188개 중 186 pass / 0 fail / 2 skip이다(skip은 #7 기록과 같은 다크 모드 전용 공통 테스트).
-- 브라우저: 임시 API에 Vite 개발 서버를 연결하고 헤드리스 Chrome으로 확인했다. 콘솔 오류는 없었다. 실제 DB와 연결한 화면은 확인하지 못했다. 임시 API의 숫자는 화면 확인용이고, 집계 규칙은 단위·DB 테스트로 확인한다.
-  - 모바일 390×844: 가로 스크롤 없음(scrollWidth 390), 줄 넘침 없음, 카드 한 열.
-  - PC 1440×900: 가로 스크롤 없음, 카드 두 열.
-  - 두 크기 공통: 주기별 달성률과 "기록 없음"의 구분, 항목별 이력 칸(기호와 범례), 보관 표시.
+- Local (`TEST_DATABASE_URL` removed): format, lint, type checks, and build passed, the skill check 4 pass. Backend tests were 70 pass / 0 fail / 14 skip out of 84, and the 14 skips are DB integration tests. Frontend tests were 186 pass / 0 fail / 2 skip out of 188 with `--testTimeout=60000` (the skips are the same dark-mode-only shared tests as in the #7 record).
+- Browser: connected the Vite dev server to a temporary API and checked with headless Chrome. There were no console errors. The screen connected to a real DB was not checked. The numbers of the temporary API are for checking the screen, and the aggregation rules are confirmed by unit and DB tests.
+  - Mobile 390×844: no horizontal scroll (scrollWidth 390), no line overflow, cards in one column.
+  - PC 1440×900: no horizontal scroll, cards in two columns.
+  - Both sizes: the distinction between the achievement rate per cadence and "No data", the history cells per item (symbols and legend), and the archived display.
 
-## 한계·후속
+## Limits and follow-up
 
-- 범위 밖의 오래된 기간은 볼 수 없다. 날짜별 기록은 "기록" 화면에서 본다.
+- Old periods outside the range cannot be seen. Records by date are viewed on the "Records" screen.
 
-## 자동 코드 리뷰
+## Automated code review
 
-- 1차: 집계 규칙에서 틀린 값을 내는 버그는 없었다. 보완 6건을 반영하고 1건을 분리했다.
-  - (중간) 이력 칸의 날짜와 상태가 마우스를 올려야만 보여, 터치와 키보드로는 알 수 없었다. "기간별로 보기"로 글자 목록을 넣었다. 테스트를 고쳤다.
-  - (낮음~중간) 216/217이 100%로, 1/217이 0%로 표시됐다. 완료가 있으면 최소 1%, 미완료가 있으면 최대 99%로 표시한다. 테스트를 추가했다.
-  - (낮음) 상태 이름을 항목의 `aria-label`에만 의존했다. 글자 목록으로 대신했다.
-  - (낮음) DB 테스트가 DB에 남은 다른 루틴에 영향을 받았고, 정리가 `try` 밖에 있었다. 증가분만 확인하고 정리를 `try` 안으로 옮겼다.
-  - (낮음) 같은 순서값일 때 글자 순서로 정렬됐다. 이 API는 번호 순으로 고쳤다.
-  - (사소함) `shiftMonth` 중복을 `periods.ts`로 합쳤다.
-  - 분리: 같은 정렬 패턴이 있는 다른 API [#60](https://github.com/sirloinbh/plan-routine/issues/60).
-- 2차: 틀린 값을 내는 버그는 없었다. 1차 보완 6건의 반영을 확인했다. 낮음 4건을 모두 반영했다. 리뷰는 2회로 마친다.
-  - "기간별로 보기"의 긴 이름 줄바꿈과 터치 영역을 고쳤다.
-  - 테스트에서 불필요한 옵션을 빼고, 기호 칸이 낭독기에 노출되지 않는지 확인한다.
-  - 다음 작업 문서를 갱신했다.
+- First: no bug producing a wrong value in the aggregation rules. 6 follow-ups applied and 1 split off.
+  - (Medium) The date and status of a history cell showed only on mouse hover, so touch and keyboard users could not know them. Added a text list with "View by period". Fixed the test.
+  - (Low to medium) 216/217 was shown as 100% and 1/217 as 0%. It now shows at least 1% when there is a done item and at most 99% when there is a not-done item. Added a test.
+  - (Low) The status name depended only on the item's `aria-label`. Replaced it with the text list.
+  - (Low) The DB test was affected by other routines left in the DB, and its cleanup was outside `try`. It now checks only the increase and the cleanup was moved inside `try`.
+  - (Low) With the same order value, it sorted by text order. This API was changed to sort by number.
+  - (Trivial) Merged the `shiftMonth` duplicate into `periods.ts`.
+  - Split off: another API with the same sorting pattern [#60](https://github.com/sirloinbh/plan-routine/issues/60).
+- Second: no bug producing a wrong value. Confirmed the 6 first-review follow-ups were applied. All 4 low findings applied. The review ends at 2 rounds.
+  - Fixed the wrapping of long names and the touch area of "View by period".
+  - Removed an unneeded option in the test, and checked that the symbol cell is not exposed to the screen reader.
+  - Updated the next-steps document.

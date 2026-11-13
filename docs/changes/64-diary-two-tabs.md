@@ -1,46 +1,46 @@
-# #64 일기를 탭 두 개에서 쓸 때 임시 글을 잃지 않게 하기
+# #64 Do not lose the draft when writing the diary in two tabs
 
-- 이슈: [#64](https://github.com/sirloinbh/plan-routine/issues/64)
-- 브랜치: `fix/64-diary-two-tabs`
-- 일자: 2026-11-01 (Asia/Seoul)
+- Issue: [#64](https://github.com/sirloinbh/plan-routine/issues/64)
+- Branch: `fix/64-diary-two-tabs`
+- Date: 2026-11-01 (Asia/Seoul)
 
-## 목적
+## Purpose
 
-임시 글은 하나뿐이라, 탭 두 개에서 쓰면 나중 입력이 앞 탭의 글을 경고 없이 덮어썼다.
+There is only one draft, so when writing in two tabs, the later input overwrote the earlier tab's text without a warning.
 
-## 결정
+## Decision
 
-사용자가 선택지는 추천안으로 진행하라고 해 `storage` 이벤트로 감지하는 방식을 골랐다. 날짜별 임시 글은 "화면이 임시 글의 날짜로 열린다"는 규칙까지 바꿔야 하고, 드문 경우에 비해 크다. 이슈 코멘트에 기록했다.
+The user said to proceed with the recommendations for the choices, so I chose the method of detecting with the `storage` event. A draft per date would also have to change the rule that "the screen opens on the draft's date", and it is large for a rare case. It was recorded in the issue comment.
 
-## 변경
+## Changes
 
 `frontend/src/diary.tsx`, `diary-draft.ts`.
 
-- 저장하지 않은 글이 있는 탭에서, 다른 탭이 임시 글을 덮어쓰면 "임시 저장되어 있지 않아, 떠나면 사라집니다"라고 알리고 탭 닫기 경고를 켠다. 이 탭에서 다시 입력하면 임시 글을 되찾고 경고가 꺼지며, 그때 다른 탭이 일기 화면에 있으면 같은 경고를 받는다.
-- 다른 탭이 임시 글을 지우면(저장하거나 버려서, 또는 저장소를 비워서) 이 탭의 글을 다시 보관한다. 처음 기준은 유지해, 다른 곳에서 저장된 내용이 달라졌다는 안내가 사라지지 않는다.
-- 경고가 켜진 탭은 임시 글을 지우지 않는다. 그 임시 글은 다른 탭의 글이기 때문이다.
-- 메뉴 이동은 탭 닫기 경고가 뜨지 않으므로, 글이 사라질 수 있다는 안내만 화면에 남는다.
+- In a tab that has unsaved text, if another tab overwrites the draft, it says "It is not saved as a draft, so it will be lost if you leave" and turns on the tab-close warning. If you type again in this tab, the draft is taken back and the warning turns off, and then if the other tab is on the diary screen, it gets the same warning.
+- If another tab deletes the draft (by saving or discarding, or by clearing the storage), this tab keeps its text again. The first basis is kept, so the notice that the content saved elsewhere changed does not disappear.
+- A tab with the warning on does not delete the draft, because that draft is the other tab's text.
+- The tab-close warning does not appear on menu navigation, so only the notice that the text may be lost stays on the screen.
 
-## 테스트
+## Tests
 
-`frontend/src/diary.test.tsx`: 덮어쓰기 경고와 되찾기, 지워진 임시 글 복구, 저장할 글이 없는 탭, 다른 저장 키.
+`frontend/src/diary.test.tsx`: the overwrite warning and taking it back, restoring a deleted draft, a tab with no text to save, and a different storage key.
 
-## 검증
+## Verification
 
-- 로컬: `env -u TEST_DATABASE_URL npm run check` 통과. 백엔드 161개 중 142 pass, 0 fail, 19 skip(DB 테스트), 프론트엔드 281개 중 279 pass, 0 fail, 2 skip, `test:skills` 4개 pass.
-- 브라우저: 임시 API와 헤드리스 Chrome의 실제 탭 두 개로 1440×900, 390×844에서 확인했다. B가 입력하면 A에 경고가 뜨고 임시 글은 B의 것이 된다. A가 다시 입력하면 A의 경고가 꺼지고 B에 경고가 뜬다. B가 임시 글을 지우면 A가 다시 보관한다. 가로 스크롤은 없었다. 경고 뒤 버리기와 저장은 화면 테스트로만 확인했다. 실제 탭 닫기 경고 창은 확인하지 못했다. 경고가 켜지고 꺼지는 것은 `beforeunload` 화면 테스트로 확인했다.
+- Local: `env -u TEST_DATABASE_URL npm run check` passed. Backend 142 pass, 0 fail, 19 skip (DB tests) out of 161, frontend 279 pass, 0 fail, 2 skip out of 281, and `test:skills` 4 pass.
+- Browser: checked with two real tabs of headless Chrome and a temporary API at 1440×900 and 390×844. When B types, the warning appears in A and the draft becomes B's. When A types again, A's warning turns off and the warning appears in B. When B deletes the draft, A keeps it again. There was no horizontal scroll. Discarding and saving after the warning were checked only by screen tests. The real tab-close warning dialog was not checked. The warning turning on and off is checked by `beforeunload` screen tests.
 
-## 한계·후속
+## Limits and follow-up
 
-- 덮어쓴 쪽 탭이 먼저 닫히면, 경고가 켜진 탭의 글은 그 탭이 열려 있는 동안만 남는다. 그 탭을 닫을 때 경고가 뜬다.
-- 감지는 일기 화면이 열려 있는 탭에서만 된다. 글을 쓴 탭이 닫혔거나 다른 메뉴에 있으면, 다른 탭의 입력이 그 임시 글을 경고 없이 덮어쓴다. "나중 입력이 이긴다"는 결정의 범위로 둔다.
+- If the tab that overwrote is closed first, the text of the tab with the warning on remains only while that tab is open. A warning appears when that tab is closed.
+- Detection works only in a tab where the diary screen is open. If the tab where the text was written is closed or on another menu, the input of another tab overwrites that draft without a warning. It is left within the scope of the decision "the later input wins".
 
-## 자동 코드 리뷰
+## Automated code review
 
-- 1차: 병합을 막는 결함은 없었다. 5건을 반영했다.
-  - (중간) 경고가 켜진 탭의 저장이나 버리기가 다른 탭의 글이 든 임시 글을 지웠다. 빼앗긴 상태를 따로 기억해 지우지 않는다. 테스트를 추가했다.
-  - (낮음) 기록의 한계가 일기 화면을 벗어난 탭의 경우를 빠뜨렸다. 적었다.
-  - (낮음) 저장소 전체 비움을 무시했다. 임시 글이 지워진 것으로 처리한다. 테스트를 추가했다.
-  - (낮음) 다시 보관할 때 처음 기준을 잃었다. 유지한다. 테스트를 추가했다.
-  - (낮음) 약한 테스트와 빠진 화면 확인을 고쳤다.
-- 2차: 3건을 찾았다. 수정 전에 PR이 병합되어 [#85](https://github.com/sirloinbh/plan-routine/issues/85)에서 반영했다. (중간) 다시 보관한 뒤에도 빼앗긴 상태가 남아, 버린 글이 되살아났다. 1차 보완이 만든 회귀다. 고치고 테스트를 추가했다. (낮음) 빼앗겼다 되찾을 때 처음 기준을 잃었다. 고치고 테스트를 추가했다. (낮음) 검증 문장을 분명히 했다. 리뷰는 2회로 마친다.
+- First: no defect blocking the merge. 5 applied.
+  - (Medium) Saving or discarding in a tab with the warning on deleted the draft that held the other tab's text. It now remembers the taken-away state separately and does not delete. Added a test.
+  - (Low) The limit in the record missed the case of a tab that left the diary screen. Wrote it.
+  - (Low) It ignored clearing the whole storage. It now treats the draft as deleted. Added a test.
+  - (Low) When keeping again, it lost the first basis. It is kept. Added a test.
+  - (Low) Fixed a weak test and a missing screen check.
+- Second: found 3. The PR was merged before the fixes, so they were applied in [#85](https://github.com/sirloinbh/plan-routine/issues/85). (Medium) Even after keeping again, the taken-away state stayed, so discarded text came back to life. This is a regression made by the first follow-up. Fixed it and added a test. (Low) When taken away and taken back, it lost the first basis. Fixed it and added a test. (Low) Made the verification sentence clear. The review ends at 2 rounds.

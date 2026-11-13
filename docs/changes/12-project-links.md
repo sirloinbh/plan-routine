@@ -1,58 +1,58 @@
-# #12 루틴 항목에서 다른 프로젝트 웹앱으로 링크 이동
+# #12 Link from a routine item to another project's web app
 
-- 이슈: [#12](https://github.com/sirloinbh/plan-routine/issues/12)
-- 브랜치: `feat/12-project-links`
-- 일자: 2026-11-01 (Asia/Seoul)
+- Issue: [#12](https://github.com/sirloinbh/plan-routine/issues/12)
+- Branch: `feat/12-project-links`
+- Date: 2026-11-01 (Asia/Seoul)
 
-## 목적
+## Purpose
 
-가계부나 독서 기록처럼 다른 개인 웹앱에서 처리하는 루틴을 체크리스트에서 바로 연다.
+Open routines handled in another personal web app, such as a household ledger or a reading log, directly from the checklist.
 
-## 결정
+## Decisions
 
-사용자가 선택지는 추천안으로 진행하라고 해 아래와 같이 정했다. 이슈 코멘트에 기록했다.
+The user said to proceed with the recommendations for the choices, so the following was decided. It was recorded in the issue comment.
 
-- 허용 주소는 카드의 추천안대로 `https://`와 사설 접속 주소만이다. `http://`는 사설 주소(localhost, 127/8, 10/8, 172.16/12, 192.168/16, 100.64/10, `.local`, `.localhost`, `.internal`, `.home.arpa`, `.ts.net`, `[::1]`, `[fc00::/7]`)에만 허용한다. `javascript:` 등과 사용자 정보가 든 주소는 거부한다.
-- 프로젝트 목록은 설정 화면에서 추가하고 지운다. 이름이 같은 프로젝트는 거부한다. 고치려면 지우고 다시 추가한다.
-- 루틴 하나에 프로젝트 하나를 연결한다. 프로젝트를 지우면 연결만 풀리고 루틴은 그대로다.
-- 링크는 체크리스트 부품을 쓰는 곳(오늘 체크, 주간·4주 화면)에 나온다. 12주 화면은 이 부품을 쓰지 않아 나오지 않는다.
+- The allowed addresses are, as the card recommended, only `https://` and private access addresses. `http://` is allowed only for private addresses (localhost, 127/8, 10/8, 172.16/12, 192.168/16, 100.64/10, `.local`, `.localhost`, `.internal`, `.home.arpa`, `.ts.net`, `[::1]`, `[fc00::/7]`). Addresses such as `javascript:` and addresses with user information are rejected.
+- The project list is added and deleted on the settings screen. A project with the same name is rejected. To fix one, delete it and add it again.
+- One project is linked to one routine. Deleting a project only removes the link, and the routine stays as it is.
+- The link appears where the checklist part is used (today's check, the weekly and 4-week screens). The 12-week screen does not use this part, so it does not appear there.
 
-## 변경
+## Changes
 
-- `database/migrations/006_project_links.sql`: `project_links` 표, `routines.project_link_id`. **기존 DB에는 `npm run db:migrate`로 적용해야 한다.**
-- `backend/src/project-link-routes.ts`(새 파일): 목록, 추가, 삭제, 주소 검증.
-- `backend/src/routine-routes.ts`: `PUT /api/routines/:id/project-link`, 루틴 응답의 `projectLinkId`.
-- `backend/src/check-routes.ts`: 체크리스트 항목의 `linkName`, `linkUrl`.
-- `frontend/src/project-links.tsx`(새 파일), `app.tsx`: 설정 화면의 프로젝트 목록.
-- `frontend/src/routine-list.tsx`, `use-routine-list.ts`: 루틴마다 연결할 프로젝트 선택. 프로젝트가 없으면 보이지 않는다.
-- `frontend/src/checklist.tsx`: 새 탭 링크(`rel="noopener noreferrer"`). 저장된 주소가 http·https가 아니면 링크로 만들지 않는다.
+- `database/migrations/006_project_links.sql`: the `project_links` table and `routines.project_link_id`. **For an existing DB, apply it with `npm run db:migrate`.**
+- `backend/src/project-link-routes.ts` (new file): list, add, delete, and address validation.
+- `backend/src/routine-routes.ts`: `PUT /api/routines/:id/project-link`, and `projectLinkId` in the routine response.
+- `backend/src/check-routes.ts`: `linkName` and `linkUrl` of the checklist item.
+- `frontend/src/project-links.tsx` (new file), `app.tsx`: the project list on the settings screen.
+- `frontend/src/routine-list.tsx`, `use-routine-list.ts`: choosing the project to link per routine. It is not shown when there is no project.
+- `frontend/src/checklist.tsx`: a new-tab link (`rel="noopener noreferrer"`). If the saved address is not http or https, it is not made a link.
 
-## 테스트
+## Tests
 
-- `backend/test/project-link-routes.test.ts`: 허용·거부 주소, 입력 오류, 연결 설정과 해제.
-- `backend/test/db.integration.test.ts`: 체크리스트까지의 전달, 이름 중복, 프로젝트 삭제.
-- `frontend/src/project-links.test.tsx`, `routines.test.tsx`: 목록, 추가, 거부, 삭제와 포커스, 체크리스트 링크, 연결 선택.
+- `backend/test/project-link-routes.test.ts`: allowed and rejected addresses, input errors, and setting and clearing the link.
+- `backend/test/db.integration.test.ts`: delivery up to the checklist, duplicate names, and deleting a project.
+- `frontend/src/project-links.test.tsx`, `routines.test.tsx`: list, add, reject, delete and focus, the checklist link, and choosing the link.
 
-## 검증
+## Verification
 
-- 로컬: `env -u TEST_DATABASE_URL npm run check` 통과. 백엔드 161개 중 142 pass / 0 fail / 19 skip(DB 테스트), 프론트엔드 267개 중 265 pass / 0 fail / 2 skip(다크 모드 전용 공통 테스트), `test:skills` 4개 pass.
-- 브라우저: 임시 API와 헤드리스 Chrome으로 PC 1440×900, 모바일 390×844에서 나쁜 주소 거부, 프로젝트 추가, 루틴 연결, 오늘 체크의 새 탭 링크(`noopener noreferrer`)를 확인했다. 긴 주소도 넘치지 않았고 콘솔 오류와 가로 스크롤은 없었다. 실제 DB, 실제 휴대폰, 실제 링크 이동으로는 확인하지 못했다.
-- CI의 실제 DB: PR 코멘트에 적는다.
+- Local: `env -u TEST_DATABASE_URL npm run check` passed. Backend 142 pass / 0 fail / 19 skip (DB tests) out of 161, frontend 265 pass / 0 fail / 2 skip (dark-mode-only shared tests) out of 267, and `test:skills` 4 pass.
+- Browser: with a temporary API and headless Chrome at PC 1440×900 and mobile 390×844, I checked rejecting a bad address, adding a project, linking a routine, and the new-tab link on today's check (`noopener noreferrer`). A long address also did not overflow, and there were no console errors or horizontal scroll. It was not checked with a real DB, a real phone, or a real link navigation.
+- Real DB in CI: written in the PR comment.
 
-## 한계·후속
+## Limits and follow-up
 
-- 프로젝트 이름과 주소를 고치는 화면은 없다. 지우고 다시 추가해야 하며, 그러면 연결이 풀린다.
-- 다른 탭에서 연결한 뒤 이 탭에서 프로젝트 목록 재조회만 실패하면, 그 루틴의 선택칸이 잠시 "없음"으로 보인다. 저장되는 값은 없고 다음 재조회에서 바로잡힌다.
+- There is no screen to fix a project's name and address. You must delete it and add it again, and then the link is removed.
+- If you link in another tab and only the project list refetch fails in this tab, the select box of that routine briefly shows "None". No value is saved, and it is corrected at the next refetch.
 
-## 자동 코드 리뷰
+## Automated code review
 
-- 1차: 보안을 뚫는 결함은 없었다. 약 60개 주소로 검증했다. 8건을 반영했다.
-  - (중간) 정규화하면 2048자를 넘는 주소가 500이 됐다. 저장될 길이로 검사한다. 테스트를 추가했다.
-  - (중간) 프로젝트 목록을 한 번만 읽어, 열어 둔 화면에서 오래된 값이 남았다. 루틴과 함께 다시 읽는다.
-  - (중간) 다크 모드에서 선택지 글자가 안 보일 수 있었다. 선택지에 토큰 색을 줬다. 다크 모드 화면은 확인하지 못했다.
-  - (낮음) 선택칸이 저장 중 상태를 반영하지 않았다. 비활성화하고 포커스를 되돌린다. 테스트를 추가했다.
-  - (낮음) 터치 영역이 작았다. 선택칸과 링크를 키웠다.
-  - (낮음) 사설 주소 판정이 느슨했다(`10.0.0.1e1`, `[fc::1]`). 고치고 주소 테스트를 늘렸다.
-  - (낮음) 목록을 못 읽어도 "없다"고 표시했다. 다시 불러오기 버튼을 넣었다. 테스트를 추가했다.
-  - (낮음) 형식뿐인 단언, 12주 화면 기록 오류, 이슈 코멘트 누락을 고쳤다.
-- 2차: 병합을 막는 결함은 없었다. 낮음 4건을 반영했다(거부된 긴 주소의 메시지 중복, 거부 때 주소 칸으로 포커스, 선택칸의 포커스·비활성 표시, 다음 작업 문서). 드문 표시 문제 1건은 한계에 적었다. 리뷰는 2회로 마친다.
+- First: no defect that breaks security. I verified with about 60 addresses. 8 were applied.
+  - (Medium) An address over 2048 characters after normalization became a 500. It is now checked by the length that will be saved. Added a test.
+  - (Medium) The project list was read only once, so an old value stayed on a screen kept open. It is read again together with the routines.
+  - (Medium) In dark mode, the option text could be invisible. The options got the token color. I could not check the dark mode screen.
+  - (Low) The select box did not reflect the saving state. It is disabled and the focus is returned. Added a test.
+  - (Low) The touch area was small. Enlarged the select box and the link.
+  - (Low) The private address judgment was loose (`10.0.0.1e1`, `[fc::1]`). Fixed it and added more address tests.
+  - (Low) It showed "none" even when the list could not be read. Added a reload button. Added a test.
+  - (Low) Fixed an assertion that only checked the format, a record error for the 12-week screen, and a missing issue comment.
+- Second: no defect blocking the merge. 4 low findings applied (duplicated message for a rejected long address, focus to the address field on rejection, the focus and disabled display of the select box, and the next-steps document). 1 rare display problem was written in the limits. The review ends at 2 rounds.

@@ -1,34 +1,34 @@
-# #87 깨끗한 일기 탭이 다른 탭의 임시 글을 지우지 않게 하기
+# #87 Keep a clean diary tab from deleting another tab's draft
 
-- 이슈: [#87](https://github.com/sirloinbh/plan-routine/issues/87)
-- 브랜치: `fix/87-diary-clean-tab`
-- 일자: 2026-11-01 (Asia/Seoul)
+- Issue: [#87](https://github.com/sirloinbh/plan-routine/issues/87)
+- Branch: `fix/87-diary-clean-tab`
+- Date: 2026-11-01 (Asia/Seoul)
 
-## 목적
+## Purpose
 
-깨끗한 탭은 임시 글이 다른 탭의 것인지 모른 채 지웠다. 다른 탭에서 쓰다 닫은 글이, 이 탭에서 아무것도 바꾸지 않고 저장하면 사라졌다.
+A clean tab deleted the draft without knowing whether it was another tab's. Text written and left in another tab was lost when this tab saved without changing anything.
 
-## 변경
+## Changes
 
 `frontend/src/diary.tsx`.
 
-- 이 탭이 마지막으로 보관하거나 복원한 글을 기억하고, 저장소의 글이 그것과 같을 때만 지운다. 그런 글이 없으면 지우지 않는다.
-- 불러온 임시 글이 저장된 내용과 같으면 불러올 때 지운다. 전과 같은 동작이다.
-- 이렇게 하면 "빼앗긴" 상태를 따로 기억할 필요가 없어 지웠다(#64, #85).
+- This tab remembers the text it last kept or restored, and deletes the text in the storage only when it is the same. If there is no such text, it does not delete.
+- If a draft that was loaded is the same as the saved content, it is deleted when loading. This is the same behavior as before.
+- With this, there is no need to remember the "taken away" state separately, so it was removed (#64, #85).
 
-## 테스트
+## Tests
 
-`frontend/src/diary.test.tsx`: 저장할 글이 없는 탭의 저장과 공백 입력이 다른 탭의 임시 글을 남김. 저장된 내용으로 되돌리면 이 탭의 임시 글을 지움. 다시 보관이 거부된 복원 글도 버리면 지워짐. 저장된 내용과 같은 임시 글이 있는 날로 이동하면 지워짐. #64, #85의 테스트가 그대로 통과한다.
+`frontend/src/diary.test.tsx`: saving in a tab with no text to save, and typing whitespace, leave another tab's draft. Reverting to the saved content deletes this tab's draft. A restored text whose re-keeping was rejected is also deleted when discarded. Moving to a day that has a draft equal to the saved content deletes it. The #64 and #85 tests pass as they are.
 
-## 검증
+## Verification
 
-- 로컬: `env -u TEST_DATABASE_URL npm run check` 통과. 백엔드 163개 중 144 pass / 0 fail / 19 skip(DB 테스트), 프론트엔드 298개 중 296 pass / 0 fail / 2 skip, `test:skills` 4개 pass.
-- 브라우저: 임시 API와 실제 탭 두 개로 1440×900에서 덮어쓰기 경고, 되찾기, 지워진 임시 글 복구가 그대로임을 확인했다. 이번에 고친 경우 자체는 화면 테스트로만 확인했다.
+- Local: `env -u TEST_DATABASE_URL npm run check` passed. Backend 144 pass / 0 fail / 19 skip (DB tests) out of 163, frontend 296 pass / 0 fail / 2 skip out of 298, and `test:skills` 4 pass.
+- Browser: with a temporary API and two real tabs at 1440×900, I confirmed that the overwrite warning, taking it back, and restoring a deleted draft stay as they were. The case fixed this time was checked only by screen tests.
 
-## 한계·후속
+## Limits and follow-up
 
-없음.
+None.
 
-## 자동 코드 리뷰
+## Automated code review
 
-- 1차: 2건을 반영했다. (낮음) 복원 뒤 다시 보관이 거부되면 버린 글이 되살아났다. 이번 변경이 만든 회귀다. 복원한 글도 기억하게 고치고 테스트를 추가했다. (낮음) 불러올 때 지우는 줄을 지나는 테스트가 없었다. 추가했다. 고친 것이 한 줄과 테스트라 2차 리뷰는 하지 않는다.
+- First: 2 applied. (Low) If re-keeping was rejected after restoring, the discarded text came back to life. This is a regression made by this change. I fixed it so it also remembers the restored text, and added a test. (Low) No test passed through the line that deletes when loading. Added one. What was fixed is one line and a test, so the second review is not done.

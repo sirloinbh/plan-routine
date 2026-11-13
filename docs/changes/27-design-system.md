@@ -1,37 +1,37 @@
-# #27 공통 디자인 시스템으로 화면 전환
+# #27 Switch the screens to the shared design system
 
-- 이슈: [#27](https://github.com/sirloinbh/plan-routine/issues/27) (중앙 추적 이슈 sirloinbh/project-standards#126)
-- 브랜치: `feat/27-design-system`
+- Issue: [#27](https://github.com/sirloinbh/plan-routine/issues/27) (central tracking issue sirloinbh/project-standards#126)
+- Branch: `feat/27-design-system`
 
-## 목적
+## Purpose
 
-8개 앱이 같은 토큰·컴포넌트·레이아웃·PWA 설정을 쓰기로 했다(중앙 ADR-0007, ADR-0008). 방법은 중앙 `docs/design-system.md` "기존 앱 전환"을 따랐다(workout-memo#160이 먼저 적용).
+The 8 apps decided to use the same tokens, components, layout, and PWA settings (central ADR-0007, ADR-0008). The method followed "Converting an existing app" in the central `docs/design-system.md` (workout-memo#160 applied it first).
 
-## 변경 — 2026-10-26
+## Changes — 2026-10-26
 
-### 패키지
+### Packages
 
-사용자가 직접 설치했다. 중앙 ADR-0007 표의 패키지(2026-10-22 사전 승인)와 react-router·vitest·jsdom·Testing Library(2026-10-26 승인)다. 모두 고정 버전, 게시 14일 경과, `--ignore-scripts`.
+The user installed them directly. They are the packages in the central ADR-0007 table (pre-approved 2026-10-22) and react-router, vitest, jsdom, and Testing Library (approved 2026-10-26). All are pinned versions, published at least 14 days ago, and installed with `--ignore-scripts`.
 
 - dependencies: `@sirloinbh/design-tokens` 1.0.0, `class-variance-authority` 0.7.1, `clsx` 2.1.1, `radix-ui` 1.7.0, `react-router` 8.4.0, `sonner` 2.0.8, `tailwind-merge` 3.7.0, `tw-animate-css` 1.4.0, `vaul` 1.1.2, `lucide-react` 0.468.0 → 1.52.0
-- devDependencies: `tailwindcss`·`@tailwindcss/vite` 4.3.3, `vitest` 5.0.3, `jsdom` 30.1.2, `@testing-library/react` 16.3.3, `@testing-library/dom` 10.4.2, `@testing-library/jest-dom` 7.0.1
-- lockfile 두 개(루트, `frontend/`): 지워진 패키지 없음, 버전이 바뀐 것은 `lucide-react`뿐. 새 항목은 모두 공식 레지스트리·무결성 값 있음·설치 스크립트 없음. `ioc-scan`: 의심 항목 없음
+- devDependencies: `tailwindcss` and `@tailwindcss/vite` 4.3.3, `vitest` 5.0.3, `jsdom` 30.1.2, `@testing-library/react` 16.3.3, `@testing-library/dom` 10.4.2, `@testing-library/jest-dom` 7.0.1
+- Two lock files (root and `frontend/`): no package was removed, and only `lucide-react` changed version. All new entries have the official registry, an integrity value, and no install script. `ioc-scan`: no suspicious entries
 
-### 공통 파일 (중앙 관리)
+### Shared files (centrally managed)
 
-중앙에서 이 앱의 `features.ui`·`features.vitest`를 켠 동기화 미리보기에서 뽑은 그대로다: `frontend/src/components/ui/` 15개와 테스트, `components/layout/`, `lib/utils.ts`·`theme.ts`, `public/theme-init.js`, `frontend/vitest.config.ts`.
+They are exactly as taken from a sync preview with this app's `features.ui` and `features.vitest` turned on centrally: 15 files in `frontend/src/components/ui/` with tests, `components/layout/`, `lib/utils.ts` and `theme.ts`, `public/theme-init.js`, and `frontend/vitest.config.ts`.
 
-### 앱 코드
+### App code
 
-- **화면:** 자체 셸을 `AppShell`로 바꾸고 페이지 주소를 붙였다(`/`, `/routines`, `/settings`). 자체 `style.css`는 지웠다.
-- **하루 루틴:** 상태 로직은 그대로 두고 그리는 부분을 공통 `Card`·`Button`·`Input`·`Badge`와 토큰 유틸리티로 옮겼다. 접근성 이름(`aria-label`)은 모두 같다. 화면 테스트(`routines.test.tsx`)는 지운 `backend/test/app-ui.test.ts`의 루틴 검사(7개 분류와 빈 상태, 추가, 빈 이름·서버 오류 때 입력 유지, 순서 변경·이름 수정·보관 확인, 다른 곳에서 바뀐 루틴의 404와 목록 다시 불러오기)를 상태를 가진 가짜 API로 옮긴 것이다.
-- **진입점:** `app.tsx`(화면), `main.tsx`(렌더링과 운영 빌드에서만 서비스 워커 등록), `index.css`(Tailwind, `tw-animate-css`, 공통 토큰).
-- **PWA:** 아이콘 4개(중앙 `scripts/pwa-icons.mjs`), `index.html`의 manifest·아이콘·라이트/다크 `theme-color`·`viewport-fit=cover`·깜빡임 방지 스크립트.
-- **테스트·빌드:** `frontend`에 `test`(vitest) 스크립트와 `src/test/setup.ts`를 넣고, 루트 `npm test`가 프론트엔드 테스트도 돌린다. 운영 빌드는 `tsconfig.build.json`으로 테스트 파일을 뺀다. `vite.config.ts`에 Tailwind 플러그인.
-- **백엔드의 화면 테스트 삭제:** `backend/test/app-ui.test.ts`는 Vitest가 없을 때 가짜 React로 `main.tsx`를 실행해 보던 임시 테스트다. 같은 내용(제목·서버 상태·오류 알림·메뉴 이동)을 프론트엔드 Vitest 테스트가 실제 React로 검사하므로 지웠다.
-- **화면 테스트(`app.test.tsx`):** 서버 날짜 표시, 서버 오류 알림, 메뉴로 페이지 이동과 현재 페이지 표시, 알 수 없는 주소 처리.
+- **Screens:** replaced the own shell with `AppShell` and attached page addresses (`/`, `/routines`, `/settings`). Deleted the own `style.css`.
+- **Daily routines:** kept the state logic as it is and moved the rendering to the shared `Card`, `Button`, `Input`, `Badge` and token utilities. All accessible names (`aria-label`) are the same. The screen test (`routines.test.tsx`) moves the routine checks of the deleted `backend/test/app-ui.test.ts` (the 7 categories and the empty state, adding, keeping the input on an empty name or a server error, reordering, renaming and archive confirmation, and a 404 for a routine changed elsewhere and refetching the list) to a fake API that holds state.
+- **Entry points:** `app.tsx` (screens), `main.tsx` (rendering, and registering the service worker only in a production build), and `index.css` (Tailwind, `tw-animate-css`, and the shared tokens).
+- **PWA:** 4 icons (central `scripts/pwa-icons.mjs`), and in `index.html` the manifest, icons, light and dark `theme-color`, `viewport-fit=cover`, and the flash-prevention script.
+- **Tests and build:** added a `test` (vitest) script and `src/test/setup.ts` to `frontend`, and the root `npm test` also runs the frontend tests. The production build leaves out test files with `tsconfig.build.json`. Added the Tailwind plugin to `vite.config.ts`.
+- **Deleting the backend screen test:** `backend/test/app-ui.test.ts` was a temporary test that ran `main.tsx` with a fake React when there was no Vitest. The frontend Vitest tests check the same content (the title, the server state, the error notice, and menu navigation) with a real React, so it was deleted.
+- **Screen test (`app.test.tsx`):** showing the server date, the server error notice, navigating pages by the menu and showing the current page, and handling an unknown address.
 
-## 검증
+## Verification
 
-- Prettier, ESLint, `tsc`(전체), 프론트엔드 테스트 46개 통과, `vite build`, `ioc-scan`
-- 백엔드 테스트는 DB가 필요해 CI에서 확인한다.
+- Prettier, ESLint, `tsc` (all), 46 frontend tests passed, `vite build`, and `ioc-scan`
+- Backend tests need a DB, so they are confirmed in CI.

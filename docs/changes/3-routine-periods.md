@@ -1,51 +1,51 @@
-# #3 루틴 주기·기간 계산 규칙과 DB 스키마
+# #3 Routine cadence and period calculation rules, and the DB schema
 
-- 이슈: https://github.com/sirloinbh/plan-routine/issues/3
-- 일자: 2026-10-22 (Asia/Seoul)
+- Issue: https://github.com/sirloinbh/plan-routine/issues/3
+- Date: 2026-10-22 (Asia/Seoul)
 
-## 목적
+## Purpose
 
-하루·주간·4주·12주 루틴과 체크 기록을 저장할 공통 구조와 주기별 기간 계산 규칙을 만든다. 이후 카드(#4~#11)가 이 위에서 동작한다.
+Build the shared structure to store daily, weekly, 4-week, and 12-week routines and their check records, and the period calculation rule for each cadence. The later cards (#4 to #11) work on top of it.
 
-## 확정한 규칙 (사용자 확인, #3 코멘트 기록)
+## Confirmed rules (confirmed by the user, recorded in the #3 comment)
 
-- 주는 **일요일~토요일**이다.
-- 4주·12주 주기는 **앱 첫 사용일**부터 센다. 첫 사용일은 `GET /api/periods`가 처음 호출될 때 서비스 날짜로 `app_settings.routine_anchor_date`에 한 번만 저장된다.
-- 4주·12주 기간이 온전한 주로 이루어지도록 기준점은 **첫 사용일이 속한 주의 일요일**로 맞췄다(구현 판단, 이슈 코멘트로 기록). 기준 이전 날짜는 앞선 기간으로 계산한다.
-- 루틴 삭제는 `archived_at` 보관 처리이며 체크 기록이 있는 루틴은 DB에서 삭제할 수 없다(`ON DELETE RESTRICT`).
+- The week is **Sunday to Saturday**.
+- The 4-week and 12-week cycles are counted from the **app's first-use day**. The first-use day is saved once into `app_settings.routine_anchor_date`, as the service date, when `GET /api/periods` is first called.
+- So that 4-week and 12-week periods are made of whole weeks, the anchor was set to the **Sunday of the week that contains the first-use day** (an implementation judgment, recorded as an issue comment). Dates before the anchor are computed as earlier periods.
+- Deleting a routine is archiving with `archived_at`, and a routine that has check records cannot be deleted from the DB (`ON DELETE RESTRICT`).
 
-## 변경
+## Changes
 
-- `database/migrations/002_routines.sql`: `routines`(이름 1~100자, 주기 4종, 하루 루틴만 카테고리 7종 필수, 정렬 순서, 보관 시각)와 `routine_checks`(루틴·기간 시작일 기본키로 중복 방지). 모두 `IF NOT EXISTS`로 재실행 안전.
-- `backend/src/periods.ts`: 주기 목록, 날짜 검증(`calendarDate`, 한국어 메시지), `weekStart`·`periodFor`·`periodsFor`. 날짜 계산은 UTC 일 단위로 해 호스트 시간대와 무관하다.
-- `backend/src/routines.ts`: 카테고리 코드·한국어 이름, 루틴 입력 Zod 스키마(한국어 오류), 첫 사용일 저장·조회 `routineAnchorDate`(`ON CONFLICT DO UPDATE` 한 쿼리로 동시 첫 호출에도 같은 값 반환).
-- `backend/src/app.ts`: `GET /api/periods?date=YYYY-MM-DD` — 날짜(기본 오늘), 첫 사용일, 주기별 현재 기간 반환. 잘못된 날짜는 한국어 400.
+- `database/migrations/002_routines.sql`: `routines` (name of 1 to 100 characters, 4 cadences, 7 categories required only for daily routines, sort order, archive time) and `routine_checks` (the routine and the period start date are the primary key, which prevents duplicates). All use `IF NOT EXISTS`, so they are safe to run again.
+- `backend/src/periods.ts`: the cadence list, date validation (`calendarDate`, with user-facing messages), `weekStart`, `periodFor`, and `periodsFor`. Date calculation is in UTC days, so it does not depend on the host time zone.
+- `backend/src/routines.ts`: the category codes and names, the Zod schema for routine input (with user-facing errors), and saving and reading the first-use day, `routineAnchorDate` (one `ON CONFLICT DO UPDATE` query returns the same value even for concurrent first calls).
+- `backend/src/app.ts`: `GET /api/periods?date=YYYY-MM-DD` returns the date (default today), the first-use day, and the current period of each cadence. An invalid date gives a 400 with a user-facing message.
 
-## 테스트
+## Tests
 
-- `backend/test/periods.test.ts`(단위): 주 경계(일·토), 월말·연말·윤일, 4주 28일 반복, 12주 84일과 연도 경계, 기준 이전 날짜, 존재하지 않는 날짜 거부. 작성 중 `2026-13-01`이 예외를 던지는 결함을 발견해 `isCalendarDate`를 고쳤다.
-- `backend/test/routines.test.ts`(API·검증): 저장된 첫 사용일 사용과 오늘 기본값, 날짜 지정 조회, 잘못된 날짜·중복 `date` 파라미터 400, 루틴 입력 정상·오류 메시지 6종.
-- `backend/test/db.integration.test.ts`(DB): 002 재실행, 카테고리·이름·주기 CHECK, 같은 기간 중복 체크 거부(23505), 체크가 있는 루틴 삭제 거부(23503), 첫 사용일 1회 저장(롤백), 동시 첫 호출 4건이 같은 날짜로 수렴(원래 값 복원).
+- `backend/test/periods.test.ts` (unit): week boundaries (Sunday and Saturday), month end, year end, and leap day, the 4-week 28-day repetition, the 12-week 84-day cycle and the year boundary, dates before the anchor, and rejecting dates that do not exist. While writing, I found a defect where `2026-13-01` threw an exception, and fixed `isCalendarDate`.
+- `backend/test/routines.test.ts` (API and validation): using the saved first-use day and the default of today, query with a given date, 400 for an invalid date and a duplicated `date` parameter, and the normal routine input and 6 error messages.
+- `backend/test/db.integration.test.ts` (DB): re-running 002, the category, name, and cadence CHECKs, rejecting a duplicate check in the same period (23505), rejecting deletion of a routine that has checks (23503), saving the first-use day once (rolled back), and 4 concurrent first calls converging to the same date (original value restored).
 
-## 검증
+## Verification
 
-- 로컬 `npm run check` → **exit 0**. 앱 테스트 24개 중 **20 pass / 0 fail / 4 skip**(1차 리뷰 보완 후), 스킬 검사 4 pass.
-- skip 4건은 DB 통합 테스트다. 로컬에 PostgreSQL·Docker가 없어 `TEST_DATABASE_URL`을 설정하지 못했다. GitHub Actions `verify`가 마이그레이션 적용 후 실제 DB로 실행한다(결과는 PR에 기록).
-- 화면 변경 없음.
+- Local `npm run check` → **exit 0**. Of 24 app tests, **20 pass / 0 fail / 4 skip** (after the first review follow-up), and the skill check 4 pass.
+- The 4 skips are DB integration tests. There is no local PostgreSQL or Docker, so `TEST_DATABASE_URL` could not be set. GitHub Actions `verify` runs them against a real DB after applying the migrations (the result is recorded in the PR).
+- No screen change.
 
-## 한계·후속
+## Limits and follow-up
 
-- 루틴 CRUD API·화면은 #4, 체크 API·체크리스트 화면은 #5에서 만든다.
-- 첫 사용일은 현재 `GET /api/periods` 호출 시에만 저장된다. #4 루틴 생성·#5 체크 저장에서도 `routineAnchorDate`를 호출해 실제 첫 사용일보다 늦게 저장되지 않게 한다.
+- The routine CRUD API and screen are built in #4, and the check API and the checklist screen in #5.
+- The first-use day is currently saved only when `GET /api/periods` is called. Also call `routineAnchorDate` in #4 routine creation and #5 check saving, so it is not saved later than the real first-use day.
 
-## 자동 코드 리뷰
+## Automated code review
 
-- 1차: 보완 3건 반영. (중) `DO NOTHING` + `SELECT` CTE가 READ COMMITTED에서 동시 첫 호출 시 빈 결과로 500을 낼 수 있어 `ON CONFLICT DO UPDATE ... RETURNING`으로 교체하고 동시 호출 DB 테스트 추가. (낮) 첫 사용일 저장 시점을 한계·후속에 기록. (낮) 중복 `date` 파라미터 400 테스트 추가.
-- 2차: 차단 결함 없음. 1차 보완 3건 반영을 확인했다. 선택 지적(no-op `DO UPDATE`가 호출마다 행 버전을 새로 쓰고 잠금을 잡음)은 1인 서비스 규모에서 영향이 없어 반영하지 않았다. 리뷰는 2회로 마친다.
+- First: 3 follow-ups applied. (Medium) The `DO NOTHING` + `SELECT` CTE could return an empty result and cause a 500 on concurrent first calls under READ COMMITTED, so it was replaced with `ON CONFLICT DO UPDATE ... RETURNING` and a concurrent-call DB test was added. (Low) Recorded when the first-use day is saved in the limits and follow-up. (Low) Added a test for 400 on a duplicated `date` parameter.
+- Second: no blocking defect. Confirmed the 3 follow-ups from the first review were applied. The optional finding (the no-op `DO UPDATE` rewrites the row version and takes a lock on every call) was not applied because it has no effect at the scale of a single-user service. The review ends at 2 rounds.
 
-## CI 멈춤 수정
+## Fixing the CI hang
 
-- 증상: CI `verify`의 `npm run check`가 15분 넘게 끝나지 않았다(첫 커밋부터 모든 head). 로컬은 DB 테스트가 skip돼 재현되지 않았다.
-- 원인(추정): 새 DB 테스트가 `t.after`로 `pool.end()`를 `client.release()`보다 먼저 등록했다. `pool.end()`는 대여된 클라이언트 반납을 기다리므로 실행 순서에 따라 영원히 대기한다.
-- 수정: `withClient` 도우미에서 `finally`로 `release()` 뒤 `pool.end()`를 보장하고, 동시 호출 테스트의 원래 값 복원도 `finally`로 옮겼다. 기존 기본 스키마 테스트를 포함한 DB 테스트 4개 모두에 30초 `timeout`을 둬 다시 멈추면 실패로 드러나게 했다. 멈춘 CI 실행 6건은 취소했다.
-- 리뷰 2회를 마친 뒤의 CI 실패 수정이라 3차 리뷰는 하지 않았다. 결과는 최종 head CI로 확인한다.
+- Symptom: `npm run check` in the CI `verify` did not finish for more than 15 minutes (every head since the first commit). It did not reproduce locally because the DB tests were skipped.
+- Cause (presumed): the new DB test registered `pool.end()` with `t.after` before `client.release()`. `pool.end()` waits for the borrowed clients to be returned, so depending on the run order it waits forever.
+- Fix: the `withClient` helper now guarantees `pool.end()` after `release()` with `finally`, and the restoring of the original value in the concurrent-call test was also moved to `finally`. A 30-second `timeout` was put on all 4 DB tests, including the existing default schema test, so that if it hangs again it shows up as a failure. The 6 stuck CI runs were cancelled.
+- This was a CI failure fix after the 2 review rounds, so no third review was done. The result is confirmed by the CI on the final head.

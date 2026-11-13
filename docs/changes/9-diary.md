@@ -1,71 +1,71 @@
-# #9 일기 쓰기 (오늘 하루 피드백)
+# #9 Writing a diary (feedback on today)
 
-- 이슈: [#9](https://github.com/sirloinbh/plan-routine/issues/9)
-- 브랜치: `feat/9-diary`
-- 일자: 2026-10-31 (Asia/Seoul)
+- Issue: [#9](https://github.com/sirloinbh/plan-routine/issues/9)
+- Branch: `feat/9-diary`
+- Date: 2026-10-31 (Asia/Seoul)
 
-## 목적
+## Purpose
 
-하루를 마치며 그날의 피드백을 일기로 남긴다. 그날 체크한 루틴의 진행률을 함께 보여 작성을 돕는다.
+At the end of the day, leave the day's feedback as a diary. Show the progress of the routines checked that day alongside, to help with writing.
 
-## 확정한 규칙 (사용자 확인, #9 코멘트 기록)
+## Confirmed rules (confirmed by the user, recorded in the #9 comment)
 
-- 일기는 하루 1건이다. 같은 날짜에 다시 저장하면 수정으로 처리한다.
-- 항목은 자유 본문(필수)과 선택 항목(잘한 점, 아쉬운 점, 내일 할 일)이다.
-- 지난 날짜의 작성과 수정은 기간 제한 없이 허용하고, 미래 날짜만 막는다.
+- The diary is one entry per day. Saving again on the same date is handled as an edit.
+- The fields are a free body (required) and optional fields (what went well, what fell short, and what to do tomorrow).
+- Writing and editing past dates is allowed with no period limit, and only future dates are blocked.
 
-## 구현하면서 정한 세부 규칙 (#9 코멘트 기록)
+## Detailed rules decided during implementation (recorded in the #9 comment)
 
-- 최대 길이는 본문 5000자, 선택 항목 각 1000자다.
-- 저장하지 않은 내용이 있으면 날짜를 옮기지 않고 저장을 먼저 안내한다.
-- PostgreSQL에 0000년이 없어 하한을 2000-01-01로 뒀다. 이보다 이른 날짜는 한국어 400이다.
-- 진행률은 지금 보관하지 않은 하루 루틴을 전체로 하고, 그중 그날 체크한 수를 센다.
+- The maximum length is 5000 characters for the body and 1000 characters for each optional field.
+- If there is unsaved content, the date is not moved and saving is announced first.
+- PostgreSQL has no year 0000, so the lower bound was set to 2000-01-01. A date earlier than this gives a 400 with a user-facing message.
+- Progress uses the daily routines that are not archived now as the total, and counts how many of them were checked that day.
 
-## 변경
+## Changes
 
-- DB(`database/migrations/003_diary.sql`): 날짜를 기본 키로 하는 `diary_entries`. 재실행해도 안전하다. 기존 DB에는 `database/README.md`의 절차로 적용해야 한다.
-- API(`backend/src/diary-routes.ts`)
-  - `GET /api/diary?date=`: 날짜의 일기와 하루 루틴 진행률, 이전·다음 날짜. 날짜를 생략하면 서버의 오늘이다.
-  - `PUT /api/diary/:date`: 저장. 앞뒤 공백을 지우고, 빈 선택 항목은 `null`로 저장한다.
-- 화면(`frontend/src/diary.tsx`, 메뉴 "일기", `/diary`): 본문과 선택 항목 3개, 진행률, 날짜 이동, 저장.
-  - 저장하지 않은 내용이 있으면 날짜를 옮기지 않고 저장을 안내한다.
-  - 저장에 실패해도 입력한 글은 그대로 남는다.
-- "오늘 체크" 화면에 "오늘 일기 쓰기" 링크를 추가했다.
+- DB (`database/migrations/003_diary.sql`): `diary_entries`, with the date as the primary key. Safe to run again. For an existing DB, apply it with the steps in `database/README.md`.
+- API (`backend/src/diary-routes.ts`)
+  - `GET /api/diary?date=`: the diary of a date, the daily routine progress, and the previous and next dates. If the date is omitted, it is the server's today.
+  - `PUT /api/diary/:date`: save. It trims the surrounding whitespace and saves an empty optional field as `null`.
+- Screen (`frontend/src/diary.tsx`, menu "Diary", `/diary`): the body and 3 optional fields, progress, date navigation, and save.
+  - If there is unsaved content, the date is not moved and saving is announced.
+  - Even if saving fails, the text typed stays as it is.
+- Added a "Write today's diary" link to the "Today's check" screen.
 
-## 테스트
+## Tests
 
-- `backend/test/diary-routes.test.ts`(API, 가짜 pool): 기본값과 이웃 날짜, 일기가 없는 날, 공백 정리와 빈 선택 항목, 저장 SQL의 날짜별 upsert, 빈 본문·길이 초과·잘못된 타입의 한국어 400, 최대 길이 허용, 미래·너무 이른·없는 날짜의 400, 하한 날짜.
-- `backend/test/db.integration.test.ts`(실제 DB): 마이그레이션 재실행, 제약 조건, 날짜당 1건과 수정, 동시 저장, 지난 날짜, 진행률 집계.
-- `frontend/src/diary.test.tsx`(화면): 진행률과 빈 양식, 저장 요청과 새로 불러온 뒤 유지, 기존 일기 수정, 저장 거부·실패 시 글 유지, 지난 날짜 작성과 날짜별 분리, 미저장 시 이동 차단, 이동·첫 로딩 실패 후 재시도.
-- `frontend/src/app.test.tsx`: 메뉴에서 일기 열기, 오늘 체크에서 일기로 이동.
+- `backend/test/diary-routes.test.ts` (API, fake pool): the defaults and the neighboring dates, a day with no diary, whitespace cleanup and empty optional fields, a per-date upsert in the save SQL, a 400 with a user-facing message for an empty body, too long text, and a wrong type, allowing the maximum length, a 400 for a future, too early, or nonexistent date, and the lower-bound date.
+- `backend/test/db.integration.test.ts` (real DB): re-running the migration, the constraints, one entry per date and editing, concurrent saves, past dates, and the progress count.
+- `frontend/src/diary.test.tsx` (screen): the progress and the empty form, the save request and keeping it after a fresh fetch, editing an existing diary, keeping the text when saving is rejected or fails, writing a past date and separation by date, blocking navigation when unsaved, and retrying after a navigation or first-load failure.
+- `frontend/src/app.test.tsx`: opening the diary from the menu, and going to the diary from today's check.
 
-## 검증
+## Verification
 
-- 로컬 검사(`TEST_DATABASE_URL` 제거): 포맷·lint·타입 검사·빌드 통과, 스킬 검사 4 pass. 백엔드 테스트 46개 중 38 pass / 0 fail / 8 skip이며, skip 8건은 DB 통합 테스트다. 프론트엔드 테스트는 `--testTimeout=60000`으로 87개 모두 통과했다. 이 PC는 기본 5초 제한에서 시간 초과가 날 수 있다(#5 기록 참고).
-- 실제 DB 동작은 CI의 DB 통합 테스트로 확인한다.
-- 브라우저 확인은 1차 보완(글자 수 표시, 안내 위치) 뒤에 다시 해서 같은 결과를 얻었다.
-- 브라우저: 메모리 기반 임시 API에 Vite 개발 서버를 연결하고 헤드리스 Chrome으로 확인했다. 콘솔 오류는 없었다. 실제 DB와 연결한 화면은 확인하지 못했다.
-  - 모바일 390×844: 가로 스크롤 없음(scrollWidth 390), 입력칸 폭 308px.
-  - PC 1440×900: 가로 스크롤 없음.
-  - 두 크기 공통: 오늘 체크의 링크로 진입, 빈 본문 저장 시 한국어 오류, 미저장 시 날짜 이동 차단과 안내, 저장 후 공백 정리와 안내, 새로고침 후 유지. PC에서는 지난 날짜 저장도 확인했다.
+- Local check (`TEST_DATABASE_URL` removed): format, lint, type checks, and build passed, the skill check 4 pass. Backend tests were 38 pass / 0 fail / 8 skip out of 46, and the 8 skips are DB integration tests. All 87 frontend tests passed with `--testTimeout=60000`. This PC can hit a timeout with the default 5-second limit (see the #5 record).
+- Real DB behavior is confirmed by the DB integration tests in CI.
+- The browser check was done again after the first follow-up (the character count display and the notice position), with the same result.
+- Browser: connected the Vite dev server to an in-memory temporary API and checked with headless Chrome. There were no console errors. The screen connected to a real DB was not checked.
+  - Mobile 390×844: no horizontal scroll (scrollWidth 390), input width 308px.
+  - PC 1440×900: no horizontal scroll.
+  - Both sizes: entering by the link on today's check, a user-facing error when saving an empty body, blocking date navigation with a notice when unsaved, whitespace cleanup and the notice after saving, and kept after a refresh. On PC, saving a past date was also checked.
 
-## 한계·후속
+## Limits and follow-up
 
-- 저장하지 않은 채 다른 메뉴로 가거나 탭을 닫으면 입력이 사라진다. 날짜 이동만 막는다: [#45](https://github.com/sirloinbh/plan-routine/issues/45).
-- 화면을 켜 둔 채 자정을 넘기면 다시 불러오기 전까지 이전 날짜의 일기로 저장된다. 날짜는 제목에 보인다.
-- 지난 날짜를 보다가 새로고침하면 오늘로 돌아간다.
-- 진행률이 그날 기준이 아니다. 루틴을 만들기 전 날짜에도 지금의 루틴 수가 전체로 나오고, 나중에 보관한 루틴은 지난 날의 집계에서 빠진다. 그날 기준 집계는 #10에서 다룬다.
-- 깨진 JSON, 크기 초과, 배열 본문의 응답은 기존 동작 그대로다: [#47](https://github.com/sirloinbh/plan-routine/issues/47).
-- 날짜 이동과 저장 오류 때의 키보드 포커스: [#41](https://github.com/sirloinbh/plan-routine/issues/41).
-- 날짜를 하나씩만 옮길 수 있다. 날짜별 열람은 #10에서 다룬다.
+- If you go to another menu or close the tab without saving, the input is lost. Only date navigation is blocked: [#45](https://github.com/sirloinbh/plan-routine/issues/45).
+- If the screen is kept open past midnight, it is saved as the diary of the earlier date until fetched again. The date is shown in the title.
+- If you refresh while looking at a past date, it goes back to today.
+- The progress is not based on that day. Even for a date before the routines were created, the current number of routines appears as the total, and a routine archived later drops out of the count of past days. Counting based on that day is handled in #10.
+- Responses for broken JSON, an oversized body, and an array body stay as the existing behavior: [#47](https://github.com/sirloinbh/plan-routine/issues/47).
+- Keyboard focus on date navigation and on a save error: [#41](https://github.com/sirloinbh/plan-routine/issues/41).
+- The date can be moved only one at a time. Viewing by date is handled in #10.
 
-## 자동 코드 리뷰
+## Automated code review
 
-- 1차: 저장 데이터가 깨지는 문제는 없었다. 보완 5건을 반영했고 후속 작업을 이슈로 넘겼다.
-  - (중간) 제한을 넘는 글을 붙여넣으면 브라우저가 말없이 잘랐다. 입력 제한 속성을 없애고 글자 수를 표시하며, 서버의 한국어 400이 뜨고 글은 남는다. 테스트를 추가했다.
-  - (낮음) NUL 문자가 든 글이 500이 됐다. 한국어 400으로 거부한다. 테스트를 추가했다.
-  - (낮음) 저장 결과가 화면 밖에 뜰 수 있었다. 저장 버튼 옆에 표시한다. 테스트를 추가했다.
-  - (낮음) 로딩·저장 중 잠금과 늦은 응답 무시에 테스트가 없었다. 테스트를 추가했다. DB 테스트에 체크 응답 상태와 최대 길이 저장 확인도 더했다.
-  - (낮음) 사용자가 확정한 규칙과 구현 중 정한 규칙을 나눠 기록했다. 진행률 기준도 한계에 적었다.
-  - 넘긴 작업: 요청 본문 오류 응답 [#47](https://github.com/sirloinbh/plan-routine/issues/47), 포커스 [#41](https://github.com/sirloinbh/plan-routine/issues/41), 그날 기준 진행률 [#10](https://github.com/sirloinbh/plan-routine/issues/10).
-- 2차: 고칠 결함이 없다. 1차 보완 5건의 반영을 확인했다. 리뷰는 2회로 마친다.
+- First: no problem that breaks saved data. 5 follow-ups applied and the follow-up work handed to issues.
+  - (Medium) When text over the limit was pasted, the browser silently cut it. The input limit attribute was removed and the character count is shown, so the server's 400 with a user-facing message appears and the text stays. Added a test.
+  - (Low) Text containing a NUL character became a 500. It is now rejected with a 400 with a user-facing message. Added a test.
+  - (Low) The save result could appear off-screen. It is now shown next to the save button. Added a test.
+  - (Low) The lock during loading and saving and ignoring late responses had no test. Added tests. Also added a check of the check response status and saving the maximum length to the DB test.
+  - (Low) Recorded the rules the user confirmed and the rules decided during implementation separately. Also wrote the progress basis in the limits.
+  - Handed over: the request body error response [#47](https://github.com/sirloinbh/plan-routine/issues/47), focus [#41](https://github.com/sirloinbh/plan-routine/issues/41), progress based on that day [#10](https://github.com/sirloinbh/plan-routine/issues/10).
+- Second: no defect to fix. Confirmed the 5 first-review follow-ups were applied. The review ends at 2 rounds.

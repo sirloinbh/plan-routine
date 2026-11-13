@@ -1,53 +1,53 @@
-# #41 날짜 이동과 12주 화면의 키보드 포커스
+# #41 Keyboard focus on date navigation and the 12-week screen
 
-- 이슈: [#41](https://github.com/sirloinbh/plan-routine/issues/41)
-- 브랜치: `fix/41-date-focus`
-- 일자: 2026-11-01 (Asia/Seoul)
+- Issue: [#41](https://github.com/sirloinbh/plan-routine/issues/41)
+- Branch: `fix/41-date-focus`
+- Date: 2026-11-01 (Asia/Seoul)
 
-## 목적
+## Purpose
 
-날짜 이동 버튼은 범위 끝에서 비활성화되고 "오늘로"는 사라져, 포커스가 `body`로 빠졌다. 바뀐 날짜도 낭독기에 알려지지 않았다. PR 리뷰에서 넘어온 일기와 12주 화면의 같은 문제도 함께 고친다.
+The date navigation buttons are disabled at the end of the range and "To today" disappears, so the focus fell to `body`. The changed date was also not announced to the screen reader. Also fix the same problems on the diary and 12-week screens that were handed over from PR reviews.
 
-## 변경
+## Changes
 
-`frontend/src/focus-moves.ts`(새 파일)에 포커스 처리를 모았다. #19의 `use-routine-list.ts` 코드도 이것을 쓴다.
+Gathered the focus handling in `frontend/src/focus-moves.ts` (new file). The `use-routine-list.ts` code of #19 also uses it.
 
-| 화면            | 동작                                | 포커스가 가는 곳                                                                                    |
-| --------------- | ----------------------------------- | --------------------------------------------------------------------------------------------------- |
-| 오늘 체크, 일기 | 다른 날짜로 이동                    | 날짜 제목. 낭독기가 새 날짜를 읽는다                                                                |
-| 일기            | 본문이 비었거나 너무 길어 저장 실패 | 본문 입력칸. `aria-invalid` 표시                                                                    |
-| 12주 목표       | 이름 수정 저장·취소                 | 그 목표의 "수정" 버튼                                                                               |
-| 12주 목표       | 이름 수정 실패                      | 입력칸. 목표가 사라졌으면 "새 목표" 입력칸                                                          |
-| 12주 목표       | 삭제                                | 다음 목표의 "수정". 없으면 이전 목표, 그것도 없으면 "새 목표" 입력칸                                |
-| 12주 목표       | 삭제 실패                           | 그 목표의 "삭제" 버튼                                                                               |
-| 12주 목표       | 추가                                | "새 목표" 입력칸                                                                                    |
-| 12주 회고       | 저장해 카드가 다른 목록으로 옮겨 감 | 옮겨 간 카드의 제목. 브라우저가 그 위치로 스크롤한다. 안내도 페이지 맨 위가 아니라 그 카드에 나온다 |
+| Screen                | Action                                             | Where the focus goes                                                                                                                  |
+| --------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Today's check, diary  | Move to another date                               | The date heading. The screen reader reads the new date                                                                                |
+| Diary                 | Saving fails because the body is empty or too long | The body input. Marked `aria-invalid`                                                                                                 |
+| 12-week goals         | Save or cancel a rename                            | The "Edit" button of that goal                                                                                                        |
+| 12-week goals         | Rename fails                                       | The input. If the goal is gone, the "New goal" input                                                                                  |
+| 12-week goals         | Delete                                             | The "Edit" of the next goal. If none, the previous goal, and if that is also none, the "New goal" input                               |
+| 12-week goals         | Delete fails                                       | The "Delete" button of that goal                                                                                                      |
+| 12-week goals         | Add                                                | The "New goal" input                                                                                                                  |
+| 12-week retrospective | Saving moves the card to another list              | The heading of the moved card. The browser scrolls to that position. The notice also appears on that card, not at the top of the page |
 
-- 기다리는 사이 사용자가 다른 곳으로 옮겨 갔으면 포커스를 가져오지 않는다.
-- 불러오기에 실패한 시점이나 자정에 날짜가 저절로 바뀔 때는 포커스를 옮기지 않는다.
-- 터치 화면에서는 "새 목표" 입력칸으로 포커스를 옮기지 않는다. 키보드가 저절로 올라오지 않게 하기 위해서다.
+- If the user moved elsewhere while waiting, focus is not taken.
+- Focus is not moved when a fetch fails or when the date changes by itself at midnight.
+- On a touch screen, focus is not moved to the "New goal" input, so the keyboard does not come up by itself.
 
-## 테스트
+## Tests
 
-`daily-checklist.test.tsx`, `diary.test.tsx`, `twelve-week.test.tsx`: 위 표의 동작, 범위 끝, 불러오기 실패, 옮겨 간 사용자, 자정. `routines.test.tsx`는 그대로 통과해 #19 동작이 유지됨을 확인한다.
+`daily-checklist.test.tsx`, `diary.test.tsx`, `twelve-week.test.tsx`: the actions in the table above, the end of the range, a fetch failure, a user who moved elsewhere, and midnight. `routines.test.tsx` passes unchanged, confirming the #19 behavior is kept.
 
-## 검증
+## Verification
 
-- 로컬(`TEST_DATABASE_URL` 제거): 포맷·lint·타입 검사·빌드 통과. 프론트엔드 테스트는 `--testTimeout=60000`으로 237개 중 235 pass / 0 fail / 2 skip이다(skip은 다크 모드 전용 공통 테스트). `npm run check`를 한 번에 돌리면 프론트엔드가 기본 제한 시간에 걸리는 PC라 나눠 실행했다. 백엔드 84개 중 70 pass / 0 fail / 14 skip(DB 테스트, DB 없이 실행), `test:skills` 4개 pass.
-- 브라우저: 임시 API와 헤드리스 Chrome으로 PC 1440×900, 모바일 390×844(터치 입력 흉내)에서 실제 Enter 키로 날짜 이동, 일기 빈 본문 저장, 목표 수정 열기·취소·삭제, 회고 저장 뒤 카드 이동을 확인했다. 옮겨 간 카드의 제목이 상단 고정 바에 가려지는 것을 이 확인에서 찾아 스크롤 여백으로 고쳤다. 콘솔 오류와 가로 스크롤은 없었다. 실제 화면 낭독기, 실제 휴대폰, 실제 DB로는 확인하지 못했다.
+- Local (`TEST_DATABASE_URL` removed): format, lint, type checks, and build passed. Frontend tests were 235 pass / 0 fail / 2 skip out of 237 with `--testTimeout=60000` (the skips are dark-mode-only shared tests). On this PC, running `npm run check` in one go makes the frontend hit the default time limit, so I ran it in parts. Backend 70 pass / 0 fail / 14 skip out of 84 (DB tests, run without a DB), and `test:skills` 4 pass.
+- Browser: with a temporary API and headless Chrome at PC 1440×900 and mobile 390×844 (simulating touch input), I checked date navigation with the real Enter key, saving an empty diary body, opening, cancelling, and deleting a goal edit, and the card moving after saving a retrospective. I found in this check that the heading of the moved card was hidden by the top fixed bar, and fixed it with a scroll margin. There were no console errors or horizontal scroll. It was not checked with a real screen reader, a real phone, or a real DB.
 
-## 한계·후속
+## Limits and follow-up
 
-- 목표가 다른 곳에서 지워진 뒤 삭제에 실패하면, 다시 불러온 뒤 그 행이 사라져 포커스가 `body`로 빠진다. 드문 경우라 두었다.
-- 기록 화면의 달 이동은 이 카드의 범위가 아니다.
-- 첫 불러오기 실패 뒤 "다시 시도"를 누르면 포커스가 `body`로 빠진다. [#66](https://github.com/sirloinbh/plan-routine/issues/66)으로 분리했다.
+- If deleting a goal fails after it was deleted elsewhere, that row disappears after the refetch and the focus falls to `body`. I left it as it is rare.
+- Month navigation on the records screen is not in the scope of this card.
+- After the first load fails, pressing "Retry" drops the focus to `body`. Split off as [#66](https://github.com/sirloinbh/plan-routine/issues/66).
 
-## 자동 코드 리뷰
+## Automated code review
 
-- 1차: 4건을 반영하고 1건을 분리했다.
-  - (낮음~중간) 일기 저장 실패가 옮겨 간 사용자의 포커스를 빼앗았다. 옮겨 갔으면 표시만 한다. 테스트를 추가했다.
-  - (낮음) 테스트가 저장을 두 번 제출했다. 고쳤다.
-  - (낮음) 목표의 수정 실패, 삭제 실패에 테스트가 없었다. 추가했고, 검증 범위를 사실대로 적었다.
-  - (낮음) 날짜 제목에 상단 바 여백이 없었다. 회고 카드와 같이 넣었다.
-  - (낮음) "다시 시도" 뒤 포커스는 범위 밖이라 [#66](https://github.com/sirloinbh/plan-routine/issues/66)으로 분리했다.
-- 2차: 병합을 막는 결함은 없었다. 1차 보완의 반영을 확인했다. 낮음 2건을 반영했다(일기 본문이 표시된 뒤에 포커스 옮기기, 스크롤 여백에 노치 영역 포함). 리뷰는 2회로 마친다.
+- First: 4 applied and 1 split off.
+  - (Low to medium) A diary save failure took the focus from a user who had moved elsewhere. If they moved, it only shows the mark. Added a test.
+  - (Low) The test submitted the save twice. Fixed.
+  - (Low) Rename failure and delete failure of goals had no test. Added them and wrote the verification scope as it really was.
+  - (Low) The date heading had no top bar margin. Added it together with the retrospective card.
+  - (Low) Focus after "Retry" is out of scope, so it was split off to [#66](https://github.com/sirloinbh/plan-routine/issues/66).
+- Second: no defect blocking the merge. Confirmed the first-review follow-ups were applied. 2 low findings applied (moving the focus after the diary body is shown, and including the notch area in the scroll margin). The review ends at 2 rounds.

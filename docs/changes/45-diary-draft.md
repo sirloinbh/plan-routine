@@ -1,50 +1,50 @@
-# #45 저장하지 않은 일기를 임시 저장하기
+# #45 Saving an unsaved diary as a draft
 
-- 이슈: [#45](https://github.com/sirloinbh/plan-routine/issues/45)
-- 브랜치: `feat/45-diary-draft`
-- 일자: 2026-11-01 (Asia/Seoul)
+- Issue: [#45](https://github.com/sirloinbh/plan-routine/issues/45)
+- Branch: `feat/45-diary-draft`
+- Date: 2026-11-01 (Asia/Seoul)
 
-## 목적
+## Purpose
 
-일기를 저장하지 않고 다른 메뉴로 가거나 탭을 닫으면 쓴 글이 사라졌다. 사용자 결정에 따라 메뉴 이동을 막지 않고, 글을 브라우저에 임시 저장해 돌아왔을 때 복원한다. 라우터 구조는 바꾸지 않는다.
+If you went to another menu or closed the tab without saving the diary, the text written was lost. Following the user's decision, menu navigation is not blocked, and the text is saved temporarily in the browser and restored when you come back. The router structure is not changed.
 
-## 변경
+## Changes
 
-`frontend/src/diary-draft.ts`(새 파일), `frontend/src/diary.tsx`.
+`frontend/src/diary-draft.ts` (new file), `frontend/src/diary.tsx`.
 
-- 저장하지 않은 글이 있으면 입력할 때마다 `localStorage`에 보관한다. 저장에 성공하거나 저장된 내용과 같아지면 지운다.
-- 일기 화면을 열면 임시 글을 복원하고 "저장하지 않은 글을 불러왔습니다"라고 안내한다. 자동으로 서버에 저장하지는 않는다.
-- 임시 글은 하나만 둔다. 저장하지 않은 글이 있으면 날짜 이동이 막혀 있기 때문이다. 며칠 뒤 돌아와도 글이 숨지 않도록, 화면은 임시 글의 날짜로 열린다.
-- 임시 글을 쓴 뒤 그날의 저장된 내용이 달라졌으면 확인하라고 안내한다.
-- 임시 글이 남으면 날짜를 옮길 수 없으므로 "버리기" 버튼을 추가했다. 잘못 누르지 않게 "버리기 확인"을 한 번 더 받는다.
-- 탭 닫기 경고는 임시 저장에 실패했을 때만 띄운다. 임시 저장되면 탭을 닫아도 글이 남기 때문이다. 이슈의 "탭 닫기 때 경고" 항목을 이렇게 좁혔고, 이슈에 기록했다.
-- 앞뒤 공백만 다른 글은 임시 저장하지 않는다. 서버가 어차피 잘라낸다.
-- 서버가 거부하는 날짜의 임시 글은 지우고 오늘을 연다. 저장소가 손상된 경우에만 생기며, 그대로 두면 화면을 쓸 수 없다.
+- If there is unsaved text, it is kept in `localStorage` on every input. It is deleted when saving succeeds or when it becomes the same as the saved content.
+- When the diary screen is opened, the draft is restored and a notice says "Loaded your unsaved text". It is not saved to the server automatically.
+- Only one draft is kept, because date navigation is blocked when there is unsaved text. So the text does not hide even if you come back days later, the screen opens on the draft's date.
+- If the saved content of that day changed after the draft was written, the user is told to check.
+- Since the date cannot be moved while a draft remains, a "Discard" button was added. To avoid pressing it by mistake, it asks for "Confirm discard" once more.
+- The tab-close warning is shown only when saving the draft failed, because if the draft was saved, the text remains even if the tab is closed. This narrowed the "warn when the tab is closed" item of the issue, and it was recorded in the issue.
+- A text that differs only in leading and trailing whitespace is not saved as a draft. The server trims it anyway.
+- A draft of a date the server rejects is deleted and today is opened. This happens only when the storage is corrupted, and if left as it is the screen cannot be used.
 
-## 테스트
+## Tests
 
-`frontend/src/diary.test.tsx`: 떠났다 돌아왔을 때 복원, 저장 뒤 삭제, 저장 실패 때 유지, 저장 중에 떠난 경우, 이전 날짜의 임시 글, 다른 곳에서 달라진 내용, 저장 내용과 같은 임시 글, 공백만 다른 글, 손상된 임시 글, 서버가 거부하는 날짜, 늦게 온 저장 응답, 버리기와 포커스, 탭 닫기 경고.
+`frontend/src/diary.test.tsx`: restoring when you left and came back, deleting after saving, keeping it when saving fails, leaving during a save, a draft of an earlier date, content changed elsewhere, a draft equal to the saved content, a text differing only in whitespace, a corrupted draft, a date the server rejects, a late save response, discarding and focus, and the tab-close warning.
 
-## 검증
+## Verification
 
-- 로컬(`TEST_DATABASE_URL` 제거): 포맷·lint·타입 검사·빌드 통과. 프론트엔드 테스트는 `--testTimeout=60000`으로 218개 중 216 pass / 0 fail / 2 skip이다(skip은 다크 모드 전용 공통 테스트). 백엔드는 바뀌지 않았다.
-- 브라우저: 임시 API와 헤드리스 Chrome으로 PC 1440×900, 모바일 390×844에서 메뉴 이동과 새로고침 뒤 복원, 안내문, 버리기, 저장 뒤 임시 글 삭제를 확인했다. 가로 스크롤과 콘솔 오류는 없었다. PC는 실제 메뉴 링크를 눌렀고, 모바일은 돌아올 때 메뉴가 서랍 안에 있어 주소 이동으로 대신했다. 실제 DB, 실제 휴대폰, 실제 탭 닫기는 확인하지 못했다.
+- Local (`TEST_DATABASE_URL` removed): format, lint, type checks, and build passed. Frontend tests were 216 pass / 0 fail / 2 skip out of 218 with `--testTimeout=60000` (the skips are dark-mode-only shared tests). The backend did not change.
+- Browser: with a temporary API and headless Chrome at PC 1440×900 and mobile 390×844, I checked restoring after a menu move and a refresh, the notice text, discarding, and deleting the draft after saving. There was no horizontal scroll or console error. On PC I pressed the real menu link, and on mobile, because the menu is inside a drawer when you come back, I substituted an address navigation. It was not checked with a real DB, a real phone, or a real tab close.
 
-## 한계·후속
+## Limits and follow-up
 
-- 임시 글은 이 브라우저에 암호화 없이 남고, 다른 기기에서는 보이지 않는다. 사용자가 받아들인 방식이다.
-- 임시 글은 하나라, 탭 두 개에서 쓰면 나중에 입력한 탭의 글만 남고 경고도 없다. 날짜가 달라도 그렇다. [#64](https://github.com/sirloinbh/plan-routine/issues/64)로 분리했다.
-- 12주 회고의 저장하지 않은 입력은 이 카드의 범위가 아니다.
+- The draft stays in this browser without encryption and is not visible on other devices. This is the method the user accepted.
+- There is only one draft, so if you write in two tabs, only the text of the tab entered later remains and there is no warning. This is true even if the dates differ. Split off as [#64](https://github.com/sirloinbh/plan-routine/issues/64).
+- Unsaved input of the 12-week retrospective is not in the scope of this card.
 
-## 자동 코드 리뷰
+## Automated code review
 
-- 1차: 7건 중 6건을 반영하고 1건은 분리했다.
-  - (중간) 복원 직후 임시 글의 기준을 덮어써, "저장된 내용이 달라졌다"는 경고가 한 번만 나왔다. 처음 기준을 유지한다. 테스트를 추가했다.
-  - (중간) 떠난 뒤 늦게 온 저장 응답이 그 뒤에 쓴 임시 글을 지웠다. 보낸 내용과 같을 때만 지운다. 테스트를 추가했다.
-  - (낮음) 다른 날짜를 연 두 탭에서 임시 글이 덮어써진다. 기록을 고치고 코드 수정은 [#64](https://github.com/sirloinbh/plan-routine/issues/64)로 분리했다.
-  - (낮음) 탭 닫기 경고를 좁힌 결정을 기록하지 않았다. 이슈와 PR에 적었다.
-  - (낮음) 서버가 거부하는 날짜의 임시 글이 있으면 화면을 쓸 수 없었다. 지우고 오늘을 연다. 테스트를 추가했다.
-  - (낮음) "버리기 확인"이 입력 뒤에도 남았다. 입력하면 되돌린다. 테스트를 추가했다.
-  - (낮음) 공백만 다른 임시 글이 지난 날짜로 화면을 열었다. 공백만 다르면 임시 저장하지 않는다. 테스트를 추가했다.
-  - 저장 뒤 삭제 테스트가 삭제를 직접 확인하지 않아 확인을 추가했다.
-- 2차: 병합을 막는 결함은 없었다. 1차 보완의 반영을 확인했다. 낮음 2건을 반영했다(복원할 것이 없는 임시 글이 지난 날짜를 열던 경우, 다음 작업 표의 #64 행). 리뷰는 2회로 마친다.
+- First: of 7, 6 applied and 1 split off.
+  - (Medium) Right after restoring, it overwrote the basis of the draft, so the warning "the saved content changed" appeared only once. It now keeps the first basis. Added a test.
+  - (Medium) A save response that arrived late after leaving deleted a draft written afterwards. It now deletes only when it equals what was sent. Added a test.
+  - (Low) With two tabs open on different dates, the draft is overwritten. Fixed the record, and split the code fix off to [#64](https://github.com/sirloinbh/plan-routine/issues/64).
+  - (Low) The decision to narrow the tab-close warning was not recorded. Wrote it in the issue and the PR.
+  - (Low) If there was a draft of a date the server rejects, the screen could not be used. It is deleted and today is opened. Added a test.
+  - (Low) "Confirm discard" stayed after input. It is reverted when typing. Added a test.
+  - (Low) A draft differing only in whitespace opened the screen on a past date. A text differing only in whitespace is not saved as a draft. Added a test.
+  - The delete-after-save test did not check the deletion directly, so a check was added.
+- Second: no defect blocking the merge. Confirmed the first-review follow-ups were applied. 2 low findings applied (a draft with nothing to restore opening a past date, and the #64 row of the next-steps table). The review ends at 2 rounds.

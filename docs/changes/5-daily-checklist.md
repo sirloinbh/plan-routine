@@ -1,69 +1,69 @@
-# #5 체크리스트 화면과 오늘의 하루 루틴 체크
+# #5 Checklist screen and today's daily routine check
 
-- 이슈: [#5](https://github.com/sirloinbh/plan-routine/issues/5)
-- 브랜치: `feat/5-daily-checklist`
-- 일자: 2026-10-31 (Asia/Seoul)
+- Issue: [#5](https://github.com/sirloinbh/plan-routine/issues/5)
+- Branch: `feat/5-daily-checklist`
+- Date: 2026-10-31 (Asia/Seoul)
 
-## 목적
+## Purpose
 
-정해 둔 하루 루틴을 체크리스트로 보고 바로 완료 표시를 한다. 주간·4주·12주 루틴도 같은 형식을 쓸 수 있게 API와 컴포넌트를 공통으로 만든다.
+See the set daily routines as a checklist and mark them done right away. Make the API and the component shared so weekly, 4-week, and 12-week routines can use the same format.
 
-## 확정한 규칙 (사용자 확인, #5 코멘트 기록)
+## Confirmed rules (confirmed by the user, recorded in the #5 comment)
 
-- 지난 날짜 체크는 오늘로부터 7일 전까지 바꿀 수 있다. 오늘을 포함해 8개 날짜다.
-- 미래 날짜는 체크할 수 없다.
-- 체크리스트 조회도 같은 날짜 범위만 허용한다. 더 오래된 기록의 열람은 #10에서 다룬다.
+- A check on a past date can be changed up to 7 days before today. That is 8 dates including today.
+- A future date cannot be checked.
+- Reading the checklist also allows only the same date range. Viewing older records is handled in #10.
 
-## 변경
+## Changes
 
-- API(`backend/src/check-routes.ts`)
-  - `GET /api/checklist?cadence=daily&date=`: 날짜의 체크리스트. 주기를 생략하면 매일, 날짜를 생략하면 서버의 오늘이다. 응답은 `date`, `today`, `previousDate`, `nextDate`, `period`, `items`이고, 범위를 벗어나는 이웃 날짜는 `null`이다.
-  - `PUT /api/routines/:id/checks/:date`, `DELETE` 같은 경로: 체크와 해제. 반복해도 결과가 같다. 체크는 루틴 주기의 기간 시작일로 저장하므로 같은 기간에 중복되지 않는다.
-  - 체크 저장은 첫 사용일 기록과 한 트랜잭션으로 처리한다(#3 후속 반영). 루틴 행을 `FOR SHARE`로 잠가, 동시에 보관되는 루틴에 체크가 붙지 않게 했다.
-  - 범위 밖 날짜는 한국어 400, 없거나 보관한 루틴은 한국어 404다.
-- `backend/src/routines.ts`: 주기 스키마 `routineCadence`를 분리해 함께 쓴다. `routineAnchorDate`는 트랜잭션 연결도 받는다.
-- 화면
-  - `frontend/src/checklist.tsx`: 공통 체크리스트(제목, 항목, 완료 토글, `완료/전체` 진행률).
-  - `frontend/src/daily-checklist.tsx`, 메뉴 "오늘 체크"(`/today`): 카테고리별 체크리스트, 전체 진행률, 이전 날·다음 날·오늘로 이동, 루틴이 없을 때의 안내.
-  - 체크는 화면에 먼저 반영하고, 저장에 실패하면 되돌린 뒤 한국어 오류를 보여 주고 목록을 다시 불러온다.
-  - 저장 중인 칸의 반복 클릭은 무시한다. 칸을 비활성화하면 키보드 포커스가 사라지기 때문이다.
+- API (`backend/src/check-routes.ts`)
+  - `GET /api/checklist?cadence=daily&date=`: the checklist of a date. If the cadence is omitted it is daily, and if the date is omitted it is the server's today. The response is `date`, `today`, `previousDate`, `nextDate`, `period`, and `items`, and a neighboring date outside the range is `null`.
+  - `PUT /api/routines/:id/checks/:date` and `DELETE` on the same path: check and uncheck. Repeating gives the same result. A check is saved with the period start date of the routine's cadence, so it is not duplicated in the same period.
+  - Saving a check is handled in one transaction with recording the first-use day (applying the #3 follow-up). The routine row is locked with `FOR SHARE`, so a check does not attach to a routine that is being archived at the same time.
+  - A date outside the range gives a 400 with a user-facing message, and a missing or archived routine gives a 404 with a user-facing message.
+- `backend/src/routines.ts`: split out the cadence schema `routineCadence` for shared use. `routineAnchorDate` also accepts a transaction connection.
+- Screen
+  - `frontend/src/checklist.tsx`: the shared checklist (title, items, the done toggle, and `done/total` progress).
+  - `frontend/src/daily-checklist.tsx`, menu "Today's check" (`/today`): a checklist by category, the overall progress, moving to the previous day, the next day, and today, and a notice when there are no routines.
+  - A check is reflected on the screen first, and if saving fails it is reverted, a user-facing error is shown, and the list is fetched again.
+  - Repeated clicks on a cell that is being saved are ignored, because disabling the cell would lose the keyboard focus.
 
-## 테스트
+## Tests
 
-- `backend/test/check-routes.test.ts`(API, 가짜 pool): 기본값과 이웃 날짜, 긴 주기의 기간 시작일 조회, 범위 밖 날짜의 한국어 400(쿼리 실행 안 함), 오늘과 7일 전 경계, 첫 사용일 기록과 4주 기간 저장, 해제, 보관된 루틴의 404, 잘못된 번호·날짜·주기.
-- `backend/test/db.integration.test.ts`(실제 DB): 체크 저장과 조회, 반복·동시 체크의 중복 방지, 날짜별 독립, 반복 해제, 보관 후 목록 제외·기록 보존·404.
-- `frontend/src/daily-checklist.test.tsx`(화면): 카테고리 표시와 빈 카테고리 숨김, 체크 즉시 반영과 새로 불러온 뒤 유지, 진행률, 해제, 저장 중 반복 클릭, 저장 실패 시 복원, 보관된 루틴의 404, 날짜 이동과 범위 끝, 빈 상태, 불러오기 실패.
-- `frontend/src/app.test.tsx`: 메뉴에서 "오늘 체크" 페이지 열기.
+- `backend/test/check-routes.test.ts` (API, fake pool): the defaults and the neighboring dates, fetching the period start date of a long cadence, a 400 with a user-facing message for a date outside the range (no query is run), the boundary of today and 7 days ago, recording the first-use day and saving a 4-week period, unchecking, a 404 for an archived routine, and an invalid number, date, or cadence.
+- `backend/test/db.integration.test.ts` (real DB): saving and reading a check, preventing duplicates for repeated and concurrent checks, independence by date, repeated unchecking, and after archiving, exclusion from the list, keeping records, and 404.
+- `frontend/src/daily-checklist.test.tsx` (screen): showing categories and hiding empty ones, a check reflected immediately and kept after a fresh fetch, progress, unchecking, repeated clicks while saving, restoring when saving fails, a 404 for an archived routine, date navigation and the end of the range, the empty state, and a fetch failure.
+- `frontend/src/app.test.tsx`: opening the "Today's check" page from the menu.
 
-## 검증
+## Verification
 
-- 로컬 전체 검사(`TEST_DATABASE_URL` 제거, 사용자가 패키지 설치 후): 포맷·lint·타입 검사 통과, 스킬 검사 4 pass, 빌드 성공. 백엔드 테스트는 37개 중 31 pass / 0 fail / 6 skip이며, skip 6건은 DB 통합 테스트다.
-- 로컬 프론트엔드 테스트: 기본 제한 시간(5초)에서는 74개 중 4개가 시간 초과로 실패했다. 이 중 3개는 이 PR이 고치지 않은 기존 테스트 또는 앱 화면 테스트다. `--testTimeout=60000`으로 다시 돌리면 74개 모두 통과한다. PC가 느린 탓으로 판단하며 CI에서는 기본 제한 시간으로 통과한다.
-- CI `verify`: 백엔드 테스트 37개가 DB 테스트를 포함해 모두 통과했고(skip 0, 코드 보완 후 커밋 `2f0a3e2` 로그 기준), 이후 커밋까지 `verify`·`docker-build`가 통과했다.
-- 브라우저: 실제 API 대신 같은 응답 형식의 메모리 기반 임시 API(작업 공간 밖 스크래치 파일)에 Vite 개발 서버를 연결하고, 헤드리스 Chrome(DevTools 프로토콜)으로 확인했다. 콘솔 오류는 없었다.
-  - 모바일 390×844: 가로 스크롤 없음(scrollWidth 390), 카드 한 열, 긴 이름 줄바꿈.
-  - PC 1440×900: 가로 스크롤 없음, 카드 두 열.
-  - 두 크기 공통: 라벨과 칸 클릭으로 체크, 진행률 2/6과 카드별 1/2·1/1 표시, 체크 후 포커스 유지, 새로고침 후 유지, 이전 날은 별도 체크(0/6), 오늘로 복귀 시 2/6.
-  - 실제 DB와 연결한 화면 확인은 하지 못했다. API·DB 동작은 CI DB 통합 테스트로 확인한다. 임시 API의 날짜 범위 응답은 실제 서버 코드가 아니므로, 범위 검사는 API 테스트로 확인한다.
+- Full local check (`TEST_DATABASE_URL` removed, after the user installed the packages): format, lint, and type checks passed, the skill check 4 pass, and the build succeeded. Backend tests were 31 pass / 0 fail / 6 skip out of 37, and the 6 skips are DB integration tests.
+- Local frontend tests: with the default time limit (5 seconds), 4 of 74 failed with a timeout. Of these, 3 are existing tests or app screen tests that this PR did not change. Running again with `--testTimeout=60000`, all 74 pass. I judged it to be because the PC is slow, and in CI it passes with the default time limit.
+- CI `verify`: all 37 backend tests passed including the DB tests (skip 0, according to the log of commit `2f0a3e2` after the code follow-up), and `verify` and `docker-build` passed up to the later commits.
+- Browser: instead of the real API, I connected the Vite dev server to an in-memory temporary API with the same response format (a scratch file outside the workspace) and checked with headless Chrome (DevTools protocol). There were no console errors.
+  - Mobile 390×844: no horizontal scroll (scrollWidth 390), cards in one column, long names wrap.
+  - PC 1440×900: no horizontal scroll, cards in two columns.
+  - Both sizes: checking by clicking the label and the cell, progress 2/6 and per-card 1/2 and 1/1, focus kept after a check, kept after a refresh, the previous day checked separately (0/6), and returning to today gives 2/6.
+  - The screen connected to a real DB could not be checked. API and DB behavior is checked by the CI DB integration tests. The date-range response of the temporary API is not the real server code, so the range check is confirmed by the API tests.
 
-## 한계·후속
+## Limits and follow-up
 
-- 화면을 계속 띄운 채 자정을 넘기면 다시 불러오기 전까지 어제 날짜에 저장된다. 날짜는 제목에 보인다: [#44](https://github.com/sirloinbh/plan-routine/issues/44).
-- 지금 보관하지 않은 루틴만 보여 주므로, 지난 날짜에도 그 뒤에 추가한 루틴이 함께 나온다. 날짜별 기록 열람은 #10에서 다룬다.
-- 주간·4주·12주 화면은 #6~#8에서 만든다. API와 `Checklist`는 이미 해당 주기를 받을 수 있다.
+- If the screen is kept open past midnight, it saves to yesterday's date until fetched again. The date is shown in the title: [#44](https://github.com/sirloinbh/plan-routine/issues/44).
+- Only routines that are not archived now are shown, so routines added later also appear on past dates. Viewing records by date is handled in #10.
+- The weekly, 4-week, and 12-week screens are built in #6 to #8. The API and `Checklist` can already accept those cadences.
 
-## 자동 코드 리뷰
+## Automated code review
 
-- 1차: 보완 7건을 반영했고 2건을 새 이슈로 분리했습니다. 서버의 트랜잭션·잠금·보안에는 지적이 없었습니다.
-  - (높음) lint 오류 2건으로 필수 CI가 실패했습니다. `progressText`를 `checklist-progress.ts`로 옮기고 테스트의 `async` 함수를 고쳤습니다.
-  - (높음) 앱 테스트의 가짜 API가 체크리스트 형식이 아니어서 렌더 오류가 날 수 있었습니다. `/api/checklist` 응답을 넣고 로딩 완료까지 기다립니다.
-  - (중간) 자정을 넘겨 열어 둔 화면이 어제 날짜에 저장했습니다. 화면이 다시 보일 때 다시 불러오고, 오늘 화면은 서버의 오늘을 계속 따라갑니다. 테스트를 추가했습니다.
-  - (중간) 저장 중에 도착한 조회 응답이 체크 표시를 덮어썼습니다. 저장 전 데이터일 수 있는 응답은 버리고 저장이 끝난 뒤 다시 불러옵니다. 테스트를 추가했습니다.
-  - (낮음) 저장 중 표시의 키를 날짜와 루틴 번호로 바꿨습니다.
-  - (낮음) 날짜 이동이 실패하면 같은 버튼으로 다시 시도할 수 있고, 첫 로딩 실패에는 "다시 시도" 버튼을 둡니다. 테스트를 추가했습니다.
-  - (낮음) 이 기록의 검증 칸을 갱신합니다.
-  - 분리: 날짜 이동 후 포커스 [#41](https://github.com/sirloinbh/plan-routine/issues/41), 보관·체크 동시 요청 DB 테스트 [#42](https://github.com/sirloinbh/plan-routine/issues/42).
-- 2차: 병합을 막는 결함은 없었고, 낮음 3건 중 2건을 반영하고 1건을 분리했습니다. 3차 리뷰는 하지 않습니다.
-  - (낮음) 저장 도중 시작한 조회가 저장보다 늦게 도착하면 체크 표시를 지울 수 있었습니다. 저장의 끝도 세어 그런 응답을 버립니다. 테스트를 추가했습니다.
-  - (낮음) 조회 실패 알림이 다음 조회가 성공해도 남았습니다. 조회 실패 알림만 지우고 저장 실패 알림은 유지합니다. 테스트를 추가했습니다.
-  - 분리: 화면을 계속 띄운 채 자정을 넘기는 경우 [#44](https://github.com/sirloinbh/plan-routine/issues/44).
+- First: 7 follow-ups applied and 2 split into new issues. There were no findings on the server's transactions, locks, or security.
+  - (High) 2 lint errors failed the required CI. Moved `progressText` to `checklist-progress.ts` and fixed the `async` function in the test.
+  - (High) The fake API in the app test was not in the checklist format, so a render error could occur. Added a `/api/checklist` response and wait until loading finishes.
+  - (Medium) A screen left open past midnight saved to yesterday's date. It fetches again when the screen becomes visible again, and the today screen keeps following the server's today. Added a test.
+  - (Medium) A fetch response that arrived while saving overwrote the check mark. Responses that may be pre-save data are discarded, and it fetches again after saving ends. Added a test.
+  - (Low) Changed the key of the saving indicator to the date and the routine number.
+  - (Low) If date navigation fails, it can be retried with the same button, and a "Retry" button is placed for a first-load failure. Added a test.
+  - (Low) Updated the verification section of this record.
+  - Split off: focus after date navigation [#41](https://github.com/sirloinbh/plan-routine/issues/41), DB test for concurrent archive and check requests [#42](https://github.com/sirloinbh/plan-routine/issues/42).
+- Second: no defect blocking the merge; of 3 low findings, 2 were applied and 1 was split off. No third review is done.
+  - (Low) A fetch started during saving could erase the check mark if it arrived later than the save. The end of the save is also counted, and such responses are discarded. Added a test.
+  - (Low) The fetch-failure notice stayed even when the next fetch succeeded. Only the fetch-failure notice is cleared, and the save-failure notice is kept. Added a test.
+  - Split off: the case of passing midnight with the screen kept open [#44](https://github.com/sirloinbh/plan-routine/issues/44).

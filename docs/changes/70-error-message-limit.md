@@ -1,34 +1,34 @@
-# #70 입력 오류 응답의 메시지 개수에 상한 두기
+# #70 Put a limit on the number of messages in an input error response
 
-- 이슈: [#70](https://github.com/sirloinbh/plan-routine/issues/70)
-- 브랜치: `fix/70-error-message-limit`
-- 일자: 2026-11-01 (Asia/Seoul)
+- Issue: [#70](https://github.com/sirloinbh/plan-routine/issues/70)
+- Branch: `fix/70-error-message-limit`
+- Date: 2026-11-01 (Asia/Seoul)
 
-## 목적
+## Purpose
 
-입력 오류를 모두 이어 붙여 답해, 잘못된 큰 요청의 응답이 요청보다 훨씬 커질 수 있었다.
+All input errors were joined together in the answer, so the response to an invalid large request could become much larger than the request.
 
-## 결정
+## Decision
 
-사용자가 선택지는 추천안으로 진행하라고 해, 중앙 `backend/src/standard/http.ts`의 처리기로 통째로 바꾸지 않고 상한 규칙(`MAX_ISSUES`)만 가져왔다. 처리기를 통째로 바꾸면 #47에서 정한 응답이 달라진다. 깨진 JSON과 413의 문구가 다르고, 415 전용 문구가 없으며, 그 밖의 4xx를 앱은 400으로 통일하지만 중앙은 원래 상태를 유지한다. 409는 같다. 중앙에만 있는 `22021`의 400 처리는 앱의 NUL 거부로 대신한다. 이슈 코멘트에 기록했다.
+The user said to proceed with the recommendations for the choices, so instead of replacing the whole thing with the handler in the central `backend/src/standard/http.ts`, I brought over only the limit rule (`MAX_ISSUES`). Replacing the whole handler would change the responses decided in #47. The wording for broken JSON and for 413 differs, there is no wording only for 415, and for other 4xx errors the app unifies to 400 while the central one keeps the original status. 409 is the same. The 400 handling of `22021` that exists only centrally is replaced by the app's NUL rejection. It was recorded in the issue comment.
 
-## 변경
+## Changes
 
-`backend/src/app.ts`: 메시지를 10개까지 보이고, 넘치면 "외 N개"를 붙인다. 중앙 처리기와 같은 형식이다.
+`backend/src/app.ts`: shows up to 10 messages, and if there are more, adds "외 N개" (and N more). It is the same format as the central handler.
 
-## 테스트
+## Tests
 
-`backend/test/request-input.test.ts`: 15개 오류는 10개와 "외 5개", 10개 오류는 그대로.
+`backend/test/request-input.test.ts`: for 15 errors, 10 and "외 5개" (and 5 more), and for 10 errors, unchanged.
 
-## 검증
+## Verification
 
-- 로컬: `env -u TEST_DATABASE_URL npm run check` 통과. 백엔드 163개 중 144 pass / 0 fail / 19 skip(DB 테스트), 프론트엔드 294개 중 292 pass / 0 fail / 2 skip, `test:skills` 4개 pass.
-- CI의 실제 DB: 이 변경은 DB에 닿지 않는다.
+- Local: `env -u TEST_DATABASE_URL npm run check` passed. Backend 144 pass / 0 fail / 19 skip (DB tests) out of 163, frontend 292 pass / 0 fail / 2 skip out of 294, and `test:skills` 4 pass.
+- Real DB in CI: this change does not touch the DB.
 
-## 한계·후속
+## Limits and follow-up
 
-없음.
+None.
 
-## 자동 코드 리뷰
+## Automated code review
 
-- 1차: 동작 코드와 테스트에는 결함이 없었다. 중앙 처리기와의 차이를 잘못 적은 문장을 고쳤다. 고친 것이 기록뿐이라 2차 리뷰는 하지 않는다.
+- First: there was no defect in the behavior code and tests. Fixed a sentence that wrongly described the difference from the central handler. Because only the record was fixed, the second review is not done.

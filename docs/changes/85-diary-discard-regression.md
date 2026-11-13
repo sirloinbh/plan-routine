@@ -1,37 +1,37 @@
-# #85 일기 임시 글을 다시 보관한 뒤 버린 글이 되살아나는 회귀
+# #85 Regression where discarded text comes back to life after the diary draft is kept again
 
-- 이슈: [#85](https://github.com/sirloinbh/plan-routine/issues/85)
-- 브랜치: `fix/85-diary-discard-regression`
-- 일자: 2026-11-01 (Asia/Seoul)
+- Issue: [#85](https://github.com/sirloinbh/plan-routine/issues/85)
+- Branch: `fix/85-diary-discard-regression`
+- Date: 2026-11-01 (Asia/Seoul)
 
-## 경위
+## Background
 
-[#64](https://github.com/sirloinbh/plan-routine/issues/64)의 PR #84 2차 리뷰에서 찾은 회귀다. 수정 명령과 병합 명령을 동시에 실행했는데, 수정이 테스트 제목의 문법 오류로 멈춘 사이 병합이 먼저 진행되어 수정 없이 `main`에 들어갔다. 병합은 CI 통과와 커밋 일치만 확인하므로 막지 못했다. 앞으로 병합 명령은 앞선 작업의 결과를 본 뒤 단독으로 실행한다. 배포는 연결되어 있지 않아 실제 사용자 영향은 없다.
+This is the regression found in the second review of PR #84 of [#64](https://github.com/sirloinbh/plan-routine/issues/64). The fix command and the merge command were run at the same time, and while the fix stopped because of a grammar error in a test title, the merge went ahead first, so it entered `main` without the fix. The merge only checks that CI passes and the commit matches, so it could not stop it. From now on, I run the merge command alone, after looking at the result of the earlier work. Deployment is not connected, so there was no real user impact.
 
-## 변경
+## Changes
 
 `frontend/src/diary.tsx`.
 
-- 다른 탭이 지운 임시 글을 다시 보관하는 데 성공하면 "빼앗긴" 상태를 푼다. 그러지 않으면 이 탭에서 버려도 임시 글이 지워지지 않아, 다음에 열 때 버린 글이 복원됐다.
-- 임시 글의 기준은 복원할 때만 읽는다. 저장소의 임시 글은 다른 탭의 것일 수 있어서, 쓸 때마다 읽으면 다른 탭의 기준을 물려받았다. 그러면 "저장된 내용이 달라졌다"는 안내가 거짓으로 뜨거나, 더 위험하게는 나오지 않았다.
-- 다른 탭의 쓰기 이벤트를 받아도 저장소에 있는 것이 이 탭의 글이면 빼앗긴 것으로 보지 않는다. 탭들이 거의 동시에 쓰면 이벤트가 이 탭의 쓰기보다 오래됐을 수 있다.
+- If keeping again the draft that another tab deleted succeeds, the "taken away" state is released. Otherwise, even discarding in this tab did not delete the draft, so the discarded text was restored the next time it was opened.
+- The basis of the draft is read only when restoring. The draft in the storage may be another tab's, so reading it every time you write inherited the other tab's basis. Then the notice "the saved content changed" appeared falsely, or, more dangerously, did not appear.
+- Even if a write event from another tab is received, if what is in the storage is this tab's text, it is not treated as taken away. When tabs write almost at the same time, the event may be older than this tab's write.
 
-`docs/changes/64-diary-two-tabs.md`의 검증 문장을 분명히 하고 2차 리뷰 결과를 적었다.
+Clarified the verification sentence of `docs/changes/64-diary-two-tabs.md` and wrote the second review result.
 
-## 테스트
+## Tests
 
-`frontend/src/diary.test.tsx`: 덮어쓰기, 지움, 버리기 순서 뒤 임시 글이 남지 않고 다시 열어도 복원되지 않음. 되찾을 때 처음 기준 유지. 저장 뒤 이어 쓸 때 거짓 안내 없음. 다른 탭의 기준을 물려받지 않음. 이 탭의 쓰기보다 오래된 이벤트.
+`frontend/src/diary.test.tsx`: after the order of overwrite, delete, and discard, no draft remains and it is not restored even when reopened. Keeping the first basis when taking it back. No false notice when continuing to write after saving. Not inheriting the other tab's basis. An event older than this tab's write.
 
-## 검증
+## Verification
 
-- 로컬: `env -u TEST_DATABASE_URL npm run check` 통과. 백엔드 161개 중 142 pass / 0 fail / 19 skip(DB 테스트), 프론트엔드 286개 중 284 pass / 0 fail / 2 skip(다크 모드 전용 공통 테스트), `test:skills` 4개 pass.
-- 브라우저: 임시 API와 실제 탭 두 개로 1440×900에서 덮어쓰기 경고, 되찾기, 지워진 임시 글 복구를 다시 확인했다. 버리기 뒤 복원되지 않음은 화면 테스트로 확인했다.
+- Local: `env -u TEST_DATABASE_URL npm run check` passed. Backend 142 pass / 0 fail / 19 skip (DB tests) out of 161, frontend 284 pass / 0 fail / 2 skip (dark-mode-only shared tests) out of 286, and `test:skills` 4 pass.
+- Browser: with a temporary API and two real tabs at 1440×900, I again checked the overwrite warning, taking it back, and restoring a deleted draft. That nothing is restored after discarding was checked by screen tests.
 
-## 한계·후속
+## Limits and follow-up
 
-- 깨끗한 탭이 저장하거나 공백만 입력하면 다른 탭의 임시 글을 경고 없이 지울 수 있다. 이전부터 있던 문제라 [#87](https://github.com/sirloinbh/plan-routine/issues/87)으로 분리했다.
+- If a clean tab saves or types only whitespace, it can delete another tab's draft without a warning. This is an existing problem, so it was split off to [#87](https://github.com/sirloinbh/plan-routine/issues/87).
 
-## 자동 코드 리뷰
+## Automated code review
 
-- 1차: 새 테스트 2개가 수정 없이는 실패함을 임시 사본에서 확인했다. 같은 원인의 경로 2건과 기록 수치 1건을 찾아 반영했다. 기준을 복원할 때만 읽도록 바꾸어 경로를 하나로 줄였다.
-- 2차: 동작 결함은 없었다. 주석과 PR 본문을 고쳤다. 기존 문제 1건을 분리했다. 수정 뒤 실제 탭 두 개로 1440×900에서 다시 확인했다. 리뷰는 2회로 마친다.
+- First: I confirmed in a temporary copy that the 2 new tests fail without the fix. I found and applied 2 paths with the same cause and 1 number in the record. I changed it to read the basis only when restoring, which reduced the paths to one.
+- Second: no behavior defect. Fixed the comments and the PR body. 1 existing problem was split off. After the fix, I checked again with two real tabs at 1440×900. The review ends at 2 rounds.

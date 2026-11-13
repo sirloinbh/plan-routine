@@ -1,56 +1,56 @@
-# #4 하루 루틴 항목 관리
+# #4 Managing daily routine items
 
-- 이슈: https://github.com/sirloinbh/plan-routine/issues/4
-- 일자: 2026-10-22 (Asia/Seoul)
+- Issue: https://github.com/sirloinbh/plan-routine/issues/4
+- Date: 2026-10-22 (Asia/Seoul)
 
-## 목적
+## Purpose
 
-기상·운동·식단·가사·관리·공부·독서 카테고리별로 하루 루틴을 직접 정하고 바꾼다.
+Set and change daily routines directly, by category: wake up, exercise, diet, housework, management, study, and reading.
 
-## 확정한 규칙 (사용자 확인, #4 코멘트 기록)
+## Confirmed rules (confirmed by the user, recorded in the #4 comment)
 
-- 카테고리는 고정 7종이다. 사용자 정의 카테고리는 후속으로 둔다.
-- 항목은 이름만 둔다. 목표 시각 등 세부값은 후속으로 둔다.
+- There are 7 fixed categories. User-defined categories are left as a follow-up.
+- An item has only a name. Details such as a target time are left as a follow-up.
 
-## 변경
+## Changes
 
-- API(`backend/src/routine-routes.ts`, `/api/routines`)
-  - `GET ?cadence=daily`: 보관하지 않은 루틴 목록.
-  - `POST`: 추가. 같은 주기·카테고리의 마지막 순서로 들어간다. 첫 사용일도 같은 SQL 문 안에서 함께 기록해 둘 다 반영되거나 둘 다 취소된다(#3 후속 반영). 동시에 추가하면 순서값이 같을 수 있으나 id로 정렬되고 다음 이동 때 다시 매겨진다.
-  - `PATCH /:id`: 이름 수정.
-  - `POST /:id/move {direction: up|down}`: 이웃과 자리를 바꾸고 그룹 순서를 0부터 다시 매긴다. 한 트랜잭션에서 그룹 행을 id 순으로 잠가 동시 이동이 교착되지 않게 했다.
-  - `POST /:id/archive`: 보관. 목록에서 빠지고 체크 기록은 남는다.
-  - 검증 오류는 모두 한국어 400, 없는 루틴은 한국어 404. 본문이 없어도 필드별 한국어 메시지가 나온다.
-- 화면(`frontend/src/routines.tsx`, 메뉴 "하루 루틴"): 카테고리 7개 카드, 카드마다 항목 목록·개수·빈 상태, 추가 입력, 위로/아래로·수정·보관 버튼. 보관은 "보관 확인"을 한 번 더 눌러야 실행된다. 결과는 `status`/`alert` 안내로 보여 준다.
-- `frontend/src/api.ts`: 서버의 한국어 오류 메시지를 그대로 던지는 JSON 요청 도우미.
-- `backend/src/routines.ts`: 이름 스키마 `routineName`을 분리해 추가·수정에서 함께 쓴다.
+- API (`backend/src/routine-routes.ts`, `/api/routines`)
+  - `GET ?cadence=daily`: the list of routines that are not archived.
+  - `POST`: add. It goes in at the last position of the same cadence and category. The first-use day is also recorded in the same SQL statement, so both are applied or both are cancelled (applying the #3 follow-up). If added concurrently, the order values can be the same, but they are sorted by id and renumbered at the next move.
+  - `PATCH /:id`: rename.
+  - `POST /:id/move {direction: up|down}`: swap places with the neighbor and renumber the group's order from 0. In one transaction it locks the group's rows in id order so that concurrent moves do not deadlock.
+  - `POST /:id/archive`: archive. It leaves the list and the check records remain.
+  - Validation errors are all a 400 with a user-facing message, and a missing routine is a 404 with a user-facing message. Even with no body, per-field messages are returned.
+- Screen (`frontend/src/routines.tsx`, menu "Daily routines"): 7 category cards, with the item list, count, and empty state in each card, an add input, and up/down, edit, and archive buttons. Archiving runs only after pressing "Confirm archive" once more. Results are shown with `status`/`alert` notices.
+- `frontend/src/api.ts`: a JSON request helper that throws the server's error message as it is.
+- `backend/src/routines.ts`: split out the name schema `routineName`, used for both adding and editing.
 
-## 테스트
+## Tests
 
-- `backend/test/routine-routes.test.ts`(API, 가짜 pool): 추가 시 첫 사용일 기록과 파라미터, 입력 오류 한국어 메시지(빈 이름·카테고리 누락·본문 없음, 쿼리 실행 안 함), 이름 수정·404, 보관 404, 잘못된 id·방향·주기 400, 주기 필터.
-- `backend/test/db.integration.test.ts`(실제 DB): 3개 추가 → 순서 확인 → 위로 이동 → 맨 위 항목 위로 이동 시 변화 없음 → 이름 수정 → 체크가 있는 항목 보관 → 목록 제외·체크 보존 → 보관 항목 이동 404. 만든 행과 첫 사용일은 원래대로 되돌린다.
-- `backend/test/app-ui.test.ts`(화면): 하네스가 `./x` 모듈(tsx 포함)을 불러오고 입력·폼 제출·aria-label 버튼을 다루도록 확장. 카테고리 7개 빈 상태, 추가 요청 본문과 목록 반영·입력 초기화, 빈 이름·서버 오류 안내와 입력 유지, 이동·수정·보관 확인 흐름.
+- `backend/test/routine-routes.test.ts` (API, fake pool): recording the first-use day and the parameters on add, user-facing input error messages (empty name, missing category, no body; no query is run), rename and 404, archive 404, 400 for an invalid id, direction, and cadence, and the cadence filter.
+- `backend/test/db.integration.test.ts` (real DB): add 3 → check the order → move up → moving the top item up changes nothing → rename → archive an item that has checks → excluded from the list and checks kept → moving an archived item gives 404. The rows created and the first-use day are restored.
+- `backend/test/app-ui.test.ts` (screen): the harness was extended to load `./x` modules (including tsx) and to handle input, form submit, and aria-label buttons. The empty state of the 7 categories, the add request body and the list update and input reset, the notices for an empty name and a server error with the input kept, and the move, edit, and archive confirmation flows.
 
-## 검증
+## Verification
 
-- 로컬 `npm run check` → **exit 0**. 앱 테스트 36개 중 **31 pass / 0 fail / 5 skip**(1차 리뷰 보완 후), 스킬 검사 4 pass. skip 5건은 DB 통합 테스트(로컬 DB 없음)이며 CI `verify`가 실제 PostgreSQL로 실행한다.
-- 브라우저: 로컬에 DB가 없어 **실제 API 대신 같은 응답 형식의 메모리 기반 임시 API**(작업 공간 밖 스크래치 파일)에 Vite 개발 서버를 연결하고, 헤드리스 Chrome(DevTools 프로토콜)으로 확인했다. Chrome 확장 연결이 없어 이 방식을 썼다.
-  - 모바일 390×844: 가로 스크롤 없음(scrollWidth 390), 카드 7개 한 열, 긴 이름 줄바꿈, 추가·위로 이동·수정 폼·보관 확인 버튼 표시 확인.
-  - PC 1440×900: 가로 스크롤 없음, 카드 3열 배치 확인.
-  - 실제 DB와 연결한 화면 확인은 하지 못했다. API·DB 동작은 CI DB 통합 테스트로 확인한다.
+- Local `npm run check` → **exit 0**. Of 36 app tests, **31 pass / 0 fail / 5 skip** (after the first review follow-up), and the skill check 4 pass. The 5 skips are DB integration tests (no local DB), and the CI `verify` runs them against a real PostgreSQL.
+- Browser: there is no local DB, so I connected the Vite dev server to **an in-memory temporary API with the same response format instead of the real API** (a scratch file outside the workspace), and checked with headless Chrome (DevTools protocol). I used this method because there was no Chrome extension connection.
+  - Mobile 390×844: no horizontal scroll (scrollWidth 390), the 7 cards in one column, long names wrap, and the add, move up, edit form, and archive confirmation buttons were shown.
+  - PC 1440×900: no horizontal scroll, and the cards were laid out in 3 columns.
+  - The screen connected to a real DB could not be checked. API and DB behavior is checked by the CI DB integration tests.
 
-## 한계·후속
+## Limits and follow-up
 
-- 사용자 정의 카테고리, 목표 시각, 보관 항목 복원은 범위 밖이다.
-- 체크 API·오늘 체크리스트 화면은 #5에서 만든다.
-- 이름 수정 저장·취소 후 키보드 포커스 복귀: #19.
+- User-defined categories, target times, and restoring archived items are out of scope.
+- The check API and the today checklist screen are built in #5.
+- Returning keyboard focus after saving or cancelling a rename: #19.
 
-## 자동 코드 리뷰
+## Automated code review
 
-- 1차: 차단 결함 없음. 보완 5건 반영.
-  - (중) 이동·수정·보관 실패 시에도 목록을 다시 불러온다. 다른 곳에서 보관된 항목이 남아 계속 실패하던 문제. UI 테스트 추가.
-  - (낮) 목록 요청에 무시 플래그를 둬 늦게 온 이전 응답이 최신 목록을 덮지 않게 했다.
-  - (낮) 루틴 추가와 첫 사용일 기록을 한 SQL 문으로 묶었다(AGENTS.md 여러 행 변경 원자성). DB 테스트에 첫 사용일 확인 추가.
-  - (낮) 안내 영역(`status`/`alert`)을 항상 렌더링하고 이름 수정 입력에 `autoFocus`를 줬다. 저장·취소 후 포커스 복귀는 하네스가 `useRef`를 지원하지 않아 #19으로 분리했다.
-  - (낮) UI 테스트의 가짜 API 이동 응답을 실제 형식(`routines`)으로 맞추고 이동 요청 경로·본문을 검증한다.
-- 2차: 보완점 없음. 1차 보완 5건 반영과 CTE의 PostgreSQL 동작(참조하지 않는 데이터 변경 CTE도 정확히 한 번 실행)을 확인했다. 리뷰는 2회로 마친다.
+- First: no blocking defect. 5 follow-ups applied.
+  - (Medium) Reload the list even when a move, edit, or archive fails. This fixes the problem where an item archived elsewhere stayed and kept failing. A UI test was added.
+  - (Low) Added an ignore flag to the list request so a late earlier response does not overwrite the latest list.
+  - (Low) Grouped adding a routine and recording the first-use day into one SQL statement (atomicity of multi-row changes in AGENTS.md). Added a first-use day check to the DB test.
+  - (Low) Always render the notice area (`status`/`alert`) and gave the rename input `autoFocus`. Returning focus after save or cancel was split off to #19 because the harness does not support `useRef`.
+  - (Low) Matched the fake API's move response in the UI test to the real format (`routines`) and verified the move request path and body.
+- Second: nothing to improve. Confirmed the 5 first-review follow-ups were applied and the PostgreSQL behavior of the CTE (a data-modifying CTE that is not referenced also runs exactly once). The review ends at 2 rounds.

@@ -1,28 +1,28 @@
-# #15 다음 작업 문서에 등록된 이슈카드와 라벨 반영
+# #15 Reflect the registered issue cards and labels in the next-steps document
 
-- 이슈: https://github.com/sirloinbh/plan-routine/issues/15
-- 일자: 2026-10-22 (Asia/Seoul)
+- Issue: https://github.com/sirloinbh/plan-routine/issues/15
+- Date: 2026-10-22 (Asia/Seoul)
 
-## 목적
+## Purpose
 
-사용자 요청으로 기본 기능 요구사항을 이슈카드 #3~#13과 로드맵 #14로 세분화해 등록하고, 우선순위·특성 라벨을 붙였다. "사용자 등록 대기"로 남아 있던 다음 작업 문서를 실제 진행 순서로 갱신한다.
+At the user's request, the basic feature requirements were broken into issue cards #3 to #13 and the roadmap #14, registered, and given priority and characteristic labels. Update the next-steps document, which was still "waiting for the user to register", to the real order of work.
 
-## 변경
+## Changes
 
-- `docs/next-steps/README.md`: 카드 11개의 진행 순서·우선순위·선행 관계와 라벨 체계를 기록했다. 기존 "첫 기능의 DB 마이그레이션 002 설계"는 #3으로 대체했다.
-- `docs/daily/2026-10-22.md` 추가, `docs/daily/README.md` 목록 갱신.
-- 원격(GitHub) 작업: 라벨 14개(`P0`~`P3`, `기능: *`, `작업: *`, `추적`) 생성 후 #3~#14에 부착, 이 작업 이슈 #15에도 `documentation`·`P1 높음`·`작업: 설계`를 붙였다. 코드 변경은 없다.
+- `docs/next-steps/README.md`: recorded the order of work, priorities, prerequisite relations, and the label scheme of the 11 cards. The earlier "design of DB migration 002 for the first feature" was replaced by #3.
+- Added `docs/daily/2026-10-22.md` and updated the `docs/daily/README.md` list.
+- Remote (GitHub) work: created 14 labels (`P0` to `P3`, `기능: *` (feature), `작업: *` (kind of work), `추적` (tracking)) and attached them to #3 to #14, and also attached `documentation`, `P1 높음` (P1 high), and `작업: 설계` (work: design) to this work issue #15. There is no code change.
 
-## 검증
+## Verification
 
-- Prettier 3.9.10(저장소 고정 버전과 동일, 로컬 `node_modules` 미설치로 workout-memo의 설치본 사용) `--check` 변경 파일 → `All matched files use Prettier code style!` (표 정렬은 `--write`로 맞춤)
-- 문서만 변경되어 앱 테스트는 추가하지 않았다. 전체 검사는 GitHub Actions `verify`·`docker-build`로 확인한다.
+- Prettier 3.9.10 (the same as the version pinned in the repository; local `node_modules` was not installed, so workout-memo's installed copy was used) `--check` on the changed files → `All matched files use Prettier code style!` (table alignment fixed with `--write`)
+- Only documents changed, so no app tests were added. The full check is confirmed by GitHub Actions `verify` and `docker-build`.
 
-## 한계
+## Limits
 
-- 선행 관계는 로드맵 #14 본문 기준이다. 각 카드 착수 시 이슈 본문의 선행·확인 필요 항목을 다시 확인한다.
+- The prerequisite relations are based on the body of roadmap #14. When starting each card, check again the prerequisite and needs-confirmation items in the issue body.
 
-## 자동 코드 리뷰
+## Automated code review
 
-- 1차: 차단 결함 없음. 보완 2건(한계 항목 누락, 라벨 부착 범위에 #15 누락)을 이 기록에 반영했다. 2026-10-21 일일 기록 누락 지적은 이 PR 이전 상태라 범위 밖으로 두었다.
-- 2차: 보완점 없음. 1차 보완 2건 반영을 확인했다. 리뷰는 2회로 마친다.
+- First: no blocking defect. 2 follow-ups (a missing limits item, and #15 missing from the scope of label attachment) were reflected in this record. The finding about the missing 2026-10-21 daily record was left out of scope because it is the state before this PR.
+- Second: nothing to improve. Confirmed the 2 first-review follow-ups were applied. The review ends at 2 rounds.

@@ -1,68 +1,68 @@
-# #10 날짜별 기록 열람 (체크 결과·일기)
+# #10 Viewing records by date (check results and diary)
 
-- 이슈: [#10](https://github.com/sirloinbh/plan-routine/issues/10)
-- 브랜치: `feat/10-date-records`
-- 일자: 2026-11-01 (Asia/Seoul)
+- Issue: [#10](https://github.com/sirloinbh/plan-routine/issues/10)
+- Branch: `feat/10-date-records`
+- Date: 2026-11-01 (Asia/Seoul)
 
-## 목적
+## Purpose
 
-지난 날의 하루 루틴 체크와 일기를 다시 본다.
+Look again at the daily routine checks and the diary of past days.
 
-## 확정한 규칙 (사용자 확인, #10 코멘트 기록)
+## Confirmed rules (confirmed by the user, recorded in the #10 comment)
 
-- 날짜별 진행률은 그날 있던 루틴을 기준으로 센다. 일기 화면의 진행률도 같은 기준으로 맞춘다.
+- Progress by date is counted based on the routines that existed on that day. The progress on the diary screen is aligned to the same basis.
 
-## 구현하면서 정한 세부 규칙 (#10 코멘트 기록)
+## Detailed rules decided during implementation (recorded in the #10 comment)
 
-- "그날 있던 루틴"은 다음 중 하나다. 날짜는 `Asia/Seoul` 기준이다.
-  - 그날 체크가 있는 루틴. 나중에 만들어 지난 날짜에 체크했거나 그날 보관한 루틴도 포함한다.
-  - 그날 이전(그날 포함)에 만들었고, 보관하지 않았거나 그날보다 뒤에 보관한 루틴.
-- 그날 보관했고 그날 체크가 없는 루틴은 세지 않는다.
-- 열람 화면은 읽기 전용이다. 체크와 일기는 "오늘 체크", "일기" 화면에서만 바꾼다.
-- 열람 대상은 하루 루틴과 일기다. 주간·4주·12주 체크의 열람은 #11에서 다룬다.
-- 달력은 한 달 단위이고, 미래 달과 미래 날짜는 볼 수 없다.
+- "A routine that existed on that day" is one of the following. Dates are based on `Asia/Seoul`.
+  - A routine that has a check on that day. This includes a routine created later and checked on a past date, or archived on that day.
+  - A routine created on or before that day, and not archived or archived after that day.
+- A routine archived on that day and with no check on that day is not counted.
+- The viewing screen is read-only. Checks and the diary are changed only on the "Today's check" and "Diary" screens.
+- The viewing targets are the daily routines and the diary. Viewing weekly, 4-week, and 12-week checks is handled in #11.
+- The calendar is by month, and future months and future dates cannot be viewed.
 
-## 변경
+## Changes
 
-- `backend/src/day-records.ts`: "그날 있던 루틴"의 SQL 조건.
-- API(`backend/src/record-routes.ts`)
-  - `GET /api/records?month=YYYY-MM`: 달력용 날짜별 진행률과 일기 작성 여부, 이전·다음 달. 달을 생략하면 이번 달이고, 오늘까지만 답한다.
-  - `GET /api/records/:date`: 그날의 루틴과 체크, 진행률, 일기.
-- `backend/src/diary-routes.ts`: 일기 화면의 진행률을 같은 기준으로 바꿨다. 첫 루틴을 만들기 전 날짜에는 일기 화면에 진행률을 표시하지 않는다. 변경 전에는 지금 보관하지 않은 루틴을 전체로 셌다(#9 한계).
-- 화면(`frontend/src/records.tsx`, 메뉴 "기록", `/records`): 달력과 선택한 날의 기록. 보관한 루틴은 "보관됨"으로 표시한다.
+- `backend/src/day-records.ts`: the SQL condition for "a routine that existed on that day".
+- API (`backend/src/record-routes.ts`)
+  - `GET /api/records?month=YYYY-MM`: the progress by date and whether a diary was written, for the calendar, and the previous and next months. If the month is omitted it is this month, and it answers only up to today.
+  - `GET /api/records/:date`: that day's routines and checks, the progress, and the diary.
+- `backend/src/diary-routes.ts`: changed the progress of the diary screen to the same basis. For a date before the first routine was created, no progress is shown on the diary screen. Before the change, the routines not archived now were counted as the total (the #9 limit).
+- Screen (`frontend/src/records.tsx`, menu "Records", `/records`): the calendar and the record of the selected day. An archived routine is shown as "Archived".
 
-## 테스트
+## Tests
 
-- `backend/test/record-routes.test.ts`(API, 가짜 pool): 달 기본값과 오늘까지의 범위, 달의 마지막 날(윤년·연말 포함)과 이전·다음 달, 잘못된·미래·너무 이른 달과 날짜의 한국어 400, 하루 기록과 빈 날, 쓰기 요청 거부.
-- `backend/test/db.integration.test.ts`(실제 DB): 만들기 전·보관 전후·보관한 날·나중에 만들어 지난 날짜에 체크한 경우, `Asia/Seoul` 자정 경계, 달력과 하루 기록의 일치, 일기 진행률.
-- `frontend/src/records.test.tsx`(화면): 이번 달과 오늘로 열기, 첫날의 요일 칸, 보관한 루틴과 일기 표시, 빈 날 안내, 입력 요소와 쓰기 요청 없음, 달 이동, 불러오기 실패와 재시도, 화면 복귀 때 다시 불러오기, 늦게 온 응답 무시, 날짜가 바뀔 때 오늘을 따라가기와 고른 날 유지.
-- `frontend/src/app.test.tsx`: 메뉴에서 기록 열기.
+- `backend/test/record-routes.test.ts` (API, fake pool): the month default and the range up to today, the last day of a month (including leap years and year end) and the previous and next months, a 400 with a user-facing message for an invalid, future, or too early month and date, a day's record and an empty day, and rejecting write requests.
+- `backend/test/db.integration.test.ts` (real DB): before creation, before and after archiving, the day of archiving, the case of being created later and checked on a past date, the `Asia/Seoul` midnight boundary, the match between the calendar and the day's record, and the diary progress.
+- `frontend/src/records.test.tsx` (screen): opening with this month and today, the weekday cell of the first day, showing archived routines and the diary, the empty day notice, no input elements and no write requests, month navigation, a fetch failure and retry, fetching again when returning to the screen, ignoring late responses, following today when the date changes, and keeping the chosen day.
+- `frontend/src/app.test.tsx`: opening records from the menu.
 
-## 검증
+## Verification
 
-- 로컬(`TEST_DATABASE_URL` 제거): 포맷·lint·타입 검사·빌드 통과, 스킬 검사 4 pass. 백엔드 테스트 70개 중 57 pass / 0 fail / 13 skip이며, skip 13건은 DB 통합 테스트다. 프론트엔드 테스트는 `--testTimeout=60000`으로 173개 중 171 pass / 0 fail / 2 skip이다(skip은 #7 기록과 같은 다크 모드 전용 공통 테스트).
-- 브라우저: 메모리 기반 임시 API에 Vite 개발 서버를 연결하고 헤드리스 Chrome으로 확인했다. 콘솔 오류는 없었다. 실제 DB와 연결한 화면은 확인하지 못했다. "그날 있던 루틴" 판정은 임시 API가 아니라 DB 테스트로 확인한다.
-  - 모바일 390×844: 가로 스크롤 없음(scrollWidth 390), 달력 칸 폭 41px, 카드 한 열.
-  - PC 1440×900: 가로 스크롤 없음, 카드 두 열.
-  - 두 크기 공통: 이번 달과 오늘로 열림, 이전 달 이동 때 첫날이 요일 칸에 맞음(2026-10-01은 목요일), 날짜 선택, 보관한 루틴과 일기 표시, 빈 날 안내, 입력 요소 없음.
+- Local (`TEST_DATABASE_URL` removed): format, lint, type checks, and build passed, the skill check 4 pass. Backend tests were 57 pass / 0 fail / 13 skip out of 70, and the 13 skips are DB integration tests. Frontend tests were 171 pass / 0 fail / 2 skip out of 173 with `--testTimeout=60000` (the skips are the same dark-mode-only shared tests as in the #7 record).
+- Browser: connected the Vite dev server to an in-memory temporary API and checked with headless Chrome. There were no console errors. The screen connected to a real DB was not checked. The judgment of "a routine that existed on that day" is confirmed by the DB tests, not by the temporary API.
+  - Mobile 390×844: no horizontal scroll (scrollWidth 390), calendar cell width 41px, cards in one column.
+  - PC 1440×900: no horizontal scroll, cards in two columns.
+  - Both sizes: opening with this month and today, the first day fits the weekday cell when moving to the previous month (2026-10-01 is a Thursday), selecting a date, showing archived routines and the diary, the empty day notice, and no input elements.
 
-## 한계·후속
+## Limits and follow-up
 
-- "오늘 체크" 화면은 지난 날짜에도 지금 보관하지 않은 루틴을 모두 보여 준다. 나중에 만든 루틴을 지난 날짜에 체크할 수 있어야 하기 때문이다. 그래서 그 화면의 진행률과 기록 화면의 진행률은 다를 수 있다.
-- 주간·4주·12주 체크의 열람: [#11](https://github.com/sirloinbh/plan-routine/issues/11).
-- 달력 날짜를 고른 뒤 키보드 포커스는 그 자리에 남고, 기록으로 옮기지 않는다: [#41](https://github.com/sirloinbh/plan-routine/issues/41).
+- The "Today's check" screen shows every routine not archived now, even for past dates, because a routine created later must be checkable on a past date. So the progress of that screen and the progress of the records screen can differ.
+- Viewing weekly, 4-week, and 12-week checks: [#11](https://github.com/sirloinbh/plan-routine/issues/11).
+- After choosing a calendar date, the keyboard focus stays in place and does not move to the record: [#41](https://github.com/sirloinbh/plan-routine/issues/41).
 
-## 자동 코드 리뷰
+## Automated code review
 
-- 1차: 병합을 막는 문제와 진행률 계산 오류는 없었다. 낮음 6건과 추가 1건을 모두 반영했다.
-  - 자동으로 고른 오늘이 날짜가 바뀌어도 남았다. 직접 고르기 전에는 서버의 오늘을 따른다. 테스트를 추가했다.
-  - 빈 달력 칸의 높이가 달라 날짜 줄이 어긋날 수 있었다. 줄바꿈 없는 공백으로 높이를 유지한다.
-  - 제목 구조를 고쳤다. 빈 날 안내는 h3로, 달력 제목에서 버튼을 뺐다. 테스트를 추가했다.
-  - 달력 버튼의 이름에 요일을 넣었다.
-  - 다른 날을 불러오는 동안 안내를 보여 주고, 날을 고르면 이전 오류를 지운다. 테스트를 추가했다.
-  - 늦게 온 달·날 응답의 테스트를 추가하고, 항상 참이던 단언을 고쳤다.
-  - 첫 루틴을 만들기 전 날짜의 일기 화면에 "0/0 완료"가 나오지 않게 했다.
-  - 리뷰 전에 화면을 보고 찾은 문제도 고쳤다. 긴 루틴 이름이 표시 기호와 다른 줄로 떨어졌다.
-- 2차: 1차 보완의 반영을 확인했다. 보완 2건을 반영했다. 리뷰는 2회로 마친다.
-  - (중간) 불러오기에 실패한 날을 달력에서 다시 누르면 요청 없이 "불러오는 중"에 멈췄다. 같은 날을 누르면 다시 불러온다. 테스트를 추가했다.
-  - (낮음) 일기 화면의 진행률 표시 조건에 테스트가 없었다. 테스트를 추가했다.
+- First: no problem blocking the merge and no error in the progress calculation. All 6 low findings and 1 addition were applied.
+  - A "today" chosen automatically stayed even when the date changed. Until the user picks one directly, it follows the server's today. Added a test.
+  - The height of empty calendar cells differed, so the date rows could be misaligned. The height is kept with a non-breaking space.
+  - Fixed the heading structure. The empty day notice is h3, and the button was removed from the calendar heading. Added a test.
+  - Added the weekday to the name of the calendar buttons.
+  - A notice is shown while another day is being fetched, and the earlier error is cleared when a day is chosen. Added a test.
+  - Added tests for late month and day responses, and fixed an assertion that was always true.
+  - The "0/0 done" no longer appears on the diary screen for a date before the first routine was created.
+  - Also fixed a problem found by looking at the screen before the review. A long routine name dropped to a different line from the display symbol.
+- Second: confirmed the first follow-ups were applied. 2 follow-ups applied. The review ends at 2 rounds.
+  - (Medium) Clicking a day that failed to load again on the calendar got stuck on "Loading" without a request. Clicking the same day fetches again. Added a test.
+  - (Low) The display condition of the progress on the diary screen had no test. Added a test.

@@ -1,54 +1,54 @@
-# #44 화면을 켜 둔 채 날짜나 주가 바뀌면 체크를 새 기간으로 옮기기
+# #44 Move checks to the new period when the date or week changes with the screen kept on
 
-- 이슈: [#44](https://github.com/sirloinbh/plan-routine/issues/44)
-- 브랜치: `fix/44-date-rollover`
-- 일자: 2026-10-31 (Asia/Seoul)
+- Issue: [#44](https://github.com/sirloinbh/plan-routine/issues/44)
+- Branch: `fix/44-date-rollover`
+- Date: 2026-10-31 (Asia/Seoul)
 
-## 목적
+## Purpose
 
-PC 창을 켜 둔 채 자정을 넘기면 화면이 다시 보이는 이벤트가 생기지 않을 수 있다. 그러면 다음 체크가 지난 날짜나 지난 기간으로 저장되고, 주간·4주 화면에서는 되돌릴 수 없었다.
+If a PC window is kept on past midnight, the event of the screen becoming visible again may not occur. Then the next check was saved to a past date or a past period, and on the weekly and 4-week screens it could not be undone.
 
-## 변경
+## Changes
 
-`frontend/src/use-checklist.ts`(오늘 체크, 주간, 4주, 곧 끝나는 4주 카드에 함께 적용)
+`frontend/src/use-checklist.ts` (applied together to today's check, weekly, 4-week, and the "4-week routines ending soon" card)
 
-- 날짜 변경 감지: 1분마다, 그리고 창이 포커스를 받을 때 기기 시계의 서비스 날짜(`Asia/Seoul`)를 확인해, 마지막으로 불러온 날과 다르면 다시 불러온다. 날짜가 그대로면 서버에 요청하지 않는다. 다만 일시적인 이유(연결 실패, 5xx)로 불러오기에 실패했거나 서버의 오늘이 기기와 다르면 1분마다 다시 불러온다.
-- 저장 전 확인: 오늘을 따라가는 화면에서 날짜가 바뀌었고 보고 있는 기간도 끝났으면 저장하지 않는다. 대신 새로 불러오고 "날짜가 바뀌어 새 기간을 불러왔습니다. 다시 체크해 주세요"라고 안내한다.
-- 같은 주·같은 4주 안에서 날짜만 바뀌면 체크는 그대로 저장한다. 서버가 기간 시작일로 저장하므로 결과가 같다.
-- 사용자가 고른 지난 날짜를 보는 중이면 저장을 막지 않는다.
+- Date change detection: every minute, and when the window gets focus, it checks the service date (`Asia/Seoul`) from the device clock, and if it differs from the day last fetched, it fetches again. If the date is the same, no request goes to the server. However, if the fetch failed for a temporary reason (a connection failure, a 5xx) or the server's today differs from the device's, it fetches again every minute.
+- Check before saving: on a screen that follows today, if the date has changed and the period being viewed has also ended, it does not save. Instead, it fetches anew and says "The date changed, so the new period was loaded. Please check again."
+- If only the date changes within the same week or the same 4 weeks, the check is saved as it is. The server saves by the period start date, so the result is the same.
+- While the user is looking at a past date they chose, saving is not blocked.
 
-기기 시계가 조금 빨라도 동작하도록, 시계의 날짜 자체가 아니라 불러온 뒤 날짜가 바뀌었는지를 보고, 서버의 오늘이 기기와 다르면 다시 확인한다. 어느 날짜가 오늘인지는 계속 서버가 정한다.
+So that it works even if the device clock is a little fast, it looks at whether the date changed after fetching, not at the clock's date itself, and if the server's today differs from the device's, it checks again. Which date is today is still decided by the server.
 
-## 테스트
+## Tests
 
-- `frontend/src/daily-checklist.test.tsx`: 자정 뒤 첫 체크는 저장되지 않고 새 날짜를 보여 준 뒤 다음 체크가 새 날짜로 저장됨, 1분 확인과 포커스로 새 날짜 표시, 날짜가 그대로면 추가 요청 없음, 고른 지난 날짜는 저장을 막지 않음, 실패한 다시 불러오기의 자동 재시도, 실패 뒤 거부된 클릭의 안내 유지, 범위를 벗어난 날짜를 매분 다시 요청하지 않음.
-- `frontend/src/period-routines.test.tsx`: 주가 바뀐 뒤 첫 체크는 새 주로 저장, 같은 주에서 날짜만 바뀌면 그대로 저장, 4주 기간이 끝난 뒤 첫 체크는 지난 기간으로 저장하지 않음, 기기 시계가 빨라도 새 주에 도달.
-- `frontend/src/four-week-due.test.tsx`: 곧 끝나는 4주 카드에서도 지난 기간으로 저장하지 않음, 새 기간에 카드가 없으면 안내도 남지 않음.
+- `frontend/src/daily-checklist.test.tsx`: the first check after midnight is not saved and the new date is shown, then the next check is saved with the new date, showing the new date by the 1-minute check and by focus, no extra request if the date is the same, a chosen past date does not block saving, automatic retry of a failed refetch, keeping the notice of a click rejected after a failure, and not re-requesting a date outside the range every minute.
+- `frontend/src/period-routines.test.tsx`: the first check after the week changes is saved to the new week, if only the date changes within the same week it is saved as it is, the first check after a 4-week period ends is not saved to the past period, and reaching the new week even if the device clock is fast.
+- `frontend/src/four-week-due.test.tsx`: not saving to the past period on the "ending soon" 4-week card either, and no notice remains if there is no card in the new period.
 
-## 검증
+## Verification
 
-- 로컬(`TEST_DATABASE_URL` 제거): 포맷·lint·타입 검사·빌드 통과. 프론트엔드 테스트는 `--testTimeout=60000`으로 135개 중 133 pass / 0 fail / 2 skip이다(skip은 #7 기록과 같은 다크 모드 전용 공통 테스트). 백엔드는 바뀌지 않았다.
-- 브라우저: 메모리 기반 임시 API에 Vite 개발 서버를 연결하고 헤드리스 Chrome으로 확인했다. 열린 페이지의 시계와 임시 API의 날짜를 토요일에서 일요일로 옮겼다. 콘솔 오류는 없었다. 실제 DB와 연결한 화면은 확인하지 못했다.
-  - 모바일 390×844, PC 1440×900: 첫 클릭은 저장되지 않고 새 주(2026-11-01 ~ 2026-11-07)와 안내가 나왔다. 다음 클릭은 새 주로 저장됐다. 가로 스크롤 없음.
-  - 1분 확인과 포커스 동작은 화면 테스트로만 확인했다.
+- Local (`TEST_DATABASE_URL` removed): format, lint, type checks, and build passed. Frontend tests were 133 pass / 0 fail / 2 skip out of 135 with `--testTimeout=60000` (the skips are the same dark-mode-only shared tests as in the #7 record). The backend did not change.
+- Browser: connected the Vite dev server to an in-memory temporary API and checked with headless Chrome. I moved the clock of the open page and the date of the temporary API from Saturday to Sunday. There were no console errors. The screen connected to a real DB was not checked.
+  - Mobile 390×844 and PC 1440×900: the first click was not saved, and the new week (2026-11-01 to 2026-11-07) and the notice appeared. The next click was saved to the new week. No horizontal scroll.
+  - The 1-minute check and the focus behavior were checked only by screen tests.
 
-## 한계·후속
+## Limits and follow-up
 
-- 다시 불러오기 전까지 잠시(보통 최대 1분) 지난 기간이 화면에 보일 수 있다. 이때 누른 체크는 저장되지 않고 안내가 나온다. 다만 기기 시계가 서버보다 조금 빠르면, 서버 자정 뒤 다음 확인까지(최대 약 1분) 누른 체크는 지난 기간으로 저장될 수 있다.
-- 기기 시계가 서버보다 느리면 그 차이만큼은 날짜 변경을 알아채지 못해, 그 사이 체크가 지난 기간으로 저장될 수 있다. 기기 시계만 보는 이 방식의 한계다.
-- 시계가 며칠씩 틀린 기기에서는 다시 불러오기가 1분마다 계속된다.
-- 일기 화면은 대상이 아니다. 저장 날짜가 제목에 보이고 어느 날짜든 고칠 수 있다(#9 한계).
+- Until it fetches again, a past period may be visible on the screen for a short time (usually up to 1 minute). A check pressed then is not saved and a notice appears. However, if the device clock is a little faster than the server, a check pressed after the server's midnight until the next check (up to about 1 minute) may be saved to the past period.
+- If the device clock is slower than the server, the date change is not noticed by that difference, so a check in between may be saved to the past period. This is the limit of this method that looks only at the device clock.
+- On a device whose clock is wrong by several days, the refetch continues every minute.
+- The diary screen is not a target. The saved date is shown in the title and any date can be fixed (the #9 limit).
 
-## 자동 코드 리뷰
+## Automated code review
 
-- 1차: 보완 5건을 반영했다.
-  - (높음) 기기 시계가 서버보다 빠르면 자정에 다시 불러온 지난 기간이 그날 내내 굳어져 #44가 재발했다. 서버의 오늘이 기기와 다르면 1분 뒤 다시 확인한다. 테스트를 추가했다.
-  - (중간) 자정 뒤 다시 불러오기가 실패하면 자동으로 재시도하지 않았다. 1분 뒤 다시 시도한다. 테스트를 추가했다.
-  - (낮음) 불러오기 실패 뒤 거부된 클릭의 안내가 바로 지워졌다. 안내를 유지한다. 테스트를 추가했다.
-  - (낮음) 새 기간에 카드가 없으면 "다시 체크해 주세요"만 영구히 남았다. 카드가 없으면 오류만 보여 준다. 테스트를 추가했다.
-  - (낮음) 기록의 부정확한 문장을 고치고, 시계가 느린 기기의 한계를 적었다.
-- 2차: 병합을 막는 결함은 없었다. 1차 보완 5건의 반영을 확인했다. 낮음 3건 중 2건을 반영했다.
-  - 범위를 벗어난 날짜의 400을 1분마다 다시 요청했다. 일시적인 실패만 다시 시도한다. 테스트를 추가했다.
-  - 기기 시계가 조금 빠를 때의 짧은 틈을 한계에 적고 주석을 고쳤다.
-  - 반영하지 않음: 창을 3주 넘게 켜 두면 숨겨 둔 안내가 다음 카드와 함께 보일 수 있다. 문구만 어긋나고 저장에는 영향이 없다.
-  - 리뷰는 2회로 마친다.
+- First: 5 applied.
+  - (High) If the device clock was faster than the server, the past period fetched again at midnight stayed fixed all day and #44 recurred. If the server's today differs from the device's, it checks again a minute later. Added a test.
+  - (Medium) If the refetch after midnight failed, it did not retry automatically. It retries a minute later. Added a test.
+  - (Low) The notice of a click rejected after a fetch failure was cleared right away. The notice is kept. Added a test.
+  - (Low) If there was no card in the new period, only "Please check again" stayed forever. If there is no card, only the error is shown. Added a test.
+  - (Low) Fixed an inaccurate sentence in the record and wrote the limit of a device with a slow clock.
+- Second: no defect blocking the merge. Confirmed the 5 first-review follow-ups were applied. 2 of 3 low findings were applied.
+  - It re-requested the 400 for a date outside the range every minute. Only temporary failures are retried. Added a test.
+  - Wrote the short gap when the device clock is a little fast in the limits and fixed the comment.
+  - Not applied: if the window is kept on for more than 3 weeks, a hidden notice may be shown together with the next card. Only the wording is off, and saving is not affected.
+  - The review ends at 2 rounds.
