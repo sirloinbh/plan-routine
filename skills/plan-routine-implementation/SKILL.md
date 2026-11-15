@@ -5,7 +5,7 @@ description: Follow the user's issue, numbered branch, implementation with docs,
 
 # Plan, Practice, Routine, Feedback implementation procedure
 
-This skill applies to changes in `sirloinbh/plan-routine`. Do not apply this account, repository, or policy to other projects. Read the project's root `AGENTS.md` and the related documents first. Follow the order below: after the PR, go through the automated code review (up to 2 rounds), and finish the PR through merging once the required CI checks pass.
+This skill applies to changes in `sirloinbh/plan-routine`. Do not apply this account, repository, or policy to other projects. Read the project's root `AGENTS.md` and the related documents first. Follow the order below: after the PR, go through the automated code review (1 or 2 rounds, more only while blocking findings remain), and finish the PR through merging once the required CI checks pass.
 
 ## 1. Register the issue card
 
@@ -48,7 +48,7 @@ This skill applies to changes in `sirloinbh/plan-routine`. Do not apply this acc
 2. **If there is nothing to improve**, end the review and go on to the CI check and merge.
 3. **If there is something to improve**, apply only the findings that can be fixed within this PR's scope. Make an extra commit that carries the related tests and the docs record, and push it.
 4. **Second review**: Check that the first findings were applied, and look at the added diff. Also look at the final full PR diff. If there is nothing to improve, go on to CI.
-5. **Second follow-up**: Apply the second findings with an extra commit. The review is at most 2 rounds, so do not run a third review; go on to CI.
+5. **Second follow-up**: Apply the second findings in an additional commit. Stop after round 2 unless a blocking finding remains. If one does, fix it on the same branch and review again, repeating only while blocking findings remain (std-code-review section 8), then go on to CI.
 6. **Split large fixes**: Do not fix findings of the following kinds in this PR. Instead, create a new issue card (with the problem, scope, and done criteria). Leave the issue link in a PR comment and the docs record, and keep going with this PR.
    - A feature outside the requested scope
    - A design or data structure change
