@@ -5,7 +5,7 @@ description: Establish or improve the repeatable development foundation of the p
 
 # Plan, Practice, Routine, Feedback development foundation
 
-Make the development, verification, and operation of this app repeatable. First read the project root `AGENTS.md` and `skills/plan-routine-implementation/SKILL.md`, and proceed through: issue → numbered branch → implementation and docs record → tests and PR → automated code review (up to 2 rounds) → merge after CI passes. This skill does not skip the issue and PR procedure or grant deployment permission.
+Make the development, verification, and operation of this app repeatable. First read the project root `AGENTS.md` and `skills/plan-routine-implementation/SKILL.md`, and proceed through: issue → numbered branch → implementation and docs record → tests and PR → automated code review (1 or 2 rounds, more only while blocking findings remain) → merge after CI passes. This skill does not skip the issue and PR procedure or grant deployment permission.
 
 ## Standards
 
