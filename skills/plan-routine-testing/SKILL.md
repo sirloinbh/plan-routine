@@ -5,7 +5,7 @@ description: Write or update behavior-focused tests with plan-routine implementa
 
 # Plan, Practice, Routine, Feedback: writing and running tests
 
-Follow the project's AGENTS.md and the plan-routine-implementation procedure together. This skill is the standard for writing and running tests, and it keeps the issue, branch, docs, and PR procedure and the policy of automated code review after the PR (up to 2 rounds) → merge after CI passes.
+Follow the project's AGENTS.md and the plan-routine-implementation procedure together. This skill is the standard for writing and running tests, and it keeps the issue, branch, docs, and PR procedure and the policy of automated code review after the PR (1 or 2 rounds, more only while blocking findings remain) → merge after CI passes.
 
 ## Write with the implementation or fix
 
