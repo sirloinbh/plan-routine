@@ -14,7 +14,7 @@ Cleanup done (2026-11-03): the temporary branch `tmp/42-no-lock` was deleted. Th
 
 #79 was closed on 2026-11-16: with CPU virtualization on, the local `docker compose up` check passed ([record](../changes/79-compose-deploy.md)).
 
-The open cards are [#126](https://github.com/sirloinbh/plan-routine/issues/126) (server check above) and [#101](https://github.com/sirloinbh/plan-routine/issues/101) (remove `overrides`, low priority). For #101, `eslint` 10.15.0 now depends on `minimatch ^11.0.5`, but this project pins `eslint` 10.12.0 through the central standards, so it waits for the central version bump; the other ESLint packages in the issue still need checking. The central repository has [project-standards#392](https://github.com/sirloinbh/project-standards/issues/392).
+The open cards are [#126](https://github.com/sirloinbh/plan-routine/issues/126) (server check above) and [#101](https://github.com/sirloinbh/plan-routine/issues/101) (remove `overrides`, low priority). #101 is still blocked (checked 2026-11-16): `eslint` 10.15.0 and `@eslint/config-array` 0.23.6 accept `minimatch ^11.0.5`, but `@typescript-eslint/typescript-estree` 8.72.2 (under `typescript-eslint`) still needs `^10.2.2` and `eslint-plugin-jsx-a11y-x` 0.2.0 needs `^10.2.5`. Those versions are also pinned through the central standards. The central repository has [project-standards#392](https://github.com/sirloinbh/project-standards/issues/392).
 
 ## Open PRs
 
