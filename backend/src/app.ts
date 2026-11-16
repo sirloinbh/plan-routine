@@ -1,3 +1,4 @@
+import { meHandler } from '@sirloinbh/auth-client';
 import express from 'express';
 import type { Pool } from 'pg';
 import { types } from 'pg';
@@ -32,10 +33,16 @@ export function serviceDate(now = new Date()) {
 
 const periodsQuery = z.object({ date: calendarDate.optional() });
 
-export function createApp(pool: Pool, options: { today?: () => string } = {}) {
+export function createApp(
+  pool: Pool,
+  options: { today?: () => string; auth?: express.RequestHandler } = {},
+) {
   const today = options.today ?? (() => serviceDate());
   const app = express();
   app.disable('x-powered-by');
+  // #126: the shared sign-in guards every /api route except /api/health, before any route registers.
+  if (options.auth) app.use('/api', options.auth);
+  app.get('/api/me', meHandler);
   app.use(express.json({ limit: '256kb' }));
   app.get('/api/health', async (_req, res) => {
     await pool.query('SELECT 1');

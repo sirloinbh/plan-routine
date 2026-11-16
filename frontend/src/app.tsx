@@ -25,6 +25,7 @@ import { FourWeekRoutines, WeeklyRoutines } from './period-routines';
 import { ProjectLinks } from './project-links';
 import { Records } from './records';
 import { DailyRoutines } from './routines';
+import { AccountActions, SignInGate } from './sign-in';
 import { Stats } from './stats';
 import { TwelveWeek } from './twelve-week';
 
@@ -113,134 +114,140 @@ export function App() {
   const health = useHealth();
   return (
     <BrowserRouter>
-      <AppShell appName="Plan · Practice · Routine · Feedback" nav={nav}>
-        <Routes>
-          <Route
-            path={pages.overview}
-            element={
-              <Page
-                title="Dashboard"
-                description="A personal service to make plans, record practice and routines, and improve with feedback"
-                health={health}
-              />
-            }
-          />
-          <Route
-            path={pages.today}
-            element={
-              <Page
-                title="Today"
-                description="Check off today's daily routines. You can edit up to the last 7 days"
-                health={health}
-              >
-                <DailyChecklist />
-                <FourWeekDue />
-                <Button asChild variant="outline" className="self-start">
-                  <Link to={pages.diary}>Write today's diary</Link>
-                </Button>
-              </Page>
-            }
-          />
-          <Route
-            path={pages.diary}
-            element={
-              <Page
-                title="Diary"
-                description="Look back on your day and leave feedback"
-                health={health}
-              >
-                <Diary />
-              </Page>
-            }
-          />
-          <Route
-            path={pages.routines}
-            element={
-              <Page
-                title="Daily routines"
-                description="Set what to do every day: wake-up, exercise, diet, housework, self-care, study, and reading"
-                health={health}
-              >
-                <DailyRoutines />
-              </Page>
-            }
-          />
-          <Route
-            path={pages.weekly}
-            element={
-              <Page
-                title="Weekly routines"
-                description="Set what to do once a week and check whether you finished it this week"
-                health={health}
-              >
-                <WeeklyRoutines />
-              </Page>
-            }
-          />
-          <Route
-            path={pages.fourWeek}
-            element={
-              <Page
-                title="4-week routines"
-                description="Set what to do once every 4 weeks and check whether you finished it this period"
-                health={health}
-              >
-                <FourWeekRoutines />
-              </Page>
-            }
-          />
-          <Route
-            path={pages.twelveWeek}
-            element={
-              <Page
-                title="12-week routines"
-                description="Set your goals again every 12 weeks and look back on the last 12 weeks"
-                health={health}
-              >
-                <TwelveWeek />
-              </Page>
-            }
-          />
-          <Route
-            path={pages.records}
-            element={
-              <Page
-                title="Records"
-                description="Review past daily routine checks and diary entries"
-                health={health}
-              >
-                <Records />
-              </Page>
-            }
-          />
-          <Route
-            path={pages.stats}
-            element={
-              <Page
-                title="Completion rates"
-                description="See how consistently you kept your routines, by period"
-                health={health}
-              >
-                <Stats />
-              </Page>
-            }
-          />
-          <Route
-            path={pages.settings}
-            element={
-              <Page
-                title="Settings"
-                description="App environment and data management"
-                health={health}
-              >
-                <ProjectLinks />
-              </Page>
-            }
-          />
-          <Route path="*" element={<Navigate to={pages.overview} replace />} />
-        </Routes>
-      </AppShell>
-      <Toaster />
+      <SignInGate>
+        <AppShell
+          appName="Plan · Practice · Routine · Feedback"
+          nav={nav}
+          actions={<AccountActions />}
+        >
+          <Routes>
+            <Route
+              path={pages.overview}
+              element={
+                <Page
+                  title="Dashboard"
+                  description="A personal service to make plans, record practice and routines, and improve with feedback"
+                  health={health}
+                />
+              }
+            />
+            <Route
+              path={pages.today}
+              element={
+                <Page
+                  title="Today"
+                  description="Check off today's daily routines. You can edit up to the last 7 days"
+                  health={health}
+                >
+                  <DailyChecklist />
+                  <FourWeekDue />
+                  <Button asChild variant="outline" className="self-start">
+                    <Link to={pages.diary}>Write today's diary</Link>
+                  </Button>
+                </Page>
+              }
+            />
+            <Route
+              path={pages.diary}
+              element={
+                <Page
+                  title="Diary"
+                  description="Look back on your day and leave feedback"
+                  health={health}
+                >
+                  <Diary />
+                </Page>
+              }
+            />
+            <Route
+              path={pages.routines}
+              element={
+                <Page
+                  title="Daily routines"
+                  description="Set what to do every day: wake-up, exercise, diet, housework, self-care, study, and reading"
+                  health={health}
+                >
+                  <DailyRoutines />
+                </Page>
+              }
+            />
+            <Route
+              path={pages.weekly}
+              element={
+                <Page
+                  title="Weekly routines"
+                  description="Set what to do once a week and check whether you finished it this week"
+                  health={health}
+                >
+                  <WeeklyRoutines />
+                </Page>
+              }
+            />
+            <Route
+              path={pages.fourWeek}
+              element={
+                <Page
+                  title="4-week routines"
+                  description="Set what to do once every 4 weeks and check whether you finished it this period"
+                  health={health}
+                >
+                  <FourWeekRoutines />
+                </Page>
+              }
+            />
+            <Route
+              path={pages.twelveWeek}
+              element={
+                <Page
+                  title="12-week routines"
+                  description="Set your goals again every 12 weeks and look back on the last 12 weeks"
+                  health={health}
+                >
+                  <TwelveWeek />
+                </Page>
+              }
+            />
+            <Route
+              path={pages.records}
+              element={
+                <Page
+                  title="Records"
+                  description="Review past daily routine checks and diary entries"
+                  health={health}
+                >
+                  <Records />
+                </Page>
+              }
+            />
+            <Route
+              path={pages.stats}
+              element={
+                <Page
+                  title="Completion rates"
+                  description="See how consistently you kept your routines, by period"
+                  health={health}
+                >
+                  <Stats />
+                </Page>
+              }
+            />
+            <Route
+              path={pages.settings}
+              element={
+                <Page
+                  title="Settings"
+                  description="App environment and data management"
+                  health={health}
+                >
+                  <ProjectLinks />
+                </Page>
+              }
+            />
+            <Route path="*" element={<Navigate to={pages.overview} replace />} />
+          </Routes>
+        </AppShell>
+        <Toaster />
+      </SignInGate>
     </BrowserRouter>
   );
 }
