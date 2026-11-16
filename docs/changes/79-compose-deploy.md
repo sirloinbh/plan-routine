@@ -31,10 +31,11 @@ I compared against the central template. The image and port are the same as the 
 - Local: confirmed with `docker compose config` (no Docker daemon needed). With the defaults it is `plan-backend:local`, `plan-frontend:local`, and port `127.0.0.1:8107`, and with `IMAGE_TAG=abc123 WEB_BIND=0.0.0.0 WEB_PORT=9000` it is `plan-backend:abc123`, `plan-frontend:abc123`, and `0.0.0.0:9000`.
 - Local: `env -u TEST_DATABASE_URL npm run check` passed. Backend 93 pass / 0 fail / 18 skip (DB tests) out of 111, frontend 253 pass / 0 fail / 2 skip out of 255, and `test:skills` 4 pass. `npm run standards:check` passed.
 - **A real `docker compose up` and a rollback on a real server were not checked.** The Docker daemon is off on this PC and deployment is not connected. So this PR does not close the issue. When "the local `docker compose up` works as before" is confirmed, the issue will be closed.
+- Local, 2026-11-16 (Docker 29.9.2, after CPU virtualization was turned on): `docker compose up -d --build --wait` in a throwaway project (`-p plan79check`, throwaway `POSTGRES_PASSWORD`, `WEB_PORT=18107`, an empty volume) brought db, api, and web up healthy. The DB logged `PostgreSQL init process complete` before it was reported healthy, so the TCP health check waits for the real server. The first initialization took a few seconds, far inside the 75-second allowance. The images were tagged `plan-backend:local` and `plan-frontend:local`. `GET /api/health` answered 200, `GET /` 200, and `GET /api/me` 401 while signed out (#126). `docker compose config` with `IMAGE_TAG=abc123def456 WEB_BIND=0.0.0.0 WEB_PORT=9999` showed that tag and `0.0.0.0:9999` again. The project was then removed with `docker compose -p plan79check down -v`. The `shared-auth` network the compose file now needs (#126) was created for the check and removed afterwards.
 
 ## Limits and follow-up
 
-- The `docker compose up` check above remains. At that time, also look at how long the first initialization takes. The health check allowance is about 75 seconds.
+- The local `docker compose up` check was done on 2026-11-16 (see Verification), and the issue was closed. A rollback on a real server is still unchecked, because deployment is not connected yet.
 
 ## Automated code review
 
