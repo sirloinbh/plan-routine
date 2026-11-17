@@ -1,7 +1,7 @@
 {
   "name": "Plan · Practice · Routine · Feedback",
   "short_name": "Plan Routine",
-  "description": "A personal service for making plans, recording practice and routines, and improving them through feedback. There is one user (me) and no login. Before any public exposure, design private access or authentication first.",
+  "description": "Make plans, record practice and routines, and improve them with feedback.",
   "lang": "en",
   "start_url": "/",
   "scope": "/",
