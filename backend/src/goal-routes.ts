@@ -16,7 +16,7 @@ const goalIdMessage = 'Invalid goal ID';
 const goalId = z.string({ error: goalIdMessage }).regex(/^\d{1,18}$/, goalIdMessage);
 const idParam = z.object({ id: goalId });
 // Not .min()/.max(): those also run on a non-string with a length and add a second message.
-const goalInput = z.object(
+export const goalInput = z.object(
   {
     title: z
       .string({
@@ -32,7 +32,7 @@ const goalInput = z.object(
 // Far above any real period. Keep .max() first: zod 4.6.7 uses only leading length checks to refuse
 // an oversized array before reading its elements (GHSA-mrhx-c7xc-m3w5).
 const maxReviews = 1000;
-const reviewsInput = z.object(
+export const reviewsInput = z.object(
   {
     reviews: z
       .array(
@@ -65,7 +65,7 @@ const reviewsInput = z.object(
 
 const routineIdMessage = 'Invalid routine ID';
 const maxLinks = 200;
-const routineLinksInput = z.object(
+export const routineLinksInput = z.object(
   {
     routineIds: z
       .array(z.string({ error: routineIdMessage }).regex(/^\d{1,18}$/, routineIdMessage), {

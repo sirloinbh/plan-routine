@@ -9,7 +9,7 @@ import { addDays, calendarDate, shiftMonth } from './periods.js';
 // Same floor as the diary: PostgreSQL has no year 0000.
 const earliestDate = '2000-01-01';
 
-const monthQuery = z.object({
+export const monthQuery = z.object({
   month: z
     .string({ error: 'Month must be in YYYY-MM format' })
     .regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Month must be in YYYY-MM format')
