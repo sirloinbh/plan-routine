@@ -1,5 +1,5 @@
 {
-  "centralSha": "a4fddb26b8350aee0cab6624a8a336a91fb88cd6",
+  "centralSha": "9f05ff31ce4c4151dfe85a0ffd38195fe8ecdee4",
   "profile": "app",
   "project": "plan-routine",
   "files": {
@@ -220,7 +220,7 @@
     },
     "AGENTS.md": {
       "mode": "full",
-      "sha256": "9b00215486ca6a4f65cc597a6a239d4b62ded969c9360b210151b2fa1eff5f76",
+      "sha256": "c663bb10d9e2c8d7ca9d4a07dd69af5f8e56a785e9a7612f3ced71e968b49e14",
       "source": "templates/app/AGENTS.md.tmpl"
     },
     "backend/.npmrc": {
@@ -339,7 +339,7 @@
     },
     "deploy/remote-deploy.sh": {
       "mode": "full",
-      "sha256": "07e9add7c01444bb20cb0b3621a7191fcca09a4677596c6cbee0515e9b852a62",
+      "sha256": "70b10618b1711a3c2f36c8bbee2deb07c8c324b7ec42882509d3b9d64af9bff9",
       "source": "templates/app/deploy/remote-deploy.sh.tmpl"
     },
     "deploy/report.service": {
@@ -349,7 +349,7 @@
     },
     "deploy/report.sh": {
       "mode": "full",
-      "sha256": "757ece943a04bae177747136902bb916067c78691f714abf2c92616e401b8b03",
+      "sha256": "575890448b07a52be0f326a7ec74bfd2417b75ca10f35c8d209d9ef72350e771",
       "source": "templates/app/deploy/report.sh.tmpl"
     },
     "deploy/report.timer": {
@@ -738,7 +738,7 @@
     },
     "knip.json": {
       "mode": "full",
-      "sha256": "98d012da1b99df680e21a39d1c4ea63cdebaffdf2ca1d7183aa554e2c019a93c",
+      "sha256": "b3b9fcc9dd9c425b8d7043d4d5a306f32044317ee5c53ff6ce3c6700c2eefc85",
       "source": "templates/app/knip.json"
     },
     "lighthouserc.json": {
@@ -804,7 +804,7 @@
     },
     "scripts/push-repositories.ps1": {
       "mode": "full",
-      "sha256": "c56034d890f1649df9382eab57fa48c7dcd3b88c0ee3c9f2eb33a29a3ed3149a",
+      "sha256": "c9c3618d6538fb85adb4dbaebc7c8ebca70963eff48b6f7e1f966b243a7e2bc4",
       "source": "templates/app/scripts/push-repositories.ps1"
     },
     "skills/std-backlog/SKILL.md": {
