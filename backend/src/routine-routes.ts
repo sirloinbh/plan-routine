@@ -10,16 +10,16 @@ export const routineColumns =
   'id::text AS id, name, cadence, category, sort_order AS "sortOrder", project_link_id::text AS "projectLinkId"';
 export const notFound = { error: 'Routine not found' };
 
-const listQuery = z.object({ cadence: routineCadence.optional() });
+export const listQuery = z.object({ cadence: routineCadence.optional() });
 export const routineId = z.string().regex(/^\d{1,18}$/, 'Invalid routine ID');
 const idParam = z.object({ id: routineId });
-const renameInput = z.object({ name: routineName }, badRequest);
-const moveInput = z.object(
+export const renameInput = z.object({ name: routineName }, badRequest);
+export const moveInput = z.object(
   { direction: z.enum(['up', 'down'], { error: 'Direction must be up or down' }) },
   badRequest,
 );
 
-const projectLinkInput = z.object(
+export const projectLinkInput = z.object(
   {
     projectLinkId: z
       .string({ error: 'Invalid project to link' })

@@ -31,7 +31,7 @@ export function serviceDate(now = new Date()) {
   }).format(now);
 }
 
-const periodsQuery = z.object({ date: calendarDate.optional() });
+export const periodsQuery = z.object({ date: calendarDate.optional() });
 
 export function createApp(
   pool: Pool,

@@ -13,7 +13,7 @@ const earliestDate = '2000-01-01';
 export const entryColumns = `entry_date AS date, body, good_note AS "goodNote",
   regret_note AS "regretNote", tomorrow_note AS "tomorrowNote"`;
 
-const diaryQuery = z.object({ date: calendarDate.optional() });
+export const diaryQuery = z.object({ date: calendarDate.optional() });
 const diaryParams = z.object({ date: calendarDate });
 
 // Not .min()/.max(): those also run on a non-string with a length and add a second message.
@@ -27,7 +27,7 @@ const diaryNote = (label: string) =>
     .nullish()
     .transform((value) => value || null);
 
-const diaryInput = z.object(
+export const diaryInput = z.object(
   {
     body: z
       .string({

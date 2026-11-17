@@ -45,7 +45,7 @@ export function allowedUrl(value: string) {
   return url.protocol === 'http:' && isPrivateHost(url.hostname) ? url.href : null;
 }
 
-const projectInput = z.object(
+export const projectInput = z.object(
   {
     name: z
       .string({

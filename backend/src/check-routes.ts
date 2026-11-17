@@ -11,7 +11,7 @@ const editableDays = 7;
 // A period's last 7 days, when unfinished four-week routines join the daily page (issue #7).
 const endingDays = 7;
 
-const checklistQuery = z.object({
+export const checklistQuery = z.object({
   cadence: routineCadence.default('daily'),
   date: calendarDate.optional(),
 });
