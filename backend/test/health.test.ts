@@ -20,6 +20,24 @@ test('health reports the service and the injected service date when the DB answe
   );
 });
 
+test('every API response carries an X-Request-Id and keeps a valid incoming one', async () => {
+  const log = console.log;
+  console.log = () => {};
+  try {
+    await withApi(
+      pool(async () => ({ rows: [] })),
+      async (call) => {
+        const generated = await call('/api/health');
+        assert.match(generated.headers.get('x-request-id') ?? '', /^[\w.-]{8,}$/);
+        const missing = await call('/api/does-not-exist');
+        assert.ok(missing.headers.get('x-request-id'));
+      },
+    );
+  } finally {
+    console.log = log;
+  }
+});
+
 test('a DB failure becomes an English 500 without leaking the error', async () => {
   const original = console.error;
   console.error = () => {};

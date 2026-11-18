@@ -33,7 +33,7 @@ export async function withApi(
     call: (
       path: string,
       request?: { method: string; body?: unknown; raw?: string; contentType?: string },
-    ) => Promise<{ status: number; data: Record<string, unknown> }>,
+    ) => Promise<{ status: number; data: Record<string, unknown>; headers: Headers }>,
   ) => Promise<void>,
   options: { today?: () => string } = {},
 ) {
@@ -49,7 +49,11 @@ export async function withApi(
         body:
           request?.raw ?? (request?.body === undefined ? undefined : JSON.stringify(request.body)),
       });
-      return { status: response.status, data: (await response.json()) as Record<string, unknown> };
+      return {
+        status: response.status,
+        data: (await response.json()) as Record<string, unknown>,
+        headers: response.headers,
+      };
     });
   } finally {
     await closeServer(server);

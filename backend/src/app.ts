@@ -13,7 +13,7 @@ import { recordRoutes } from './record-routes.js';
 import { requestFailure } from './request-input.js';
 import { routineRoutes } from './routine-routes.js';
 import { routineAnchorDate } from './routines.js';
-import { MAX_ISSUES } from './standard/http.js';
+import { MAX_ISSUES, requestLog } from './standard/http.js';
 import { statsRoutes } from './stats-routes.js';
 
 // DATE columns stay YYYY-MM-DD strings so the service time zone never shifts them.
@@ -40,6 +40,8 @@ export function createApp(
   const today = options.today ?? (() => serviceDate());
   const app = express();
   app.disable('x-powered-by');
+  // project-standards#552: a request ID and one JSON log line for every request, a 401 included.
+  app.use(requestLog);
   // #126: the shared sign-in guards every /api route except /api/health, before any route registers.
   if (options.auth) app.use('/api', options.auth);
   app.get('/api/me', meHandler);
