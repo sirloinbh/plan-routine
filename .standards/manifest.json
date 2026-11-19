@@ -1,5 +1,5 @@
 {
-  "centralSha": "93cf8d7f01ab2bab1d5a224af934c7811180e6d5",
+  "centralSha": "7425a45fda829c10c418983d914321148357bd1f",
   "profile": "app",
   "project": "plan-routine",
   "files": {
@@ -130,7 +130,7 @@
     },
     ".github/workflows/ci.yml": {
       "mode": "full",
-      "sha256": "b7014f80880ca6350d4b81a4e25d2de6e1c024e78a39ea5c6682590507422763",
+      "sha256": "74fdf27b410e97498d8f706d7440767affac1a62855efa36432fc082bbaa9c38",
       "source": "templates/app/.github/workflows/ci.yml.tmpl"
     },
     ".gitignore": {
@@ -871,7 +871,7 @@
     },
     "frontend/src/lib/api.ts": {
       "mode": "full",
-      "sha256": "7adda482b7879e446ece1b541f7334416f8974d8202f83086fe2c733a55a6c94",
+      "sha256": "af5e5390152006439cbe6bbb5f5624b78df4c5e9902022faf3b5da565d64a813",
       "source": "templates/ui/frontend/src/lib/api.ts"
     },
     "frontend/src/lib/apps.ts": {
