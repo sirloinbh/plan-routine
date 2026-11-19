@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { expect, test, vi } from 'vitest';
 
 import { Stats } from './stats';
+import { getLive, queryLive } from './test/live';
 
 const tally = (start: string, end: string, checked: number, total: number) => ({
   start,
@@ -199,12 +200,12 @@ test('a failed first load offers a retry', async () => {
   api.fail();
   render(<Stats />);
   await flush();
-  expect(screen.getByRole('alert')).toHaveTextContent('A server error occurred');
+  expect(getLive('alert')).toHaveTextContent('A server error occurred');
   api.fail(false);
   fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
   await flush();
   expect(rates('Weekly routines')).toBeVisible();
-  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  expect(queryLive('alert')).toBeNull();
 });
 
 test('a failed reload keeps what is on screen and offers a retry', async () => {
@@ -213,7 +214,7 @@ test('a failed reload keeps what is on screen and offers a retry', async () => {
   await flush();
   api.fail();
   await showPageAgain();
-  expect(screen.getByRole('alert')).toBeInTheDocument();
+  expect(getLive('alert')).toBeInTheDocument();
   expect(rates('Weekly routines')).toBeVisible();
   expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
 });

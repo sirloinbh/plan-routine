@@ -3,6 +3,7 @@ import { expect, test, vi } from 'vitest';
 
 import { Checklist } from './checklist';
 import { ProjectLinks } from './project-links';
+import { getLive, queryLive } from './test/live';
 
 type Project = { id: string; name: string; url: string };
 
@@ -72,7 +73,7 @@ test('adding sends the form, clears it, and returns focus to the name field', as
     path: '/api/project-links',
     body: { name: 'Reading log', url: 'https://books.example' },
   });
-  expect(screen.getByRole('status')).toHaveTextContent("Added the project 'Reading log'");
+  expect(getLive('status')).toHaveTextContent("Added the project 'Reading log'");
   expect(field('Project name')).toHaveValue('');
   expect(field('Project URL')).toHaveValue('');
   expect(field('Project name')).toHaveFocus();
@@ -87,7 +88,7 @@ test('a refused address shows the English error and keeps what was typed', async
   type('Project URL', 'javascript:alert(1)');
   fireEvent.click(button('Add'));
   await flush();
-  expect(screen.getByRole('alert')).toHaveTextContent(
+  expect(getLive('alert')).toHaveTextContent(
     'The URL must be https:// or a private access address',
   );
   expect(field('Project URL')).toHaveValue('javascript:alert(1)');
@@ -119,7 +120,7 @@ test('a removal that fails stays on its own row', async () => {
   fireEvent.click(button('Delete Reading log'));
   fireEvent.click(button('Confirm deleting Reading log'));
   await flush();
-  expect(screen.getByRole('alert')).toHaveTextContent('A server error occurred');
+  expect(getLive('alert')).toHaveTextContent('A server error occurred');
   expect(button('Delete Reading log')).toHaveFocus();
 });
 
@@ -181,12 +182,12 @@ test('a list that fails to load does not claim there are none, and can be retrie
   );
   render(<ProjectLinks />);
   await flush();
-  expect(screen.getByRole('alert')).toHaveTextContent('A server error occurred');
+  expect(getLive('alert')).toHaveTextContent('A server error occurred');
   expect(screen.queryByText('No projects registered yet')).not.toBeInTheDocument();
   fireEvent.click(button('Reload projects'));
   await flush();
   expect(screen.getByText('Reading log')).toBeInTheDocument();
-  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  expect(queryLive('alert')).toBeNull();
 });
 
 test('removing spins only that delete button, not the add button', async () => {

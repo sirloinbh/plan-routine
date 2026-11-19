@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { expect, test, vi } from 'vitest';
 
+import { getLive, queryLive } from './test/live';
 import { TwelveWeek } from './twelve-week';
 
 type Goal = {
@@ -186,7 +187,7 @@ test('several goals can be added, and an empty one shows an English error', asyn
   await flush();
   fireEvent.submit(screen.getByRole('form', { name: 'Add a new goal' }));
   await flush();
-  expect(within(goalsCard()).getByRole('alert')).toHaveTextContent('Enter a goal');
+  expect(getLive('alert', goalsCard())).toHaveTextContent('Enter a goal');
   expect(api.writes).toEqual([]);
 
   for (const title of ['Read 12 books', ' Run 5 km ']) {
@@ -233,7 +234,7 @@ test('a goal gone elsewhere shows the English 404 and leaves the list', async ()
   press('Delete Read a book');
   press('Confirm deleting Read a book');
   await flush();
-  expect(within(goalsCard()).getByRole('alert')).toHaveTextContent('Goal not found');
+  expect(getLive('alert', goalsCard())).toHaveTextContent('Goal not found');
   expect(within(goalsCard()).getByText('No goals yet')).toBeInTheDocument();
 });
 
@@ -295,7 +296,7 @@ test('a failed review keeps what was typed and can be saved again', async () => 
   api.failNextReview();
   saveLastReview();
   await flush();
-  expect(within(lastReview()).getByRole('alert')).toHaveTextContent('A server error occurred');
+  expect(getLive('alert', lastReview())).toHaveTextContent('A server error occurred');
   expect(memo('Read a book')).toHaveValue('Text that must stay');
 
   saveLastReview();
@@ -357,7 +358,7 @@ test('saved answers stay on screen even if the reload after saving fails', async
   saveLastReview();
   await flush();
   expect(memo('Read a book')).toHaveValue('Read 10 books');
-  expect(within(lastReview()).getByRole('status')).toHaveTextContent('Saved the review');
+  expect(getLive('status', lastReview())).toHaveTextContent('Saved the review');
 });
 
 test('an answer changed while saving is ignored rather than lost silently', async () => {
@@ -383,7 +384,7 @@ test('a review with nothing filled in says it is not finished', async () => {
   await flush();
   saveLastReview();
   await flush();
-  expect(within(lastReview()).getByRole('status')).toHaveTextContent(
+  expect(getLive('status', lastReview())).toHaveTextContent(
     'The review is complete once you mark the goal achieved or add a note',
   );
   expect(screen.getByText('Review needed')).toBeInTheDocument();
@@ -397,7 +398,7 @@ test('saving a reviewed period again clears the earlier message and shows it in 
   typeMemo('Read a book', 'Rewritten note');
   saveLastReview();
   await flush();
-  expect(within(lastReview()).getByRole('status')).toHaveTextContent('Saved the review');
+  expect(getLive('status', lastReview())).toHaveTextContent('Saved the review');
   expect(screen.getAllByText('Saved the review')).toHaveLength(1);
 });
 
@@ -456,7 +457,7 @@ test('an open window moves to the next period by itself and shows goals to revie
   expect(screen.getByRole('group', { name: 'Read a book' })).toBeInTheDocument();
   expect(within(goalsCard()).getByText('No goals yet')).toBeInTheDocument();
   // The rename form went with the goal, and says so rather than dropping the text silently.
-  expect(within(goalsCard()).getByRole('alert')).toHaveTextContent('Name being typed');
+  expect(getLive('alert', goalsCard())).toHaveTextContent('Name being typed');
 });
 
 test('a failed load offers a retry', async () => {
@@ -515,7 +516,7 @@ test('an empty new name keeps focus on its field', async () => {
   within(goalsCard()).getByRole('button', { name: 'Save' }).focus();
   fireEvent.submit(screen.getByRole('form', { name: 'Rename Read a book' }));
   await flush();
-  expect(within(goalsCard()).getByRole('alert')).toHaveTextContent('Enter a goal');
+  expect(getLive('alert', goalsCard())).toHaveTextContent('Enter a goal');
   expect(screen.getByRole('textbox', { name: 'New name for Read a book' })).toHaveFocus();
 });
 
@@ -561,7 +562,7 @@ test('a finished review moves its card, focus and message together', async () =>
   expect(
     screen.getByRole('heading', { level: 2, name: 'July 26, 2026 – October 17, 2026' }),
   ).toHaveFocus();
-  expect(within(lastReview()).getByRole('status')).toHaveTextContent('Saved the review');
+  expect(getLive('status', lastReview())).toHaveTextContent('Saved the review');
   expect(screen.getAllByText('Saved the review')).toHaveLength(1);
 });
 
@@ -602,7 +603,7 @@ test('a rename that fails keeps its form and returns focus to the field', async 
   api.failNextWrite();
   pressFocused('Save');
   await flush();
-  expect(within(goalsCard()).getByRole('alert')).toHaveTextContent('A server error occurred');
+  expect(getLive('alert', goalsCard())).toHaveTextContent('A server error occurred');
   expect(screen.getByRole('textbox', { name: 'New name for Read a book' })).toHaveFocus();
   expect(screen.getByRole('textbox', { name: 'New name for Read a book' })).toHaveValue(
     'Read 12 books',
@@ -617,7 +618,7 @@ test('a removal that fails stays on its own row', async () => {
   api.failNextWrite();
   pressFocused('Confirm deleting Read a book');
   await flush();
-  expect(within(goalsCard()).getByRole('alert')).toHaveTextContent('A server error occurred');
+  expect(getLive('alert', goalsCard())).toHaveTextContent('A server error occurred');
   expect(button('Delete Read a book')).toHaveFocus();
 });
 
@@ -652,7 +653,7 @@ test('a goal shows its routines after linking them, and goals of past periods ca
     path: '/api/goals/1/routines',
     body: { routineIds: ['51'] },
   });
-  expect(within(goalsCard()).getByRole('status')).toHaveTextContent(
+  expect(getLive('status', goalsCard())).toHaveTextContent(
     "Linked 1 routine to the goal 'Read a book'",
   );
   expect(within(goalsCard()).getByText('Linked routines: Wake at 6')).toBeInTheDocument();
@@ -718,7 +719,7 @@ test('a goal gone while its link panel is open says so and moves focus to the ne
     document.dispatchEvent(new Event('visibilitychange'));
   });
   await flush();
-  expect(within(goalsCard()).getByRole('alert')).toHaveTextContent(
+  expect(getLive('alert', goalsCard())).toHaveTextContent(
     "Could not save routine links because 'Read a book' is no longer in this period's goals",
   );
   expect(screen.getByRole('textbox', { name: 'New goal' })).toHaveFocus();
@@ -738,7 +739,7 @@ test('a panel closed before its goal goes says nothing', async () => {
     document.dispatchEvent(new Event('visibilitychange'));
   });
   await flush();
-  expect(within(goalsCard()).queryByRole('alert')).not.toBeInTheDocument();
+  expect(queryLive('alert', goalsCard())).toBeNull();
 });
 
 test('editing a goal\u2019s name keeps its open link panel and what was ticked', async () => {
@@ -764,10 +765,8 @@ test('removing a goal with its link panel open reports the removal, not a failur
   press('Delete Read a book');
   press('Confirm deleting Read a book');
   await flush();
-  expect(within(goalsCard()).queryByRole('alert')).not.toBeInTheDocument();
-  expect(within(goalsCard()).getByRole('status')).toHaveTextContent(
-    "Deleted the goal 'Read a book'",
-  );
+  expect(queryLive('alert', goalsCard())).toBeNull();
+  expect(getLive('status', goalsCard())).toHaveTextContent("Deleted the goal 'Read a book'");
 });
 
 const reloadList = async () => {
@@ -789,7 +788,7 @@ test('several panels lost at once are all named', async () => {
   api.removeElsewhere('1');
   api.removeElsewhere('2');
   await reloadList();
-  const alert = within(goalsCard()).getByRole('alert');
+  const alert = getLive('alert', goalsCard());
   expect(alert).toHaveTextContent("'Read a book'");
   expect(alert).toHaveTextContent("'Run'");
 });
@@ -804,7 +803,7 @@ test('a goal lost while both editing it and linking it says both were lost', asy
   press('Rename Read a book');
   api.removeElsewhere('1');
   await reloadList();
-  const alert = within(goalsCard()).getByRole('alert');
+  const alert = getLive('alert', goalsCard());
   expect(alert).toHaveTextContent('Could not save the edit');
   expect(alert).toHaveTextContent('Could not save routine links');
 });
@@ -822,7 +821,7 @@ test('the notice names a goal by its current name', async () => {
   await flush();
   api.removeElsewhere('1');
   await reloadList();
-  expect(within(goalsCard()).getByRole('alert')).toHaveTextContent("'New name' is no longer");
+  expect(getLive('alert', goalsCard())).toHaveTextContent("'New name' is no longer");
 });
 
 test('a panel closed by saving or by a failed list says nothing when its goal goes', async () => {
@@ -836,7 +835,7 @@ test('a panel closed by saving or by a failed list says nothing when its goal go
   await flush();
   api.removeElsewhere('1');
   await reloadList();
-  expect(within(goalsCard()).queryByRole('alert')).not.toBeInTheDocument();
+  expect(queryLive('alert', goalsCard())).toBeNull();
 
   const working = vi.mocked(fetch).getMockImplementation()!;
   vi.stubGlobal(
@@ -853,7 +852,7 @@ test('a panel closed by saving or by a failed list says nothing when its goal go
   );
   press('Link routines to Run');
   await flush();
-  expect(within(goalsCard()).getByRole('alert')).toHaveTextContent('Server error');
+  expect(getLive('alert', goalsCard())).toHaveTextContent('Server error');
   vi.stubGlobal('fetch', vi.fn(working));
   api.removeElsewhere('2');
   await reloadList();

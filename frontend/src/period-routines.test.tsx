@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { expect, test, vi } from 'vitest';
 
 import { FourWeekRoutines, WeeklyRoutines } from './period-routines';
+import { queryLive } from './test/live';
 
 type Seed = { id: string; name: string };
 
@@ -471,7 +472,7 @@ test('a failed list load offers its own retry instead of claiming the list is em
   await flush();
   expect(screen.getByRole('button', { name: 'Archive Clean' })).toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Reload the list' })).not.toBeInTheDocument();
-  expect(within(manage()).queryByRole('alert')).toBeEmptyDOMElement();
+  expect(queryLive('alert', manage())).toBeNull();
 });
 
 test('a list reload that fails with routines on screen offers a retry', async () => {

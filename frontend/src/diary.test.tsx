@@ -4,6 +4,7 @@ import { expect, test, vi } from 'vitest';
 import { Diary } from './diary';
 import { draftKey as storedDraftKey } from './diary-draft';
 import { formatDate } from './format-date';
+import { findLive, getLive, queryLive } from './test/live';
 
 type Entry = {
   date: string;
@@ -150,9 +151,7 @@ test('saving sends every field and keeps the text after a reload', async () => {
       body: { body: '  A good day ', goodNote: 'Woke up early', regretNote: '', tomorrowNote: '' },
     },
   ]);
-  expect(screen.getByRole('status')).toHaveTextContent(
-    'Saved the diary entry for October 22, 2026',
-  );
+  expect(getLive('status')).toHaveTextContent('Saved the diary entry for October 22, 2026');
   // The form shows what the server stored, and nothing is left unsaved.
   expect(await field('Looking back on the day')).toHaveValue('A good day');
   expect(screen.queryByText('You have unsaved changes')).not.toBeInTheDocument();
@@ -181,13 +180,13 @@ test('a rejected or failed save shows the English error and keeps the text', asy
   await field('Looking back on the day');
   press('Save');
   await flush();
-  expect(screen.getByRole('alert')).toHaveTextContent('Enter the diary entry');
+  expect(getLive('alert')).toHaveTextContent('Enter the diary entry');
 
   await type('Looking back on the day', 'Text that must stay');
   api.failNextSave();
   press('Save');
   await flush();
-  expect(screen.getByRole('alert')).toHaveTextContent('A server error occurred');
+  expect(getLive('alert')).toHaveTextContent('A server error occurred');
   expect(await field('Looking back on the day')).toHaveValue('Text that must stay');
   expect(screen.getByText('You have unsaved changes')).toBeInTheDocument();
 });
@@ -203,9 +202,7 @@ test('text over the limit is not cut: the count warns and the server rejects it'
   press('Save');
   await flush();
   expect(api.writes).toHaveLength(1);
-  expect(screen.getByRole('alert')).toHaveTextContent(
-    'The diary entry must be 5000 characters or fewer',
-  );
+  expect(getLive('alert')).toHaveTextContent('The diary entry must be 5000 characters or fewer');
   expect(await field('Looking back on the day')).toHaveValue(tooLong);
 });
 
@@ -215,11 +212,11 @@ test('a save result appears beside the save button, a blocked move beside the da
   const form = (await field('Looking back on the day')).closest('form')!;
   press('Save');
   await flush();
-  expect(form).toContainElement(screen.getByRole('alert'));
+  expect(form).toContainElement(getLive('alert'));
   await type('Looking back on the day', 'Not saved yet');
   press('Previous day');
   await flush();
-  expect(form).not.toContainElement(screen.getByRole('alert'));
+  expect(form).not.toContainElement(getLive('alert'));
 });
 
 test('while a day is loading the form is locked and a slow older answer is ignored', async () => {
@@ -295,7 +292,7 @@ test('unsaved text blocks moving to another day until it is saved', async () => 
   await type('Looking back on the day', 'Not saved yet');
   press('Previous day');
   await flush();
-  expect(screen.getByRole('alert')).toHaveTextContent('You have unsaved changes');
+  expect(getLive('alert')).toHaveTextContent('You have unsaved changes');
   expect(
     screen.getByRole('heading', { level: 2, name: `Today (${formatDate(today)})` }),
   ).toBeVisible();
@@ -305,7 +302,7 @@ test('unsaved text blocks moving to another day until it is saved', async () => 
   await flush();
   press('Previous day');
   expect(await screen.findByRole('heading', { level: 2, name: 'October 21, 2026' })).toBeVisible();
-  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  expect(queryLive('alert')).toBeNull();
 });
 
 test('a failed move can be retried with the same button', async () => {
@@ -315,17 +312,17 @@ test('a failed move can be retried with the same button', async () => {
   api.failNextLoad();
   press('Previous day');
   await flush();
-  expect(screen.getByRole('alert')).toHaveTextContent('A server error occurred');
+  expect(getLive('alert')).toHaveTextContent('A server error occurred');
   press('Previous day');
   expect(await screen.findByRole('heading', { level: 2, name: 'October 21, 2026' })).toBeVisible();
-  await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
+  await waitFor(() => expect(queryLive('alert')).toBeNull());
 });
 
 test('a failed first load offers a retry', async () => {
   const api = diaryApi();
   api.failNextLoad();
   render(<Diary />);
-  expect(await screen.findByRole('alert')).toHaveTextContent('A server error occurred');
+  expect(await findLive('alert')).toHaveTextContent('A server error occurred');
   press('Try again');
   expect(await field('Looking back on the day')).toBeInTheDocument();
 });
@@ -345,7 +342,7 @@ test('text left unsaved comes back with a notice, and is not saved on its own', 
   render(<Diary />);
   expect(await field('Looking back on the day')).toHaveValue('Half-written text');
   expect(await field('What went well (optional)')).toHaveValue('Note');
-  expect(screen.getByRole('status')).toHaveTextContent('Restored an unsaved draft');
+  expect(getLive('status')).toHaveTextContent('Restored an unsaved draft');
   expect(screen.getByText('You have unsaved changes')).toBeInTheDocument();
   expect(api.writes).toEqual([]);
 
@@ -365,7 +362,7 @@ test('a saved diary leaves no draft and no notice behind', async () => {
 
   render(<Diary />);
   expect(await field('Looking back on the day')).toHaveValue('Text to save');
-  expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  expect(queryLive('status')).toBeNull();
   expect(localStorage.getItem(draftKey)).toBeNull();
 });
 
@@ -406,7 +403,7 @@ test('a draft from an earlier day opens that day, not an empty today', async () 
   expect(await field('Looking back on the day')).toHaveValue('Text from two days ago');
   press('Go to today');
   await flush();
-  expect(screen.getByRole('alert')).toHaveTextContent('Save or discard them');
+  expect(getLive('alert')).toHaveTextContent('Save or discard them');
   expect(screen.getByRole('heading', { level: 2, name: 'October 20, 2026' })).toBeVisible();
 });
 
@@ -415,13 +412,13 @@ test('a draft older than a save made elsewhere keeps saying so on every visit', 
   seedDraft(today, 'Older text', { ...empty, body: 'Even older text' });
   const { unmount } = render(<Diary />);
   expect(await field('Looking back on the day')).toHaveValue('Older text');
-  expect(screen.getByRole('status')).toHaveTextContent('The saved entry changed in the meantime');
+  expect(getLive('status')).toHaveTextContent('The saved entry changed in the meantime');
   await flush();
   unmount();
 
   render(<Diary />);
   expect(await field('Looking back on the day')).toHaveValue('Older text');
-  expect(screen.getByRole('status')).toHaveTextContent('The saved entry changed in the meantime');
+  expect(getLive('status')).toHaveTextContent('The saved entry changed in the meantime');
 });
 
 test('an answer to an earlier save does not erase text written since', async () => {
@@ -457,7 +454,7 @@ test('spaces alone leave no draft, so they cannot reopen an old day', async () =
     await screen.findByRole('heading', { level: 2, name: `Today (${formatDate(today)})` }),
   ).toBeVisible();
   expect(localStorage.getItem(draftKey)).toBeNull();
-  expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  expect(queryLive('status')).toBeNull();
 });
 
 test('a draft for a day the server refuses opens today instead of failing forever', async () => {
@@ -467,7 +464,7 @@ test('a draft for a day the server refuses opens today instead of failing foreve
   expect(
     await screen.findByRole('heading', { level: 2, name: `Today (${formatDate(today)})` }),
   ).toBeVisible();
-  expect(screen.getByRole('alert')).toHaveTextContent('January 1, 1999 cannot be opened');
+  expect(getLive('alert')).toHaveTextContent('January 1, 1999 cannot be opened');
   expect(localStorage.getItem(draftKey)).toBeNull();
 });
 
@@ -494,7 +491,7 @@ test('a draft matching what is saved restores nothing', async () => {
   render(<Diary />);
   await field('Looking back on the day');
   await flush();
-  expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  expect(queryLive('status')).toBeNull();
   expect(localStorage.getItem(draftKey)).toBeNull();
 });
 
@@ -529,12 +526,12 @@ test('unsaved text can be discarded after confirming, back to what is saved', as
   press('Confirm discard');
   expect(await field('Looking back on the day')).toHaveValue('A good day');
   expect(screen.getByRole('button', { name: 'Save' })).toHaveFocus();
-  expect(screen.getByRole('status')).toHaveTextContent('Discarded the unsaved changes');
+  expect(getLive('status')).toHaveTextContent('Discarded the unsaved changes');
   unmount();
 
   render(<Diary />);
   expect(await field('Looking back on the day')).toHaveValue('A good day');
-  expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  expect(queryLive('status')).toBeNull();
 });
 
 const leaving = () => {
@@ -604,7 +601,7 @@ test('an empty body is marked and takes focus when saving fails, until it is typ
   });
   press('Save');
   await flush();
-  expect(screen.getByRole('alert')).toHaveTextContent('Enter the diary entry');
+  expect(getLive('alert')).toHaveTextContent('Enter the diary entry');
   expect(body).toHaveFocus();
   expect(onArrival).toBe('false true');
   expect(body).toHaveAttribute('aria-invalid', 'true');
@@ -863,7 +860,7 @@ test('saving, then typing with another tab\u2019s draft stored, gives no false w
   unmount();
   render(<Diary />);
   expect(await field('Looking back on the day')).toHaveValue("This tab's text more");
-  expect(screen.getByRole('status')).toHaveTextContent('Save it to keep it in your records');
+  expect(getLive('status')).toHaveTextContent('Save it to keep it in your records');
 });
 
 test('typing over what this tab loaded keeps that as the base, whatever another tab stored', async () => {
