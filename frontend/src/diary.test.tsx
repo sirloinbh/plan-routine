@@ -305,7 +305,7 @@ test('unsaved text blocks moving to another day until it is saved', async () => 
   await flush();
   press('Previous day');
   expect(await screen.findByRole('heading', { level: 2, name: 'October 21, 2026' })).toBeVisible();
-  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  expect(screen.queryByRole('alert')).toBeEmptyDOMElement();
 });
 
 test('a failed move can be retried with the same button', async () => {
@@ -365,7 +365,7 @@ test('a saved diary leaves no draft and no notice behind', async () => {
 
   render(<Diary />);
   expect(await field('Looking back on the day')).toHaveValue('Text to save');
-  expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  expect(screen.queryByRole('status')).toBeEmptyDOMElement();
   expect(localStorage.getItem(draftKey)).toBeNull();
 });
 
@@ -457,7 +457,7 @@ test('spaces alone leave no draft, so they cannot reopen an old day', async () =
     await screen.findByRole('heading', { level: 2, name: `Today (${formatDate(today)})` }),
   ).toBeVisible();
   expect(localStorage.getItem(draftKey)).toBeNull();
-  expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  expect(screen.queryByRole('status')).toBeEmptyDOMElement();
 });
 
 test('a draft for a day the server refuses opens today instead of failing forever', async () => {
@@ -494,7 +494,7 @@ test('a draft matching what is saved restores nothing', async () => {
   render(<Diary />);
   await field('Looking back on the day');
   await flush();
-  expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  expect(screen.queryByRole('status')).toBeEmptyDOMElement();
   expect(localStorage.getItem(draftKey)).toBeNull();
 });
 
@@ -534,7 +534,7 @@ test('unsaved text can be discarded after confirming, back to what is saved', as
 
   render(<Diary />);
   expect(await field('Looking back on the day')).toHaveValue('A good day');
-  expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  expect(screen.queryByRole('status')).toBeEmptyDOMElement();
 });
 
 const leaving = () => {

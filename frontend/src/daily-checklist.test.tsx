@@ -285,7 +285,7 @@ test('a load error goes away when a later load works, but a save error stays', a
   await showPageAgain();
   expect(screen.getByRole('alert')).toHaveTextContent('A server error occurred');
   await showPageAgain();
-  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  expect(screen.queryByRole('alert')).toBeEmptyDOMElement();
 
   api.archiveElsewhere('2');
   fireEvent.click(await box('Drink water'));
@@ -303,7 +303,7 @@ test('a failed move can be retried with the same button', async () => {
   expect(await screen.findByRole('alert')).toHaveTextContent('A server error occurred');
   fireEvent.click(screen.getByRole('button', { name: 'Previous day' }));
   expect(await screen.findByRole('heading', { level: 2, name: 'October 21, 2026' })).toBeVisible();
-  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  expect(screen.queryByRole('alert')).toBeEmptyDOMElement();
 });
 
 test('a failed first load offers a retry', async () => {
@@ -406,7 +406,7 @@ test('a failed reload after midnight is tried again at the next check', async ()
   expect(screen.getByRole('alert')).toHaveTextContent('A server error occurred');
   await nextCheck();
   expect(screen.getByRole('heading', { level: 2, name: 'Today (October 22, 2026)' })).toBeVisible();
-  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  expect(screen.queryByRole('alert')).toBeEmptyDOMElement();
 });
 
 test('a day that left the editable range is not asked for again every minute', async () => {

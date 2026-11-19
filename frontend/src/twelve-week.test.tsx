@@ -738,7 +738,7 @@ test('a panel closed before its goal goes says nothing', async () => {
     document.dispatchEvent(new Event('visibilitychange'));
   });
   await flush();
-  expect(within(goalsCard()).queryByRole('alert')).not.toBeInTheDocument();
+  expect(within(goalsCard()).queryByRole('alert')).toBeEmptyDOMElement();
 });
 
 test('editing a goal\u2019s name keeps its open link panel and what was ticked', async () => {
@@ -764,7 +764,7 @@ test('removing a goal with its link panel open reports the removal, not a failur
   press('Delete Read a book');
   press('Confirm deleting Read a book');
   await flush();
-  expect(within(goalsCard()).queryByRole('alert')).not.toBeInTheDocument();
+  expect(within(goalsCard()).queryByRole('alert')).toBeEmptyDOMElement();
   expect(within(goalsCard()).getByRole('status')).toHaveTextContent(
     "Deleted the goal 'Read a book'",
   );
@@ -836,7 +836,7 @@ test('a panel closed by saving or by a failed list says nothing when its goal go
   await flush();
   api.removeElsewhere('1');
   await reloadList();
-  expect(within(goalsCard()).queryByRole('alert')).not.toBeInTheDocument();
+  expect(within(goalsCard()).queryByRole('alert')).toBeEmptyDOMElement();
 
   const working = vi.mocked(fetch).getMockImplementation()!;
   vi.stubGlobal(

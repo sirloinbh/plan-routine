@@ -186,7 +186,7 @@ test('a list that fails to load does not claim there are none, and can be retrie
   fireEvent.click(button('Reload projects'));
   await flush();
   expect(screen.getByText('Reading log')).toBeInTheDocument();
-  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  expect(screen.queryByRole('alert')).toBeEmptyDOMElement();
 });
 
 test('removing spins only that delete button, not the add button', async () => {

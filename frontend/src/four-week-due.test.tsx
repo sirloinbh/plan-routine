@@ -130,7 +130,7 @@ test('a failed load shows the English error and can be retried', async () => {
   api.failLoads(false);
   fireEvent.click(screen.getByRole('button', { name: 'Reload 4-week routines' }));
   expect(await screen.findByRole('checkbox', { name: 'Wash bedding' })).toBeInTheDocument();
-  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  expect(screen.queryByRole('alert')).toBeEmptyDOMElement();
   expect(screen.queryByRole('button', { name: 'Reload 4-week routines' })).not.toBeInTheDocument();
 });
 

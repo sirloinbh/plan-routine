@@ -204,7 +204,7 @@ test('a failed first load offers a retry', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
   await flush();
   expect(rates('Weekly routines')).toBeVisible();
-  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  expect(screen.queryByRole('alert')).toBeEmptyDOMElement();
 });
 
 test('a failed reload keeps what is on screen and offers a retry', async () => {
