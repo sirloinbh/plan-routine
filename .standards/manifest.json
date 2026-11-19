@@ -1,5 +1,5 @@
 {
-  "centralSha": "7dd73b7e4bb40c6bb176771c8214b3467a22039a",
+  "centralSha": "c610b151c2236738f993629c5da6be74e71bb7c2",
   "profile": "app",
   "project": "plan-routine",
   "files": {
@@ -165,7 +165,7 @@
     },
     ".standards/check.mjs": {
       "mode": "full",
-      "sha256": "e0734e81d24c1794528257a64edc9270db86152eef2829ee6f0312965cb524b3",
+      "sha256": "579f90cb538c008ad1d63fe4016cda9b214f9d7e3fb0feab3ab54f2d864fbbfa",
       "source": "scripts/standards-check.mjs"
     },
     ".standards/ioc-scan.mjs": {
@@ -270,7 +270,7 @@
     },
     "backend/src/standard/http.ts": {
       "mode": "full",
-      "sha256": "d77a5499049593f8e06cb2d6ecba7706769fd82f46fecd52989ccaaedf6c5c32",
+      "sha256": "c1d0cbc14f1dadf8b3947b332181d6df01ac0b977e4eb254f7b4ee366adaad4b",
       "source": "templates/app/backend/src/standard/http.ts"
     },
     "backend/src/standard/migrate.ts": {
@@ -285,12 +285,12 @@
     },
     "backend/src/standard/openapi-cli.ts": {
       "mode": "full",
-      "sha256": "98ee4a1f88f88568de2315e21860c65029355c1be87612265391fd6398cb374e",
+      "sha256": "7eaa9a95b600b0063ac10561cfefd8f906c2df29e60502b16df495c3e7e9a862",
       "source": "templates/app/backend/src/standard/openapi-cli.ts"
     },
     "backend/src/standard/openapi.ts": {
       "mode": "full",
-      "sha256": "ed10b073fd546bf45987e0895a08ab51e4d621dd059d8eae1f52c5b803f7b820",
+      "sha256": "5ba2d863cb49564af5ca4e3094e4c7f74edf0b53056456e2e8fe67bcdba528d4",
       "source": "templates/app/backend/src/standard/openapi.ts"
     },
     "backend/src/standard/rate-limit.ts": {
@@ -315,33 +315,33 @@
     },
     "deploy/autodeploy.service": {
       "mode": "full",
-      "sha256": "3628977c04cb0c0311db0261feb4b8351bc1c32eca4dcdc53d4bfaeb250228ee",
-      "source": "templates/app/deploy/autodeploy.service.tmpl"
+      "sha256": "a2903c7d801121fec5f3e9617717984ceae6867b995e06e7ad61d0b02c532ef0",
+      "source": "templates/deploy/deploy/autodeploy.service.tmpl"
     },
     "deploy/autodeploy.sh": {
       "mode": "full",
-      "sha256": "c87a8a9ede184a76c7d37123633925eba5bef9125dcda2a955fec3d20a7dd0fe",
-      "source": "templates/app/deploy/autodeploy.sh.tmpl"
+      "sha256": "3977ff5f3de9f7a6e996b3509b9b81c1bb3584eae1c06810374b85351cacb16d",
+      "source": "templates/deploy/deploy/autodeploy.sh.tmpl"
     },
     "deploy/autodeploy.timer": {
       "mode": "full",
-      "sha256": "a0616e1cb07fe661c54abc27c4452507f66adfb90f3ad51909abe3dea596a5c2",
-      "source": "templates/app/deploy/autodeploy.timer.tmpl"
+      "sha256": "f725e7d1e936b2a0d545d38aaa6a14a3fa3fc44a2739c1330766849e50109a16",
+      "source": "templates/deploy/deploy/autodeploy.timer.tmpl"
     },
     "deploy/backup.service": {
       "mode": "full",
-      "sha256": "d2cf85cb317976cb6f271b93057ddd30cc60ba430a4a71fca249197611e992e1",
-      "source": "templates/app/deploy/backup.service.tmpl"
+      "sha256": "f214db90b03bd76289b82ee8407f5f110bdb9f41bde7d1385f1fb96b44f45793",
+      "source": "templates/deploy/deploy/backup.service.tmpl"
     },
     "deploy/backup.sh": {
       "mode": "full",
-      "sha256": "fd6014a1a8e347675f4e3e14abf68bbe8ad554a90b8e86de12546f639eaabc35",
-      "source": "templates/app/deploy/backup.sh.tmpl"
+      "sha256": "e5e5e0735ef9dd04b2b0736b514e235ccf9877643e845746eadb324cc58b7f3b",
+      "source": "templates/deploy/deploy/backup.sh.tmpl"
     },
     "deploy/backup.timer": {
       "mode": "full",
-      "sha256": "4ab90545d55b42aef4a2551aae1dd32825ec0826770dedbfbe0306128c1ec2ea",
-      "source": "templates/app/deploy/backup.timer.tmpl"
+      "sha256": "87a3866a2fc88a3c7e894a63350584c96c8ede6a469adbdd62e7a0d361d3db63",
+      "source": "templates/deploy/deploy/backup.timer.tmpl"
     },
     "deploy/health.service": {
       "mode": "full",
@@ -355,23 +355,23 @@
     },
     "deploy/install-autodeploy.sh": {
       "mode": "full",
-      "sha256": "1138b684ad8970a5a26d253325d9eff708bbad72f719e0312bcbf79e7ae3959c",
-      "source": "templates/app/deploy/install-autodeploy.sh.tmpl"
+      "sha256": "2ca8a38beb86e5f31d59049b6e4fdf5c5f9c6859d43d056422fce178e5537f0c",
+      "source": "templates/deploy/deploy/install-autodeploy.sh.tmpl"
     },
     "deploy/install-backup.sh": {
       "mode": "full",
-      "sha256": "149f832ddac16aa8e7ce90463763cb471046ce3e090c61a0cc35d2c5e79d968c",
-      "source": "templates/app/deploy/install-backup.sh.tmpl"
+      "sha256": "8a15684517160fcf055f46da3cf303cdf4f2d9a566ca19e81480ed884b5bfbff",
+      "source": "templates/deploy/deploy/install-backup.sh.tmpl"
     },
     "deploy/notify.sh": {
       "mode": "full",
-      "sha256": "c269d6411a1d572b2f2b3cc91420e7a38c635156225cf658bda1a38fdc8853c2",
-      "source": "templates/app/deploy/notify.sh.tmpl"
+      "sha256": "820be923bbdcfd177fd143f339b8e33b1c7bda74617e29a4be4a5d13e5baf0a5",
+      "source": "templates/deploy/deploy/notify.sh.tmpl"
     },
     "deploy/remote-deploy.sh": {
       "mode": "full",
-      "sha256": "0d4c64e4b540a5e076aa8c6a9f7efb1c429744bcac554f4803d83fe26617d113",
-      "source": "templates/app/deploy/remote-deploy.sh.tmpl"
+      "sha256": "0f9731c5405c562c32f2abe57a0ddbfe73597872f219f7b962bf964bb7926603",
+      "source": "templates/deploy/deploy/remote-deploy.sh.tmpl"
     },
     "deploy/report.service": {
       "mode": "full",
@@ -390,18 +390,18 @@
     },
     "deploy/restore-check.service": {
       "mode": "full",
-      "sha256": "461c789965657496d0d208eb809d5e0081841feca1644a2e53ad73ac087dd5df",
-      "source": "templates/app/deploy/restore-check.service.tmpl"
+      "sha256": "10bd46ef4fde3c3726c0e997ccba2ead85e9de633b6c51ee3a5523d508ad89cc",
+      "source": "templates/deploy/deploy/restore-check.service.tmpl"
     },
     "deploy/restore-check.timer": {
       "mode": "full",
-      "sha256": "384eccec0c7e7bc3f22a51eaebab9ee30bae8382f5a8fc83150267977bbe4c45",
-      "source": "templates/app/deploy/restore-check.timer.tmpl"
+      "sha256": "21173866ab74d5a2ef760fbc11d9d3d5551982b10e41c00ee54460ae56c5e05c",
+      "source": "templates/deploy/deploy/restore-check.timer.tmpl"
     },
     "deploy/ssm-get.sh": {
       "mode": "full",
-      "sha256": "d353dff328f29a9fb46da7259c785f86758a35efb06271009de7bcf0732c1c40",
-      "source": "templates/app/deploy/ssm-get.sh.tmpl"
+      "sha256": "c127503dc4c7cccde884a91462760848e73f431eb8ae3302070fbc9bb8700a70",
+      "source": "templates/deploy/deploy/ssm-get.sh.tmpl"
     },
     "eslint.config.mjs": {
       "mode": "full",
@@ -513,6 +513,16 @@
       "sha256": "d3f0f590bc651f1784ebee4111d5a53cdcc866459114f9a798c0afe1dbbf5a26",
       "source": "templates/ui/frontend/src/components/layout/theme-toggle.tsx"
     },
+    "frontend/src/components/ui/alert-banner.test.tsx": {
+      "mode": "full",
+      "sha256": "e0b367e12cbcdef288ef8b97101d4ba2a80ac8ad67884d2ed1581b8028fd6484",
+      "source": "templates/ui/frontend/src/components/ui/alert-banner.test.tsx"
+    },
+    "frontend/src/components/ui/alert-banner.tsx": {
+      "mode": "full",
+      "sha256": "f41440bbcad87e6ea2642ad0731c31e7873b6e160537db8e1620a6e3364e7fe3",
+      "source": "templates/ui/frontend/src/components/ui/alert-banner.tsx"
+    },
     "frontend/src/components/ui/badge.test.tsx": {
       "mode": "full",
       "sha256": "617447c39478508083ab7ad64d676c58fd1ac2480d9218dbd286ca8b49bb20ab",
@@ -578,6 +588,16 @@
       "sha256": "11f64bbf65c1b92531878af751c9142868dba0285a4a4223625f80f67c347452",
       "source": "templates/ui/frontend/src/components/ui/confirm-dialog.tsx"
     },
+    "frontend/src/components/ui/date-stepper.test.tsx": {
+      "mode": "full",
+      "sha256": "3db47721855ac2513acf5e3094e5be407cd1c8cedb47685bd4577562e6a4c0a4",
+      "source": "templates/ui/frontend/src/components/ui/date-stepper.test.tsx"
+    },
+    "frontend/src/components/ui/date-stepper.tsx": {
+      "mode": "full",
+      "sha256": "ccce4ea3d1f0c78653fbf0ef734be1b6649bdb33775cd88da27548b5c3858d53",
+      "source": "templates/ui/frontend/src/components/ui/date-stepper.tsx"
+    },
     "frontend/src/components/ui/dialog.test.tsx": {
       "mode": "full",
       "sha256": "a9372a86f998c695810fcfd64f33db99721d45a356a3032eb2c35287e4fc5409",
@@ -618,6 +638,21 @@
       "sha256": "984b2b103523254610d298026be332b76a700efd018845ed02ddcd3dc1d1b532",
       "source": "templates/ui/frontend/src/components/ui/empty-state.tsx"
     },
+    "frontend/src/components/ui/field-props.ts": {
+      "mode": "full",
+      "sha256": "3745f3b4bd398992713dabd8bc346d23b81b0ce2bd7cd475db94a24be9a2f1aa",
+      "source": "templates/ui/frontend/src/components/ui/field-props.ts"
+    },
+    "frontend/src/components/ui/field.test.tsx": {
+      "mode": "full",
+      "sha256": "c292f729a6aacfbe08537a79808ed9e45103ace73ef8c48c70efc8b8250bf9dd",
+      "source": "templates/ui/frontend/src/components/ui/field.test.tsx"
+    },
+    "frontend/src/components/ui/field.tsx": {
+      "mode": "full",
+      "sha256": "6825f011efe2e74e26482ed4b7d8999c2cdee1cb5de209be9693b339271178e2",
+      "source": "templates/ui/frontend/src/components/ui/field.tsx"
+    },
     "frontend/src/components/ui/input-styles.ts": {
       "mode": "full",
       "sha256": "c9effc4c90b9c8c751e4699f2940bb3e411553de8ae5432cdc8fdd431f9baecc",
@@ -657,6 +692,41 @@
       "mode": "full",
       "sha256": "c1043a27a78a18532bce245e636c42437f044e9b85921b91534658b9a9165531",
       "source": "templates/ui/frontend/src/components/ui/notice.tsx"
+    },
+    "frontend/src/components/ui/number-input.test.tsx": {
+      "mode": "full",
+      "sha256": "50bc669e5e587c77b209aad10a1cdaefd0761477e68533e5e9fb8cbf240840c3",
+      "source": "templates/ui/frontend/src/components/ui/number-input.test.tsx"
+    },
+    "frontend/src/components/ui/number-input.tsx": {
+      "mode": "full",
+      "sha256": "e16a8c60bcd05c3d9c2b6aebe1bd8b63642d06be1e2fa85adbbefb64a02f354c",
+      "source": "templates/ui/frontend/src/components/ui/number-input.tsx"
+    },
+    "frontend/src/components/ui/number-step.ts": {
+      "mode": "full",
+      "sha256": "0350690c16567861d31271ebf12080829a88b574c4600c382a82d6cb090b3091",
+      "source": "templates/ui/frontend/src/components/ui/number-step.ts"
+    },
+    "frontend/src/components/ui/page-header.test.tsx": {
+      "mode": "full",
+      "sha256": "d1116abae6bc1a50663ed15f9fa79a424696abc46c319f8f51e3d300f26a6403",
+      "source": "templates/ui/frontend/src/components/ui/page-header.test.tsx"
+    },
+    "frontend/src/components/ui/page-header.tsx": {
+      "mode": "full",
+      "sha256": "990261f6a5ee5a603c12c9037a8c8fabf3e73616c1dcb86e31614e6ead4387bf",
+      "source": "templates/ui/frontend/src/components/ui/page-header.tsx"
+    },
+    "frontend/src/components/ui/segmented-control.test.tsx": {
+      "mode": "full",
+      "sha256": "53a3cd8c3a3fbea343198fd87d0673682997b24105fa2772e13fa7a20fbafa51",
+      "source": "templates/ui/frontend/src/components/ui/segmented-control.test.tsx"
+    },
+    "frontend/src/components/ui/segmented-control.tsx": {
+      "mode": "full",
+      "sha256": "2ebf3721afde0cea1a0a2cf5b0c6542b633bf46339a6a51d470796b99cdb1f84",
+      "source": "templates/ui/frontend/src/components/ui/segmented-control.tsx"
     },
     "frontend/src/components/ui/select.test.tsx": {
       "mode": "full",
@@ -707,6 +777,26 @@
       "mode": "full",
       "sha256": "07e11eaeb03a31e942b7dc5ae51d685bcc1378febe29e70d736d75bbcd804348",
       "source": "templates/ui/frontend/src/components/ui/spinner.tsx"
+    },
+    "frontend/src/components/ui/stat-card.test.tsx": {
+      "mode": "full",
+      "sha256": "4764754d825830751e4414c4fb9cd89c23bb484bcbae0998b4547a65b0f6fb13",
+      "source": "templates/ui/frontend/src/components/ui/stat-card.test.tsx"
+    },
+    "frontend/src/components/ui/stat-card.tsx": {
+      "mode": "full",
+      "sha256": "cc06d47ba213cb04c3e2c14688502ab03bbcb26d224db6b061c5dabd0fcb04c4",
+      "source": "templates/ui/frontend/src/components/ui/stat-card.tsx"
+    },
+    "frontend/src/components/ui/switch.test.tsx": {
+      "mode": "full",
+      "sha256": "cb5df74d3ab304cc2680494e83fb37704b735bf7316cd9cdcb7ab63223adf489",
+      "source": "templates/ui/frontend/src/components/ui/switch.test.tsx"
+    },
+    "frontend/src/components/ui/switch.tsx": {
+      "mode": "full",
+      "sha256": "0f19a3463c5e1914a26eff3c539a62966815a60cf4619b38cdb4b73e8ca744c6",
+      "source": "templates/ui/frontend/src/components/ui/switch.tsx"
     },
     "frontend/src/components/ui/textarea.test.tsx": {
       "mode": "full",
