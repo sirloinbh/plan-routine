@@ -1,5 +1,5 @@
 {
-  "centralSha": "c610b151c2236738f993629c5da6be74e71bb7c2",
+  "centralSha": "1f552a1158b87a732594623682985003aa5c98ef",
   "profile": "app",
   "project": "plan-routine",
   "files": {
@@ -10,7 +10,7 @@
     },
     ".claude/hooks/block-package-installs.mjs": {
       "mode": "full",
-      "sha256": "56de5f100cf31c4acf790c7277912779af129786596333dc206bbf1a134f756f",
+      "sha256": "19f89a86a72201b874a7d0c5ee450dd7da86b7e2b983e666cb0db2a291a59878",
       "source": "templates/common/.claude/hooks/block-package-installs.mjs"
     },
     ".claude/hooks/pc-setup-notice.mjs": {
@@ -70,7 +70,7 @@
     },
     ".claude/skills/std-implementation/SKILL.md": {
       "mode": "full",
-      "sha256": "ecc5c9ebdfe12df92206e3c4b9411fa8cb46f45e9d85d03b46c27c7ffdb09edb",
+      "sha256": "1d11c81fc3442cee4246b449b0647fe33850d40c58e0c8bbeae0d125551c736d",
       "source": "templates/common/skills/std-implementation/SKILL.md"
     },
     ".claude/skills/std-session-notes/SKILL.md": {
@@ -130,7 +130,7 @@
     },
     ".github/workflows/ci.yml": {
       "mode": "full",
-      "sha256": "716e486f9d2b350fe7e88f07b7b77347a8bae276bd8efb809f9d49a950626207",
+      "sha256": "b7014f80880ca6350d4b81a4e25d2de6e1c024e78a39ea5c6682590507422763",
       "source": "templates/app/.github/workflows/ci.yml.tmpl"
     },
     ".gitignore": {
@@ -220,7 +220,7 @@
     },
     "AGENTS.md": {
       "mode": "full",
-      "sha256": "a1a7489001d2f875380479496da654a6b736c97390561d38e2bb9c0d18c653e1",
+      "sha256": "2e514d28cabcb1a0c36ef1efe36cee852ca58d3805c37701b001ceac9daf3fda",
       "source": "templates/app/AGENTS.md.tmpl"
     },
     "backend/.npmrc": {
@@ -370,7 +370,7 @@
     },
     "deploy/remote-deploy.sh": {
       "mode": "full",
-      "sha256": "0f9731c5405c562c32f2abe57a0ddbfe73597872f219f7b962bf964bb7926603",
+      "sha256": "681f0588fd0bbd5371c1ac1c4394b47f9723f8125fc3a534b87fcb79e25520d3",
       "source": "templates/deploy/deploy/remote-deploy.sh.tmpl"
     },
     "deploy/report.service": {
@@ -700,7 +700,7 @@
     },
     "frontend/src/components/ui/number-input.tsx": {
       "mode": "full",
-      "sha256": "e16a8c60bcd05c3d9c2b6aebe1bd8b63642d06be1e2fa85adbbefb64a02f354c",
+      "sha256": "661e476761ca336f8d2ec7d0603ebb8c78039703777f5b6d41bccd7b0b564bac",
       "source": "templates/ui/frontend/src/components/ui/number-input.tsx"
     },
     "frontend/src/components/ui/number-step.ts": {
@@ -963,11 +963,6 @@
       "sha256": "29a8537620ae2cab61a6a684db5efd0b98be1b5e36eca533a30e58c28197c267",
       "source": "templates/app/scripts/gh-project.ps1"
     },
-    "scripts/push-repositories.ps1": {
-      "mode": "full",
-      "sha256": "c9c3618d6538fb85adb4dbaebc7c8ebca70963eff48b6f7e1f966b243a7e2bc4",
-      "source": "templates/app/scripts/push-repositories.ps1"
-    },
     "skills/std-backlog/SKILL.md": {
       "mode": "full",
       "sha256": "d78c85e0ab7e5cde745e013ab27d62b9cbcb8979012ee2dc5fc7b80f309fb6a4",
@@ -995,7 +990,7 @@
     },
     "skills/std-implementation/SKILL.md": {
       "mode": "full",
-      "sha256": "ecc5c9ebdfe12df92206e3c4b9411fa8cb46f45e9d85d03b46c27c7ffdb09edb",
+      "sha256": "1d11c81fc3442cee4246b449b0647fe33850d40c58e0c8bbeae0d125551c736d",
       "source": "templates/common/skills/std-implementation/SKILL.md"
     },
     "skills/std-session-notes/SKILL.md": {
