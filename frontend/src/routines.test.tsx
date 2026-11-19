@@ -3,6 +3,7 @@ import { expect, test, vi } from 'vitest';
 
 import { groupByCategory } from './routine-groups';
 import { DailyRoutines, type Routine } from './routines';
+import { findLive, getLive } from './test/live';
 
 // Focus follows a reload, which on a busy machine can outlast the default one second.
 configure({ asyncUtilTimeout: 10_000 });
@@ -133,14 +134,14 @@ test('an empty name or a server error shows an English alert and keeps the draft
   render(<DailyRoutines />);
   const wake = await screen.findByRole('region', { name: 'Wake-up routines' });
   fireEvent.click(within(wake).getByRole('button', { name: 'Add' }));
-  expect(await screen.findByRole('alert')).toHaveTextContent('Enter a routine name');
+  expect(await findLive('alert')).toHaveTextContent('Enter a routine name');
   expect(api.writes).toEqual([]);
 
   const input = within(wake).getByRole('textbox', { name: 'New Wake-up routine name' });
   fireEvent.change(input, { target: { value: 'Duplicate' } });
   fireEvent.click(within(wake).getByRole('button', { name: 'Add' }));
   await waitFor(() =>
-    expect(screen.getByRole('alert')).toHaveTextContent('This item is already registered'),
+    expect(getLive('alert')).toHaveTextContent('This item is already registered'),
   );
   expect(
     within(region('Wake-up')).getByRole('textbox', { name: 'New Wake-up routine name' }),
@@ -187,7 +188,7 @@ test('routines can be reordered, renamed and archived after confirmation', async
     path: '/api/routines/2/archive',
     body: undefined,
   });
-  expect(screen.getByRole('status')).toHaveTextContent('Past records are kept');
+  expect(getLive('status')).toHaveTextContent('Past records are kept');
 });
 
 test('a routine changed elsewhere shows the English 404 and the list reloads', async () => {
@@ -199,7 +200,7 @@ test('a routine changed elsewhere shows the English 404 and the list reloads', a
   await screen.findByText('Drink water');
   api.archiveElsewhere('2');
   fireEvent.click(screen.getByRole('button', { name: 'Move Drink water up' }));
-  expect(await screen.findByRole('alert')).toHaveTextContent('Routine not found');
+  expect(await findLive('alert')).toHaveTextContent('Routine not found');
   await waitFor(() => expect(names('Wake-up')).toEqual(['Wake at 6']));
 });
 
@@ -239,7 +240,7 @@ test('a rename that fails keeps the form and returns focus to its field', async 
   fireEvent.change(input, { target: { value: 'Duplicate' } });
   input.blur();
   fireEvent.click(button('Save'));
-  await screen.findByRole('alert');
+  await findLive('alert');
   await waitFor(() =>
     expect(screen.getByRole('textbox', { name: 'New name for Wake at 6' })).toHaveFocus(),
   );
@@ -253,7 +254,7 @@ test('renaming a routine that has gone moves focus to the add field', async () =
   fireEvent.click(button('Rename Wake at 6'));
   api.archiveElsewhere('1');
   fireEvent.click(button('Save'));
-  await screen.findByRole('alert');
+  await findLive('alert');
   await waitFor(() =>
     expect(
       screen.queryByRole('textbox', { name: 'New name for Wake at 6' }),
@@ -270,7 +271,7 @@ test('moving a routine that has gone moves focus to the add field', async () => 
   await screen.findByText('Drink water');
   api.archiveElsewhere('2');
   fireEvent.click(button('Move Drink water up'));
-  await screen.findByRole('alert');
+  await findLive('alert');
   await waitFor(() =>
     expect(screen.getByRole('textbox', { name: 'New Wake-up routine name' })).toHaveFocus(),
   );
@@ -282,7 +283,7 @@ test('an archive that fails stays on its own row', async () => {
   await screen.findByText('Archive fails');
   fireEvent.click(button('Archive Archive fails'));
   fireEvent.click(button('Confirm archiving Archive fails'));
-  await screen.findByRole('alert');
+  await findLive('alert');
   await waitFor(() => expect(button('Rename Archive fails')).toHaveFocus());
 });
 
@@ -464,7 +465,7 @@ test('a link that fails shows the English error and leaves the choice as it was'
   render(<DailyRoutines />);
   const select = await linkSelect();
   fireEvent.change(select, { target: { value: '7' } });
-  expect(await screen.findByRole('alert')).toHaveTextContent('Routine or project not found');
+  expect(await findLive('alert')).toHaveTextContent('Routine or project not found');
   expect(await linkSelect()).toHaveValue('');
 });
 

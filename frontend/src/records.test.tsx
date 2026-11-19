@@ -3,6 +3,7 @@ import { expect, test, vi } from 'vitest';
 
 import { formatDate } from './format-date';
 import { Records } from './records';
+import { findLive, getLive, queryLive } from './test/live';
 
 const today = '2026-10-22';
 
@@ -291,9 +292,9 @@ test('picking a day clears the error of an earlier failed day', async () => {
   api.failDay();
   fireEvent.click(dayButton('2026-10-20'));
   await flush();
-  expect(screen.getByRole('alert')).toBeInTheDocument();
+  expect(getLive('alert')).toBeInTheDocument();
   fireEvent.click(dayButton('2026-10-01'));
-  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  expect(queryLive('alert')).toBeNull();
   await flush();
   expect(screen.getByRole('region', { name: 'Records for October 1, 2026' })).toBeVisible();
 });
@@ -305,7 +306,7 @@ test('picking the day that failed loads it again rather than waiting forever', a
   api.failDay();
   fireEvent.click(dayButton('2026-10-20'));
   await flush();
-  expect(screen.getByRole('alert')).toBeInTheDocument();
+  expect(getLive('alert')).toBeInTheDocument();
   fireEvent.click(dayButton('2026-10-20'));
   await flush();
   expect(screen.getByRole('region', { name: 'Records for October 20, 2026' })).toBeVisible();
@@ -325,11 +326,11 @@ test('a failed first load offers a retry', async () => {
   const api = recordsApi();
   api.failMonth();
   render(<Records />);
-  expect(await screen.findByRole('alert')).toHaveTextContent('A server error occurred');
+  expect(await findLive('alert')).toHaveTextContent('A server error occurred');
   press('Try again');
   await flush();
   expect(screen.getByRole('region', { name: 'October 2026 calendar' })).toBeVisible();
-  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  expect(queryLive('alert')).toBeNull();
 });
 
 test('a failed month move can be retried and keeps the calendar', async () => {
@@ -339,7 +340,7 @@ test('a failed month move can be retried and keeps the calendar', async () => {
   api.failMonth();
   press('Previous month');
   await flush();
-  expect(screen.getByRole('alert')).toHaveTextContent('A server error occurred');
+  expect(getLive('alert')).toHaveTextContent('A server error occurred');
   expect(screen.getByRole('region', { name: 'October 2026 calendar' })).toBeVisible();
   press('Try again');
   await flush();
@@ -353,12 +354,12 @@ test('a failed day load offers its own retry', async () => {
   api.failDay();
   fireEvent.click(dayButton('2026-10-20'));
   await flush();
-  expect(screen.getByRole('alert')).toHaveTextContent('A server error occurred');
+  expect(getLive('alert')).toHaveTextContent('A server error occurred');
   press("Reload this day's records");
   await waitFor(() =>
     expect(screen.getByRole('region', { name: 'Records for October 20, 2026' })).toBeVisible(),
   );
-  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  expect(queryLive('alert')).toBeNull();
 });
 
 test('a page shown again loads the records once more', async () => {

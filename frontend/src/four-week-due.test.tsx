@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { expect, test, vi } from 'vitest';
 
 import { FourWeekDue } from './four-week-due';
+import { findLive, getLive, queryLive } from './test/live';
 
 type Seed = { id: string; name: string; checked?: boolean };
 
@@ -126,11 +127,11 @@ test('a failed load shows the English error and can be retried', async () => {
   const api = dueApi(seed);
   api.failLoads();
   render(<FourWeekDue />);
-  expect(await screen.findByRole('alert')).toHaveTextContent('A server error occurred');
+  expect(await findLive('alert')).toHaveTextContent('A server error occurred');
   api.failLoads(false);
   fireEvent.click(screen.getByRole('button', { name: 'Reload 4-week routines' }));
   expect(await screen.findByRole('checkbox', { name: 'Wash bedding' })).toBeInTheDocument();
-  expect(screen.queryByRole('alert')).toBeEmptyDOMElement();
+  expect(queryLive('alert')).toBeNull();
   expect(screen.queryByRole('button', { name: 'Reload 4-week routines' })).not.toBeInTheDocument();
 });
 
@@ -151,7 +152,7 @@ test('a failed save restores the box and shows the English error', async () => {
   api.failNextSave();
   fireEvent.click(target);
   await flush();
-  expect(screen.getByRole('alert')).toHaveTextContent('A server error occurred');
+  expect(getLive('alert')).toHaveTextContent('A server error occurred');
   expect(screen.getByRole('checkbox', { name: 'Wash bedding' })).not.toBeChecked();
 });
 
@@ -162,7 +163,7 @@ test('the English 404 stays when the only routine was archived elsewhere', async
   api.archiveElsewhere('1');
   fireEvent.click(target);
   await flush();
-  expect(screen.getByRole('alert')).toHaveTextContent('Routine not found');
+  expect(getLive('alert')).toHaveTextContent('Routine not found');
   expect(screen.queryByRole('checkbox', { name: 'Wash bedding' })).not.toBeInTheDocument();
 });
 
@@ -188,9 +189,7 @@ test('a check after the period ended is not saved to it', async () => {
   fireEvent.click(target);
   await flush();
   expect(api.writes).toEqual([]);
-  expect(screen.getByRole('status')).toHaveTextContent(
-    'The date changed and a new period was loaded',
-  );
+  expect(getLive('status')).toHaveTextContent('The date changed and a new period was loaded');
 });
 
 test('the refusal message does not stay once the new period has no card', async () => {
@@ -206,7 +205,7 @@ test('the refusal message does not stay once the new period has no card', async 
   await flush();
   expect(api.writes).toEqual([]);
   expect(screen.queryByRole('region')).not.toBeInTheDocument();
-  expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  expect(queryLive('status')).toBeNull();
 });
 
 test('its heading is a level below the page title', async () => {

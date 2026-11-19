@@ -3,6 +3,7 @@ import { expect, test, vi } from 'vitest';
 
 import { DailyChecklist } from './daily-checklist';
 import { formatDate } from './format-date';
+import { findLive, getLive, queryLive } from './test/live';
 
 type Seed = { id: string; name: string; category: string; sortOrder?: number };
 
@@ -162,7 +163,7 @@ test('a failed save restores the box and shows the English error', async () => {
   checklistApi(seed, { failWrites: 'A server error occurred' });
   render(<DailyChecklist />);
   fireEvent.click(await box('Wake at 6'));
-  expect(await screen.findByRole('alert')).toHaveTextContent('A server error occurred');
+  expect(await findLive('alert')).toHaveTextContent('A server error occurred');
   expect(await box('Wake at 6')).not.toBeChecked();
   expect(screen.getByText('0/3 done overall')).toBeInTheDocument();
 });
@@ -173,7 +174,7 @@ test('a routine archived elsewhere shows the English 404 and leaves the list', a
   await box('Drink water');
   api.archiveElsewhere('2');
   fireEvent.click(await box('Drink water'));
-  expect(await screen.findByRole('alert')).toHaveTextContent('Routine not found');
+  expect(await findLive('alert')).toHaveTextContent('Routine not found');
   await waitFor(() =>
     expect(screen.queryByRole('checkbox', { name: 'Drink water' })).not.toBeInTheDocument(),
   );
@@ -283,15 +284,15 @@ test('a load error goes away when a later load works, but a save error stays', a
   await box('Wake at 6');
   api.failNextLoad();
   await showPageAgain();
-  expect(screen.getByRole('alert')).toHaveTextContent('A server error occurred');
+  expect(getLive('alert')).toHaveTextContent('A server error occurred');
   await showPageAgain();
-  expect(screen.queryByRole('alert')).toBeEmptyDOMElement();
+  expect(queryLive('alert')).toBeNull();
 
   api.archiveElsewhere('2');
   fireEvent.click(await box('Drink water'));
   await flush();
   await flush();
-  expect(screen.getByRole('alert')).toHaveTextContent('Routine not found');
+  expect(getLive('alert')).toHaveTextContent('Routine not found');
 });
 
 test('a failed move can be retried with the same button', async () => {
@@ -300,17 +301,17 @@ test('a failed move can be retried with the same button', async () => {
   await box('Wake at 6');
   api.failNextLoad();
   fireEvent.click(screen.getByRole('button', { name: 'Previous day' }));
-  expect(await screen.findByRole('alert')).toHaveTextContent('A server error occurred');
+  expect(await findLive('alert')).toHaveTextContent('A server error occurred');
   fireEvent.click(screen.getByRole('button', { name: 'Previous day' }));
   expect(await screen.findByRole('heading', { level: 2, name: 'October 21, 2026' })).toBeVisible();
-  expect(screen.queryByRole('alert')).toBeEmptyDOMElement();
+  expect(queryLive('alert')).toBeNull();
 });
 
 test('a failed first load offers a retry', async () => {
   const api = checklistApi(seed);
   api.failNextLoad();
   render(<DailyChecklist />);
-  expect(await screen.findByRole('alert')).toHaveTextContent('A server error occurred');
+  expect(await findLive('alert')).toHaveTextContent('A server error occurred');
   fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
   expect(await box('Wake at 6')).toBeInTheDocument();
 });
@@ -336,9 +337,7 @@ test('the first check after midnight is not saved to yesterday and the next goes
   fireEvent.click(await box('Wake at 6'));
   await flush();
   expect(api.writes).toEqual([]);
-  expect(screen.getByRole('status')).toHaveTextContent(
-    'The date changed and a new period was loaded',
-  );
+  expect(getLive('status')).toHaveTextContent('The date changed and a new period was loaded');
   expect(screen.getByRole('heading', { level: 2, name: 'Today (October 22, 2026)' })).toBeVisible();
   expect(await box('Wake at 6')).not.toBeChecked();
 
@@ -403,10 +402,10 @@ test('a failed reload after midnight is tried again at the next check', async ()
   api.setToday('2026-10-22');
   api.failNextLoad();
   await nextCheck();
-  expect(screen.getByRole('alert')).toHaveTextContent('A server error occurred');
+  expect(getLive('alert')).toHaveTextContent('A server error occurred');
   await nextCheck();
   expect(screen.getByRole('heading', { level: 2, name: 'Today (October 22, 2026)' })).toBeVisible();
-  expect(screen.queryByRole('alert')).toBeEmptyDOMElement();
+  expect(queryLive('alert')).toBeNull();
 });
 
 test('a day that left the editable range is not asked for again every minute', async () => {
@@ -430,7 +429,7 @@ test('a day that left the editable range is not asked for again every minute', a
   vi.stubGlobal('fetch', rejected);
   setClock('2026-10-23');
   await nextCheck();
-  expect(screen.getByRole('alert')).toHaveTextContent('You can only check the last 7 days');
+  expect(getLive('alert')).toHaveTextContent('You can only check the last 7 days');
   expect(rejected).toHaveBeenCalledTimes(1);
   await nextCheck();
   await nextCheck();
@@ -453,9 +452,7 @@ test('after a failed reload a refused click still explains itself', async () => 
   await flush();
   expect(api.writes).toEqual([]);
   expect(screen.getByRole('heading', { level: 2, name: 'Today (October 22, 2026)' })).toBeVisible();
-  expect(screen.getByRole('status')).toHaveTextContent(
-    'The date changed and a new period was loaded',
-  );
+  expect(getLive('status')).toHaveTextContent('The date changed and a new period was loaded');
 });
 
 test('a chosen past day can still be checked after midnight', async () => {
@@ -486,7 +483,7 @@ test('a failed load shows the English error', async () => {
     vi.fn(() => Promise.reject(new Error('offline'))),
   );
   render(<DailyChecklist />);
-  expect(await screen.findByRole('alert')).toHaveTextContent('Cannot reach the server');
+  expect(await findLive('alert')).toHaveTextContent('Cannot reach the server');
 });
 
 const heading = (name: string) => screen.getByRole('heading', { level: 2, name });
