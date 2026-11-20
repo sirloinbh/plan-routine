@@ -94,7 +94,7 @@ export function useChecklist<T extends ChecklistItem>(
   const reloadNow = useCallback(() => setVersion((value) => value + 1), []);
   useReloadOnDateChange(requestedOn, reloadNow);
 
-  const setChecked = (itemDate: string, id: string, checked: boolean) =>
+  const setChecked = (itemDate: string, id: number, checked: boolean) =>
     // The user may have moved to another day while this request was running.
     setData((current) =>
       current?.date === itemDate

@@ -3,7 +3,7 @@
   "info": {
     "title": "Plan Routine API",
     "version": "1.0.0",
-    "description": "Dates are YYYY-MM-DD (Asia/Seoul). Ids are digit strings. Every error response is { error: English message }."
+    "description": "Dates are YYYY-MM-DD (Asia/Seoul). Ids are positive integers (numbers, up to 15 digits). Every error response is { error: English message }."
   },
   "servers": [
     {
@@ -20,8 +20,9 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "string",
-              "pattern": "^\\d{1,18}$"
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 999999999999999
             }
           }
         ],
@@ -59,8 +60,9 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "string",
-              "pattern": "^\\d{1,18}$"
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 999999999999999
             }
           }
         ],
@@ -110,8 +112,9 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "string",
-              "pattern": "^\\d{1,18}$"
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 999999999999999
             }
           }
         ],
@@ -151,8 +154,9 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "string",
-              "pattern": "^\\d{1,18}$"
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 999999999999999
             }
           },
           {
@@ -199,8 +203,9 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "string",
-              "pattern": "^\\d{1,18}$"
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 999999999999999
             }
           },
           {
@@ -626,8 +631,9 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "string",
-              "pattern": "^\\d{1,18}$"
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 999999999999999
             }
           }
         ],
@@ -677,8 +683,9 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "string",
-              "pattern": "^\\d{1,18}$"
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 999999999999999
             }
           }
         ],
@@ -718,8 +725,9 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "string",
-              "pattern": "^\\d{1,18}$"
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 999999999999999
             }
           }
         ],
@@ -810,8 +818,9 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "string",
-              "pattern": "^\\d{1,18}$"
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 999999999999999
             }
           }
         ],
@@ -901,8 +910,9 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "string",
-              "pattern": "^\\d{1,18}$"
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 999999999999999
             }
           }
         ],
@@ -1081,8 +1091,9 @@
           "routineIds": {
             "type": "array",
             "items": {
-              "type": "string",
-              "pattern": "^\\d{1,18}$"
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 999999999999999
             },
             "maxItems": 200
           }
@@ -1100,8 +1111,9 @@
               "type": "object",
               "properties": {
                 "id": {
-                  "type": "string",
-                  "pattern": "^\\d{1,18}$"
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 999999999999999
                 },
                 "achieved": {
                   "type": [
@@ -1133,10 +1145,11 @@
         "properties": {
           "projectLinkId": {
             "type": [
-              "string",
+              "integer",
               "null"
             ],
-            "pattern": "^\\d{1,18}$"
+            "minimum": 1,
+            "maximum": 999999999999999
           }
         },
         "required": [

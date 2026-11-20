@@ -12,14 +12,14 @@ export function statsRoutes(pool: Pool, today: () => string) {
     const current = today();
     const anchorDate = await routineAnchorDate(pool, current);
     const routines = await pool.query<StatsRoutine>(
-      `SELECT id::text AS id, name, cadence, category, sort_order AS "sortOrder",
+      `SELECT id, name, cadence, category, sort_order AS "sortOrder",
          (created_at AT TIME ZONE 'Asia/Seoul')::date AS "createdOn",
          (archived_at AT TIME ZONE 'Asia/Seoul')::date AS "archivedOn"
        FROM routines
        ORDER BY cadence, category, sort_order, routines.id`,
     );
     const checks = await pool.query<StatsCheck>(
-      `SELECT routine_id::text AS "routineId", period_start AS "periodStart"
+      `SELECT routine_id AS "routineId", period_start AS "periodStart"
        FROM routine_checks WHERE period_start >= $1`,
       [statsStart(current, anchorDate)],
     );

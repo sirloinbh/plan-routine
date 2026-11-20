@@ -178,7 +178,7 @@ test('the daily checklist page shows unfinished four-week routines near the peri
                   ...emptyChecklist,
                   endsSoon: true,
                   remainingDays: 3,
-                  items: [{ id: '7', name: 'Wash bedding', checked: false }],
+                  items: [{ id: 7, name: 'Wash bedding', checked: false }],
                 }
               : url === '/api/health'
                 ? { today: '2026-10-26' }

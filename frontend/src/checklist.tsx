@@ -12,7 +12,7 @@ import { LoadingRegion } from './loading-region';
 import { RetryButton } from './retry-button';
 
 export type ChecklistItem = {
-  id: string;
+  id: number;
   name: string;
   checked: boolean;
   linkName?: string | null;

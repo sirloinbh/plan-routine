@@ -9,9 +9,9 @@ export type RoutineNotice = { kind: 'status' | 'alert'; text: string } | null;
 
 /** Which control to focus: the first of these that exists and is enabled. */
 const focusKeys = {
-  up: (id: string) => `up-${id}`,
-  down: (id: string) => `down-${id}`,
-  edit: (id: string) => `edit-${id}`,
+  up: (id: number) => `up-${id}`,
+  down: (id: number) => `down-${id}`,
+  edit: (id: number) => `edit-${id}`,
   renameInput: 'rename-input',
   add: (draftKey: string) => `add-${draftKey}`,
 };
@@ -25,8 +25,8 @@ export function useRoutineList(cadence: string) {
   const [refreshes, setRefreshes] = useState(0);
   const [loadFailed, setLoadFailed] = useState(false);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
-  const [editing, setEditing] = useState<{ id: string; name: string } | null>(null);
-  const [confirmArchive, setConfirmArchive] = useState<string | null>(null);
+  const [editing, setEditing] = useState<{ id: number; name: string } | null>(null);
+  const [confirmArchive, setConfirmArchive] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   // Which button started the change: busy disables them all, only this one shows it is working.
   const [pending, setPending] = useState<string | null>(null);
@@ -179,7 +179,7 @@ export function useRoutineList(cadence: string) {
   };
 
   // `neighbours` are the next places to land, because the routine's own row is about to go.
-  const archive = async (routine: Routine, neighbours: string[], draftKey: string) => {
+  const archive = async (routine: Routine, neighbours: number[], draftKey: string) => {
     const ok = await run(
       () => requestJson(`/api/routines/${routine.id}/archive`, { method: 'POST' }),
       `Archived the routine '${routine.name}'. Past records are kept`,
@@ -197,7 +197,7 @@ export function useRoutineList(cadence: string) {
   const setDraft = (draftKey: string, value: string) =>
     setDrafts((current) => ({ ...current, [draftKey]: value }));
 
-  const setProjectLink = async (routine: Routine, projectLinkId: string | null) => {
+  const setProjectLink = async (routine: Routine, projectLinkId: number | null) => {
     if (busy) return;
     await run(
       () =>

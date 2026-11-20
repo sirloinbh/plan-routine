@@ -9,7 +9,7 @@ import { requestJson } from './lib/api';
 import { LoadingRegion } from './loading-region';
 import type { Routine } from './routines';
 
-export type LinkedRoutine = { id: string; name: string };
+export type LinkedRoutine = { id: number; name: string };
 
 const groups = [
   { cadence: 'daily', label: 'Daily routines' },
@@ -25,7 +25,7 @@ export function GoalRoutineLinks({
   onFailed,
   onOpenChange,
 }: {
-  goal: { id: string; title: string; routines?: LinkedRoutine[] };
+  goal: { id: number; title: string; routines?: LinkedRoutine[] };
   disabled: boolean;
   onBegin: () => void;
   onSaved: (message: string, routines: LinkedRoutine[]) => void;
@@ -34,7 +34,7 @@ export function GoalRoutineLinks({
 }) {
   const [open, setOpen] = useState(false);
   const [routines, setRoutines] = useState<Routine[] | null>(null);
-  const [selected, setSelected] = useState<string[]>([]);
+  const [selected, setSelected] = useState<number[]>([]);
   const [saving, setSaving] = useState(false);
   // A slow list must not reopen a panel the user has closed since.
   const opening = useRef(0);
@@ -114,7 +114,7 @@ export function GoalRoutineLinks({
     }
   };
 
-  const toggle = (id: string, checked: boolean) => {
+  const toggle = (id: number, checked: boolean) => {
     if (saving) return;
     setSelected((current) =>
       checked ? [...current, id] : current.filter((value) => value !== id),

@@ -5,14 +5,14 @@ import { getLive, queryLive } from './test/live';
 import { TwelveWeek } from './twelve-week';
 
 type Goal = {
-  id: string;
+  id: number;
   title: string;
   achieved: boolean | null;
   reviewNote: string | null;
   reviewedAt: string | null;
 };
 
-const pending = (id: string, title: string): Goal => ({
+const pending = (id: number, title: string): Goal => ({
   id,
   title,
   achieved: null,
@@ -40,7 +40,7 @@ function goalsApi(seed: { current?: Goal[]; last?: Goal[]; older?: Goal[] } = {}
   let failNextWrite = false;
   const writes: { method: string; path: string; body?: unknown }[] = [];
   const routines = [
-    { id: '50', name: 'Reset goals', cadence: 'twelve_week', category: null, sortOrder: 0 },
+    { id: 50, name: 'Reset goals', cadence: 'twelve_week', category: null, sortOrder: 0 },
   ];
   const reply = (status: number, body: unknown) =>
     Promise.resolve({
@@ -56,7 +56,7 @@ function goalsApi(seed: { current?: Goal[]; last?: Goal[]; older?: Goal[] } = {}
         return reply(200, {
           routines: [
             ...routines,
-            { id: '51', name: 'Wake at 6', cadence: 'daily', category: 'wake', sortOrder: 0 },
+            { id: 51, name: 'Wake at 6', cadence: 'daily', category: 'wake', sortOrder: 0 },
           ],
         });
       if (url === '/api/project-links') return reply(200, { projects: [] });
@@ -96,13 +96,13 @@ function goalsApi(seed: { current?: Goal[]; last?: Goal[]; older?: Goal[] } = {}
           failNextReview = false;
           return reply(500, { error: 'A server error occurred' });
         }
-        for (const review of body!.reviews as { id: string; achieved: boolean; note: string }[]) {
+        for (const review of body!.reviews as { id: number; achieved: boolean; note: string }[]) {
           const goal = [...last, ...older].find((g) => g.id === review.id)!;
           goal.achieved = review.achieved;
           goal.reviewNote = review.note || null;
           goal.reviewedAt = review.achieved === null && !review.note ? null : 'now';
         }
-        const saved = (body!.reviews as { id: string }[]).map(({ id }) => ({
+        const saved = (body!.reviews as { id: number }[]).map(({ id }) => ({
           ...[...last, ...older].find((g) => g.id === id)!,
         }));
         const response = reply(200, { goals: saved });
@@ -117,15 +117,15 @@ function goalsApi(seed: { current?: Goal[]; last?: Goal[]; older?: Goal[] } = {}
         return reply(500, { error: 'A server error occurred' });
       }
       if (url === '/api/goals') {
-        const goal = pending(String(nextId++), String(body!.title));
+        const goal = pending(nextId++, String(body!.title));
         current = [...current, goal];
         return reply(201, { goal });
       }
-      const id = url.split('/')[3];
+      const id = Number(url.split('/')[3]);
       const found = current.find((g) => g.id === id);
       if (!found) return reply(404, { error: 'Goal not found' });
       if (url.endsWith('/routines')) {
-        const ids = body!.routineIds as string[];
+        const ids = body!.routineIds as number[];
         const linked = ids.map((value) => ({ id: value, name: 'Wake at 6' }));
         (found as Goal & { routines?: unknown }).routines = linked;
         return reply(200, { routines: linked });
@@ -140,7 +140,7 @@ function goalsApi(seed: { current?: Goal[]; last?: Goal[]; older?: Goal[] } = {}
     failNextLoad: () => (failNextLoad = true),
     failNextReview: () => (failNextReview = true),
     failNextWrite: () => (failNextWrite = true),
-    removeElsewhere: (id: string) => (current = current.filter((g) => g.id !== id)),
+    removeElsewhere: (id: number) => (current = current.filter((g) => g.id !== id)),
     goalLoads: () => goalLoads,
     holdNextReview: () => (holdNextReview = true),
     releaseReview: () => heldReview?.(),
@@ -204,7 +204,7 @@ test('several goals can be added, and an empty one shows an English error', asyn
 });
 
 test('a goal can be renamed, and removed only after confirming', async () => {
-  const api = goalsApi({ current: [pending('1', 'Read a book')] });
+  const api = goalsApi({ current: [pending(1, 'Read a book')] });
   render(<TwelveWeek />);
   await flush();
   press('Rename Read a book');
@@ -227,10 +227,10 @@ test('a goal can be renamed, and removed only after confirming', async () => {
 });
 
 test('a goal gone elsewhere shows the English 404 and leaves the list', async () => {
-  const api = goalsApi({ current: [pending('1', 'Read a book')] });
+  const api = goalsApi({ current: [pending(1, 'Read a book')] });
   render(<TwelveWeek />);
   await flush();
-  api.removeElsewhere('1');
+  api.removeElsewhere(1);
   press('Delete Read a book');
   press('Confirm deleting Read a book');
   await flush();
@@ -240,8 +240,8 @@ test('a goal gone elsewhere shows the English 404 and leaves the list', async ()
 
 test('a past period with goals to review comes first and saves every answer', async () => {
   const api = goalsApi({
-    current: [pending('9', 'New goal')],
-    last: [pending('1', 'Read a book'), pending('2', 'Run')],
+    current: [pending(9, 'New goal')],
+    last: [pending(1, 'Read a book'), pending(2, 'Run')],
   });
   render(<TwelveWeek />);
   await flush();
@@ -267,8 +267,8 @@ test('a past period with goals to review comes first and saves every answer', as
     path: '/api/goals/reviews',
     body: {
       reviews: [
-        { id: '1', achieved: true, note: 'Read 10 books' },
-        { id: '2', achieved: false, note: '' },
+        { id: 1, achieved: true, note: 'Read 10 books' },
+        { id: 2, achieved: false, note: '' },
       ],
     },
   });
@@ -289,7 +289,7 @@ test('a past period with goals to review comes first and saves every answer', as
 });
 
 test('a failed review keeps what was typed and can be saved again', async () => {
-  const api = goalsApi({ last: [pending('1', 'Read a book')] });
+  const api = goalsApi({ last: [pending(1, 'Read a book')] });
   render(<TwelveWeek />);
   await flush();
   typeMemo('Read a book', 'Text that must stay');
@@ -302,12 +302,12 @@ test('a failed review keeps what was typed and can be saved again', async () => 
   saveLastReview();
   await flush();
   expect(api.writes.at(-1)?.body).toEqual({
-    reviews: [{ id: '1', achieved: null, note: 'Text that must stay' }],
+    reviews: [{ id: 1, achieved: null, note: 'Text that must stay' }],
   });
 });
 
 test('a reload keeps typing in a review', async () => {
-  const api = goalsApi({ last: [pending('1', 'Read a book')] });
+  const api = goalsApi({ last: [pending(1, 'Read a book')] });
   render(<TwelveWeek />);
   await flush();
   typeMemo('Read a book', 'Typing');
@@ -321,7 +321,7 @@ test('a reload keeps typing in a review', async () => {
 });
 
 test('a note over the limit is not cut and the count warns', async () => {
-  goalsApi({ last: [pending('1', 'Read a book')] });
+  goalsApi({ last: [pending(1, 'Read a book')] });
   render(<TwelveWeek />);
   await flush();
   const tooLong = 'a'.repeat(1001);
@@ -331,12 +331,12 @@ test('a note over the limit is not cut and the count warns', async () => {
 });
 
 test('older periods stay readable, newest first', async () => {
-  const reviewed = (id: string, title: string): Goal => ({
+  const reviewed = (id: number, title: string): Goal => ({
     ...pending(id, title),
     achieved: true,
     reviewedAt: 'then',
   });
-  goalsApi({ last: [reviewed('1', 'Recent goal')], older: [reviewed('2', 'Old goal')] });
+  goalsApi({ last: [reviewed(1, 'Recent goal')], older: [reviewed(2, 'Old goal')] });
   render(<TwelveWeek />);
   await flush();
   const headings = screen
@@ -350,7 +350,7 @@ test('older periods stay readable, newest first', async () => {
 });
 
 test('saved answers stay on screen even if the reload after saving fails', async () => {
-  const api = goalsApi({ last: [pending('1', 'Read a book'), pending('2', 'Run')] });
+  const api = goalsApi({ last: [pending(1, 'Read a book'), pending(2, 'Run')] });
   render(<TwelveWeek />);
   await flush();
   typeMemo('Read a book', 'Read 10 books');
@@ -362,7 +362,7 @@ test('saved answers stay on screen even if the reload after saving fails', async
 });
 
 test('an answer changed while saving is ignored rather than lost silently', async () => {
-  const api = goalsApi({ last: [pending('1', 'Read a book')] });
+  const api = goalsApi({ last: [pending(1, 'Read a book')] });
   render(<TwelveWeek />);
   await flush();
   const radio = (name: string) =>
@@ -379,7 +379,7 @@ test('an answer changed while saving is ignored rather than lost silently', asyn
 });
 
 test('a review with nothing filled in says it is not finished', async () => {
-  goalsApi({ last: [pending('1', 'Read a book')] });
+  goalsApi({ last: [pending(1, 'Read a book')] });
   render(<TwelveWeek />);
   await flush();
   saveLastReview();
@@ -391,7 +391,7 @@ test('a review with nothing filled in says it is not finished', async () => {
 });
 
 test('saving a reviewed period again clears the earlier message and shows it in place', async () => {
-  const reviewed: Goal = { ...pending('1', 'Read a book'), achieved: true, reviewedAt: 'then' };
+  const reviewed: Goal = { ...pending(1, 'Read a book'), achieved: true, reviewedAt: 'then' };
   goalsApi({ last: [reviewed] });
   render(<TwelveWeek />);
   await flush();
@@ -403,7 +403,7 @@ test('saving a reviewed period again clears the earlier message and shows it in 
 });
 
 test('taking a finished review back moves its card up and still says so', async () => {
-  const reviewed: Goal = { ...pending('1', 'Read a book'), achieved: true, reviewedAt: 'then' };
+  const reviewed: Goal = { ...pending(1, 'Read a book'), achieved: true, reviewedAt: 'then' };
   goalsApi({ last: [reviewed] });
   render(<TwelveWeek />);
   await flush();
@@ -434,7 +434,7 @@ test('text typed while a goal is saving stays for the next goal', async () => {
 test('an open window moves to the next period by itself and shows goals to review', async () => {
   vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] });
   vi.setSystemTime(new Date('2026-10-22T03:00:00Z'));
-  const api = goalsApi({ current: [pending('1', 'Read a book')] });
+  const api = goalsApi({ current: [pending(1, 'Read a book')] });
   render(<TwelveWeek />);
   await flush();
   expect(screen.queryByText(/set new ones/)).not.toBeInTheDocument();
@@ -477,7 +477,7 @@ const pressFocused = (name: string) => {
   button(name).focus();
   press(name);
 };
-const twoGoals = () => [pending('1', 'Read a book'), pending('2', 'Run')];
+const twoGoals = () => [pending(1, 'Read a book'), pending(2, 'Run')];
 
 test("renaming or cancelling returns focus to the goal's edit button", async () => {
   goalsApi({ current: twoGoals() });
@@ -501,7 +501,7 @@ test('renaming a goal gone elsewhere moves focus to the new goal field', async (
   render(<TwelveWeek />);
   await flush();
   press('Rename Read a book');
-  api.removeElsewhere('1');
+  api.removeElsewhere(1);
   fireEvent.submit(screen.getByRole('form', { name: 'Rename Read a book' }));
   await flush();
   expect(screen.getByRole('textbox', { name: 'New goal' })).toHaveFocus();
@@ -521,7 +521,7 @@ test('an empty new name keeps focus on its field', async () => {
 });
 
 test('removing a goal moves focus to the next, then the previous, then the new goal field', async () => {
-  goalsApi({ current: [...twoGoals(), pending('3', 'Savings')] });
+  goalsApi({ current: [...twoGoals(), pending(3, 'Savings')] });
   render(<TwelveWeek />);
   await flush();
   press('Delete Run');
@@ -552,7 +552,7 @@ test('adding a goal by its button returns focus to the field', async () => {
 });
 
 test('a finished review moves its card, focus and message together', async () => {
-  goalsApi({ last: [pending('1', 'Read a book')] });
+  goalsApi({ last: [pending(1, 'Read a book')] });
   render(<TwelveWeek />);
   await flush();
   typeMemo('Read a book', 'Finished');
@@ -567,7 +567,7 @@ test('a finished review moves its card, focus and message together', async () =>
 });
 
 test('a review staying in its list keeps focus on its button', async () => {
-  const reviewed: Goal = { ...pending('1', 'Read a book'), achieved: true, reviewedAt: 'then' };
+  const reviewed: Goal = { ...pending(1, 'Read a book'), achieved: true, reviewedAt: 'then' };
   goalsApi({ last: [reviewed] });
   render(<TwelveWeek />);
   await flush();
@@ -579,7 +579,7 @@ test('a review staying in its list keeps focus on its button', async () => {
 });
 
 test('a slow review does not take focus back once the user has moved on', async () => {
-  const api = goalsApi({ last: [pending('1', 'Read a book')] });
+  const api = goalsApi({ last: [pending(1, 'Read a book')] });
   render(<TwelveWeek />);
   await flush();
   typeMemo('Read a book', 'Finished');
@@ -633,8 +633,8 @@ test('a goal shows its routines after linking them, and goals of past periods ca
     },
   );
   const api = goalsApi({
-    current: [pending('1', 'Read a book')],
-    last: [pending('2', 'Past goal')],
+    current: [pending(1, 'Read a book')],
+    last: [pending(2, 'Past goal')],
   });
   render(<TwelveWeek />);
   await flush();
@@ -651,7 +651,7 @@ test('a goal shows its routines after linking them, and goals of past periods ca
   expect(api.writes.at(-1)).toEqual({
     method: 'PUT',
     path: '/api/goals/1/routines',
-    body: { routineIds: ['51'] },
+    body: { routineIds: [51] },
   });
   expect(getLive('status', goalsCard())).toHaveTextContent(
     "Linked 1 routine to the goal 'Read a book'",
@@ -668,7 +668,7 @@ test('linked routines show at once, even if the reload after saving fails', asyn
       disconnect() {}
     },
   );
-  const api = goalsApi({ current: [pending('1', 'Read a book')] });
+  const api = goalsApi({ current: [pending(1, 'Read a book')] });
   render(<TwelveWeek />);
   await flush();
   press('Link routines to Read a book');
@@ -714,7 +714,7 @@ test('a goal gone while its link panel is open says so and moves focus to the ne
   await flush();
   press('Link routines to Read a book');
   await flush();
-  api.removeElsewhere('1');
+  api.removeElsewhere(1);
   act(() => {
     document.dispatchEvent(new Event('visibilitychange'));
   });
@@ -734,7 +734,7 @@ test('a panel closed before its goal goes says nothing', async () => {
   await flush();
   fireEvent.click(within(goalsCard()).getByRole('button', { name: 'Close' }));
   await flush();
-  api.removeElsewhere('1');
+  api.removeElsewhere(1);
   act(() => {
     document.dispatchEvent(new Event('visibilitychange'));
   });
@@ -785,8 +785,8 @@ test('several panels lost at once are all named', async () => {
   await flush();
   press('Link routines to Run');
   await flush();
-  api.removeElsewhere('1');
-  api.removeElsewhere('2');
+  api.removeElsewhere(1);
+  api.removeElsewhere(2);
   await reloadList();
   const alert = getLive('alert', goalsCard());
   expect(alert).toHaveTextContent("'Read a book'");
@@ -801,7 +801,7 @@ test('a goal lost while both editing it and linking it says both were lost', asy
   press('Link routines to Read a book');
   await flush();
   press('Rename Read a book');
-  api.removeElsewhere('1');
+  api.removeElsewhere(1);
   await reloadList();
   const alert = getLive('alert', goalsCard());
   expect(alert).toHaveTextContent('Could not save the edit');
@@ -819,7 +819,7 @@ test('the notice names a goal by its current name', async () => {
   type('New name for Read a book', 'New name');
   fireEvent.submit(screen.getByRole('form', { name: 'Rename Read a book' }));
   await flush();
-  api.removeElsewhere('1');
+  api.removeElsewhere(1);
   await reloadList();
   expect(getLive('alert', goalsCard())).toHaveTextContent("'New name' is no longer");
 });
@@ -833,7 +833,7 @@ test('a panel closed by saving or by a failed list says nothing when its goal go
   await flush();
   fireEvent.submit(screen.getByRole('form', { name: 'Link routines to Read a book' }));
   await flush();
-  api.removeElsewhere('1');
+  api.removeElsewhere(1);
   await reloadList();
   expect(queryLive('alert', goalsCard())).toBeNull();
 
@@ -854,7 +854,7 @@ test('a panel closed by saving or by a failed list says nothing when its goal go
   await flush();
   expect(getLive('alert', goalsCard())).toHaveTextContent('Server error');
   vi.stubGlobal('fetch', vi.fn(working));
-  api.removeElsewhere('2');
+  api.removeElsewhere(2);
   await reloadList();
   expect(within(goalsCard()).queryByText(/Could not save routine links/)).not.toBeInTheDocument();
 });

@@ -4,7 +4,7 @@ import { expect, test, vi } from 'vitest';
 import { FourWeekDue } from './four-week-due';
 import { findLive, getLive, queryLive } from './test/live';
 
-type Seed = { id: string; name: string; checked?: boolean };
+type Seed = { id: number; name: string; checked?: boolean };
 
 // A fake checklist API with state. A plain object rather than a Response resolves in microtasks only.
 function dueApi(seed: Seed[], options: { endsSoon?: boolean; remainingDays?: number } = {}) {
@@ -39,7 +39,7 @@ function dueApi(seed: Seed[], options: { endsSoon?: boolean; remainingDays?: num
         failNextSave = false;
         return reply(500, { error: 'A server error occurred' });
       }
-      const id = url.split('/')[3];
+      const id = Number(url.split('/')[3]);
       if (!routines.some((r) => r.id === id)) return reply(404, { error: 'Routine not found' });
       if (method === 'PUT') checks.add(id);
       else checks.delete(id);
@@ -50,7 +50,7 @@ function dueApi(seed: Seed[], options: { endsSoon?: boolean; remainingDays?: num
     writes,
     failLoads: (on = true) => (failLoads = on),
     failNextSave: () => (failNextSave = true),
-    archiveElsewhere: (id: string) => (routines = routines.filter((r) => r.id !== id)),
+    archiveElsewhere: (id: number) => (routines = routines.filter((r) => r.id !== id)),
     setPeriodStart: (date: string) => (periodStart = date),
     setEndsSoon: (value: boolean) => (endsSoon = value),
   };
@@ -63,8 +63,8 @@ const showPageAgain = () =>
     await new Promise((resolve) => setTimeout(resolve));
   });
 const seed = [
-  { id: '1', name: 'Wash bedding' },
-  { id: '2', name: 'Replace supplies', checked: true },
+  { id: 1, name: 'Wash bedding' },
+  { id: 2, name: 'Replace supplies', checked: true },
 ];
 
 test('outside the last 7 days nothing is shown', async () => {
@@ -117,7 +117,7 @@ test('a checked box stays to be undone, even after a reload, and leaving the pag
 });
 
 test('with everything finished nothing is shown', async () => {
-  dueApi([{ id: '2', name: 'Replace supplies', checked: true }]);
+  dueApi([{ id: 2, name: 'Replace supplies', checked: true }]);
   render(<FourWeekDue />);
   await flush();
   expect(screen.queryByRole('region')).not.toBeInTheDocument();
@@ -157,10 +157,10 @@ test('a failed save restores the box and shows the English error', async () => {
 });
 
 test('the English 404 stays when the only routine was archived elsewhere', async () => {
-  const api = dueApi([{ id: '1', name: 'Wash bedding' }]);
+  const api = dueApi([{ id: 1, name: 'Wash bedding' }]);
   render(<FourWeekDue />);
   const target = await screen.findByRole('checkbox', { name: 'Wash bedding' });
-  api.archiveElsewhere('1');
+  api.archiveElsewhere(1);
   fireEvent.click(target);
   await flush();
   expect(getLive('alert')).toHaveTextContent('Routine not found');

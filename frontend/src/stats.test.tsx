@@ -12,7 +12,7 @@ const tally = (start: string, end: string, checked: number, total: number) => ({
 });
 
 const dailyItem = {
-  id: '1',
+  id: 1,
   name: 'Wake at 6',
   cadence: 'daily',
   category: 'wake',
@@ -28,7 +28,7 @@ const dailyItem = {
   ],
 };
 const weeklyItem = {
-  id: '2',
+  id: 2,
   name: 'Clean',
   cadence: 'weekly',
   category: null,

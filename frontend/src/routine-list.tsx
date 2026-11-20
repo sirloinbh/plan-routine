@@ -146,7 +146,10 @@ export function RoutineItems({
                     disabled={busy}
                     value={routine.projectLinkId ?? ''}
                     onChange={(event) =>
-                      void list.setProjectLink(routine, event.target.value || null)
+                      void list.setProjectLink(
+                        routine,
+                        event.target.value ? Number(event.target.value) : null,
+                      )
                     }
                   >
                     <option value="">None</option>

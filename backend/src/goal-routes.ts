@@ -2,19 +2,18 @@ import { Router } from 'express';
 import type { Pool, PoolClient } from 'pg';
 import { z } from 'zod/v4';
 
+import { bodyId, pathId } from './ids.js';
 import { daysBetween, periodFor } from './periods.js';
 import { badRequest, noNul, nulMessage, requestBody } from './request-input.js';
 import { routineAnchorDate } from './routines.js';
 
-// Names id as text, so an ORDER BY on plain id would put 10 before 9: write twelve_week_goals.id.
-const goalColumns = `id::text AS id, period_start AS "periodStart", title, achieved,
+const goalColumns = `id, period_start AS "periodStart", title, achieved,
   review_note AS "reviewNote", reviewed_at AS "reviewedAt"`;
 const notFound = { error: 'Goal not found' };
 const pastGoal = { error: 'Goals of past periods cannot be edited' };
 
 const goalIdMessage = 'Invalid goal ID';
-const goalId = z.string({ error: goalIdMessage }).regex(/^\d{1,18}$/, goalIdMessage);
-const idParam = z.object({ id: goalId });
+const idParam = z.object({ id: pathId(goalIdMessage) });
 // Not .min()/.max(): those also run on a non-string with a length and add a second message.
 export const goalInput = z.object(
   {
@@ -38,7 +37,7 @@ export const reviewsInput = z.object(
       .array(
         z.object(
           {
-            id: goalId,
+            id: bodyId(goalIdMessage),
             achieved: z.boolean({ error: 'Invalid achieved value' }).nullable(),
             // A blank note is the same as no note.
             note: z
@@ -68,7 +67,7 @@ const maxLinks = 200;
 export const routineLinksInput = z.object(
   {
     routineIds: z
-      .array(z.string({ error: routineIdMessage }).regex(/^\d{1,18}$/, routineIdMessage), {
+      .array(bodyId(routineIdMessage), {
         error: 'Invalid list of routines to link',
       })
       .max(maxLinks, `A goal can link at most ${maxLinks} routines`)
@@ -78,14 +77,14 @@ export const routineLinksInput = z.object(
 );
 
 // Only active daily and weekly routines can serve a goal, and only those are shown.
-const linkedRoutinesSql = `SELECT r.id::text AS id, r.name, l.goal_id::text AS "goalId"
+const linkedRoutinesSql = `SELECT r.id, r.name, l.goal_id AS "goalId"
   FROM twelve_week_goal_routines l JOIN routines r ON r.id = l.routine_id
   WHERE l.goal_id = ANY($1::bigint[]) AND r.archived_at IS NULL
     AND r.cadence IN ('daily', 'weekly')
   ORDER BY CASE r.cadence WHEN 'daily' THEN 0 ELSE 1 END, r.category, r.sort_order, r.id`;
 
 type GoalRow = {
-  id: string;
+  id: number;
   periodStart: string;
   title: string;
   achieved: boolean | null;
@@ -111,7 +110,7 @@ export function goalRoutes(pool: Pool, today: () => string) {
       [period.start],
     );
     const currentGoals = rows.filter((row) => row.periodStart === period.start);
-    const links = await pool.query<{ id: string; name: string; goalId: string }>(
+    const links = await pool.query<{ id: number; name: string; goalId: number }>(
       linkedRoutinesSql,
       [currentGoals.map((row) => row.id)],
     );
@@ -165,7 +164,7 @@ export function goalRoutes(pool: Pool, today: () => string) {
   });
 
   // Answers why a goal outside the current period could not be changed.
-  const refuseUnchanged = async (id: string, db: Pool | PoolClient = pool) => {
+  const refuseUnchanged = async (id: number, db: Pool | PoolClient = pool) => {
     const { rows } = await db.query('SELECT 1 FROM twelve_week_goals WHERE id = $1', [id]);
     return rows[0] ? pastGoal : notFound;
   };
@@ -224,7 +223,7 @@ export function goalRoutes(pool: Pool, today: () => string) {
          SELECT $1, unnest($2::bigint[])`,
         [id, routineIds],
       );
-      const { rows } = await client.query<{ id: string; name: string; goalId: string }>(
+      const { rows } = await client.query<{ id: number; name: string; goalId: number }>(
         linkedRoutinesSql,
         [[id]],
       );
@@ -242,7 +241,7 @@ export function goalRoutes(pool: Pool, today: () => string) {
     const { id } = idParam.parse(req.params);
     const { period } = await currentPeriod(pool);
     const { rows } = await pool.query(
-      'DELETE FROM twelve_week_goals WHERE id = $1 AND period_start = $2 RETURNING id::text AS id',
+      'DELETE FROM twelve_week_goals WHERE id = $1 AND period_start = $2 RETURNING id',
       [id, period.start],
     );
     if (!rows[0]) {

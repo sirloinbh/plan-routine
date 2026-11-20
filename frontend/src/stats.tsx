@@ -18,7 +18,7 @@ type Tally = { checked: number; total: number };
 type PeriodTally = Tally & { start: string; end: string };
 type Status = 'done' | 'missed' | 'open' | 'none';
 type Item = Tally & {
-  id: string;
+  id: number;
   name: string;
   cadence: string;
   category: string | null;

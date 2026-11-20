@@ -11,12 +11,12 @@ import { useNotice } from './lib/use-notice';
 import { LoadingRegion } from './loading-region';
 import { RetryButton } from './retry-button';
 
-export type ProjectLink = { id: string; name: string; url: string };
+export type ProjectLink = { id: number; name: string; url: string };
 
 const keys = {
   name: 'add-project-name',
   url: 'project-url',
-  remove: (id: string) => `project-remove-${id}`,
+  remove: (id: number) => `project-remove-${id}`,
 };
 
 // The other personal web apps a routine can link to, managed on the settings page.
@@ -25,7 +25,7 @@ export function ProjectLinks() {
   const [version, setVersion] = useState(0);
   const [name, setName] = useState('');
   const [url, setUrl] = useState('');
-  const [confirming, setConfirming] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   // Which button started the change: busy disables them all, only this one shows it is working.
   const [pending, setPending] = useState<string | null>(null);

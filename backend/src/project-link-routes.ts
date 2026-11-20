@@ -2,10 +2,11 @@ import { Router } from 'express';
 import type { Pool } from 'pg';
 import { z } from 'zod/v4';
 
+import { pathId } from './ids.js';
 import { badRequest, noNul, nulMessage, requestBody } from './request-input.js';
 
 const notFound = { error: 'Project not found' };
-const columns = 'id::text AS id, name, url';
+const columns = 'id, name, url';
 const urlMessage = 'The URL must be https:// or a private access address';
 
 function isPrivateIpv4(host: string) {
@@ -72,9 +73,7 @@ export const projectInput = z.object(
   },
   badRequest,
 );
-const idParam = z.object({
-  id: z.string().regex(/^\d{1,18}$/, 'Invalid project ID'),
-});
+const idParam = z.object({ id: pathId('Invalid project ID') });
 
 export function projectLinkRoutes(pool: Pool) {
   const router = Router();

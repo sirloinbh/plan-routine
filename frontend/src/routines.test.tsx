@@ -8,7 +8,7 @@ import { findLive, getLive } from './test/live';
 // Focus follows a reload, which on a busy machine can outlast the default one second.
 configure({ asyncUtilTimeout: 10_000 });
 
-type Seed = { id: string; name: string; category: string };
+type Seed = { id: number; name: string; category: string };
 
 // A fake routine API with state, like the server: add, move, rename, archive, and 404 for
 // a routine that is gone. Moved here from backend/test/app-ui.test.ts (#27).
@@ -27,13 +27,13 @@ function routineApi(seed: Seed[] = []) {
       if (method === 'GET') return reply(200, { routines });
       const body = init?.body ? JSON.parse(String(init.body)) : undefined;
       writes.push({ method, path, body });
-      const id = path.split('/')[3];
+      const id = Number(path.split('/')[3]);
       const found = routines.find((r) => r.id === id);
       if (method === 'POST' && path === '/api/routines') {
         if (body.name === 'Duplicate')
           return reply(409, { error: 'This item is already registered' });
         const sortOrder = routines.filter((r) => r.category === body.category).length + 1;
-        routines = [...routines, { ...body, id: String(nextId++), sortOrder }];
+        routines = [...routines, { ...body, id: nextId++, sortOrder }];
         return reply(201, {});
       }
       if (!found) return notFound();
@@ -59,7 +59,7 @@ function routineApi(seed: Seed[] = []) {
   );
   return {
     writes,
-    archiveElsewhere: (id: string) => (routines = routines.filter((r) => r.id !== id)),
+    archiveElsewhere: (id: number) => (routines = routines.filter((r) => r.id !== id)),
   };
 }
 
@@ -71,9 +71,9 @@ const names = (label: string) =>
 
 test('groups routines by category in the backend order and by sort order inside a group', () => {
   const groups = groupByCategory([
-    { id: '2', name: 'Stretch', cadence: 'daily', category: 'exercise', sortOrder: 2 },
-    { id: '1', name: 'Drink water', cadence: 'daily', category: 'wake', sortOrder: 1 },
-    { id: '3', name: 'Push-ups', cadence: 'daily', category: 'exercise', sortOrder: 1 },
+    { id: 2, name: 'Stretch', cadence: 'daily', category: 'exercise', sortOrder: 2 },
+    { id: 1, name: 'Drink water', cadence: 'daily', category: 'wake', sortOrder: 1 },
+    { id: 3, name: 'Push-ups', cadence: 'daily', category: 'exercise', sortOrder: 1 },
   ]);
   expect(groups.map((g) => g.key)).toEqual([
     'wake',
@@ -150,8 +150,8 @@ test('an empty name or a server error shows an English alert and keeps the draft
 
 test('routines can be reordered, renamed and archived after confirmation', async () => {
   const api = routineApi([
-    { id: '1', name: 'Wake at 6', category: 'wake' },
-    { id: '2', name: 'Drink water', category: 'wake' },
+    { id: 1, name: 'Wake at 6', category: 'wake' },
+    { id: 2, name: 'Drink water', category: 'wake' },
   ]);
   render(<DailyRoutines />);
   await screen.findByText('Wake at 6');
@@ -193,20 +193,20 @@ test('routines can be reordered, renamed and archived after confirmation', async
 
 test('a routine changed elsewhere shows the English 404 and the list reloads', async () => {
   const api = routineApi([
-    { id: '1', name: 'Wake at 6', category: 'wake' },
-    { id: '2', name: 'Drink water', category: 'wake' },
+    { id: 1, name: 'Wake at 6', category: 'wake' },
+    { id: 2, name: 'Drink water', category: 'wake' },
   ]);
   render(<DailyRoutines />);
   await screen.findByText('Drink water');
-  api.archiveElsewhere('2');
+  api.archiveElsewhere(2);
   fireEvent.click(screen.getByRole('button', { name: 'Move Drink water up' }));
   expect(await findLive('alert')).toHaveTextContent('Routine not found');
   await waitFor(() => expect(names('Wake-up')).toEqual(['Wake at 6']));
 });
 
 const twoRoutines = [
-  { id: '1', name: 'Wake at 6', category: 'wake' },
-  { id: '2', name: 'Drink water', category: 'wake' },
+  { id: 1, name: 'Wake at 6', category: 'wake' },
+  { id: 2, name: 'Drink water', category: 'wake' },
 ];
 const button = (name: string) => screen.getByRole('button', { name });
 
@@ -252,7 +252,7 @@ test('renaming a routine that has gone moves focus to the add field', async () =
   render(<DailyRoutines />);
   await screen.findByText('Wake at 6');
   fireEvent.click(button('Rename Wake at 6'));
-  api.archiveElsewhere('1');
+  api.archiveElsewhere(1);
   fireEvent.click(button('Save'));
   await findLive('alert');
   await waitFor(() =>
@@ -269,7 +269,7 @@ test('moving a routine that has gone moves focus to the add field', async () => 
   const api = routineApi(twoRoutines);
   render(<DailyRoutines />);
   await screen.findByText('Drink water');
-  api.archiveElsewhere('2');
+  api.archiveElsewhere(2);
   fireEvent.click(button('Move Drink water up'));
   await findLive('alert');
   await waitFor(() =>
@@ -278,7 +278,7 @@ test('moving a routine that has gone moves focus to the add field', async () => 
 });
 
 test('an archive that fails stays on its own row', async () => {
-  routineApi([{ id: '1', name: 'Archive fails', category: 'wake' }, twoRoutines[1]]);
+  routineApi([{ id: 1, name: 'Archive fails', category: 'wake' }, twoRoutines[1]]);
   render(<DailyRoutines />);
   await screen.findByText('Archive fails');
   fireEvent.click(button('Archive Archive fails'));
@@ -288,7 +288,7 @@ test('an archive that fails stays on its own row', async () => {
 });
 
 test('moving a routine keeps focus on the same button', async () => {
-  routineApi([...twoRoutines, { id: '3', name: 'Stretch', category: 'wake' }]);
+  routineApi([...twoRoutines, { id: 3, name: 'Stretch', category: 'wake' }]);
   render(<DailyRoutines />);
   await screen.findByText('Stretch');
   fireEvent.click(button('Move Stretch up'));
@@ -309,7 +309,7 @@ test('a routine moved to the end of its group hands focus to the other direction
 });
 
 test('archiving moves focus to the next routine, then the previous one', async () => {
-  routineApi([...twoRoutines, { id: '3', name: 'Stretch', category: 'wake' }]);
+  routineApi([...twoRoutines, { id: 3, name: 'Stretch', category: 'wake' }]);
   render(<DailyRoutines />);
   await screen.findByText('Stretch');
   fireEvent.click(button('Archive Drink water'));
@@ -322,7 +322,7 @@ test('archiving moves focus to the next routine, then the previous one', async (
 });
 
 test('archiving the last routine of a group moves focus to the add field', async () => {
-  routineApi([{ id: '1', name: 'Wake at 6', category: 'wake' }]);
+  routineApi([{ id: 1, name: 'Wake at 6', category: 'wake' }]);
   render(<DailyRoutines />);
   await screen.findByText('Wake at 6');
   fireEvent.click(button('Archive Wake at 6'));
@@ -392,7 +392,7 @@ test('on a touch screen no field takes focus, so no keyboard pops up unasked', a
     'matchMedia',
     vi.fn((query: string) => ({ matches: query === '(pointer: coarse)' })),
   );
-  routineApi([{ id: '1', name: 'Wake at 6', category: 'wake' }]);
+  routineApi([{ id: 1, name: 'Wake at 6', category: 'wake' }]);
   render(<DailyRoutines />);
   await screen.findByText('Wake at 6');
   fireEvent.click(button('Archive Wake at 6'));
@@ -414,7 +414,7 @@ function linkApi(seed: Seed[], options: { failLink?: boolean } = {}) {
         return Promise.resolve(
           new Response(
             JSON.stringify({
-              projects: [{ id: '7', name: 'Reading log', url: 'https://books.example/' }],
+              projects: [{ id: 7, name: 'Reading log', url: 'https://books.example/' }],
             }),
           ),
         );
@@ -437,20 +437,20 @@ function linkApi(seed: Seed[], options: { failLink?: boolean } = {}) {
 const linkSelect = () => screen.findByRole('combobox', { name: 'Project to link to Read 30 min' });
 
 test('a routine can be linked to a registered project, and focus stays on the choice', async () => {
-  const writes = linkApi([{ id: '1', name: 'Read 30 min', category: 'reading' }]);
+  const writes = linkApi([{ id: 1, name: 'Read 30 min', category: 'reading' }]);
   render(<DailyRoutines />);
   const select = await linkSelect();
   expect(select).toHaveValue('');
   select.focus();
   fireEvent.change(select, { target: { value: '7' } });
   await screen.findByText("Linked a project to the routine 'Read 30 min'");
-  expect(writes).toEqual([{ url: '/api/routines/1/project-link', body: { projectLinkId: '7' } }]);
+  expect(writes).toEqual([{ url: '/api/routines/1/project-link', body: { projectLinkId: 7 } }]);
   await waitFor(async () => expect(await linkSelect()).toHaveFocus());
 });
 
 test('a routine already linked shows its project, and unlinking sends null', async () => {
   const writes = linkApi([
-    { id: '1', name: 'Read 30 min', category: 'reading', projectLinkId: '7' } as Seed,
+    { id: 1, name: 'Read 30 min', category: 'reading', projectLinkId: 7 } as Seed,
   ]);
   render(<DailyRoutines />);
   const select = await linkSelect();
@@ -461,7 +461,7 @@ test('a routine already linked shows its project, and unlinking sends null', asy
 });
 
 test('a link that fails shows the English error and leaves the choice as it was', async () => {
-  linkApi([{ id: '1', name: 'Read 30 min', category: 'reading' }], { failLink: true });
+  linkApi([{ id: 1, name: 'Read 30 min', category: 'reading' }], { failLink: true });
   render(<DailyRoutines />);
   const select = await linkSelect();
   fireEvent.change(select, { target: { value: '7' } });
