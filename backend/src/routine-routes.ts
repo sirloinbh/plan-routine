@@ -5,6 +5,7 @@ import { z } from 'zod/v4';
 import { bodyId, pathId } from './ids.js';
 import { badRequest, requestBody } from './request-input.js';
 import { anchorSettingKey, routineCadence, routineInput, routineName } from './routines.js';
+import { inTransaction } from './transaction.js';
 
 export const routineColumns =
   'id, name, cadence, category, sort_order AS "sortOrder", project_link_id AS "projectLinkId"';
@@ -78,17 +79,13 @@ export function routineRoutes(pool: Pool, today: () => string) {
   router.post('/:id/move', async (req, res) => {
     const { id } = idParam.parse(req.params);
     const { direction } = moveInput.parse(requestBody(req.body));
-    const client = await pool.connect();
-    try {
-      await client.query('BEGIN');
+    const reply = await inTransaction(pool, async (client) => {
       const target = await client.query<{ cadence: string; category: string | null }>(
         'SELECT cadence, category FROM routines WHERE id = $1 AND archived_at IS NULL',
         [id],
       );
       if (!target.rows[0]) {
-        await client.query('ROLLBACK');
-        res.status(404).json(notFound);
-        return;
+        return { status: 404, body: notFound };
       }
       // Lock the whole group in id order so concurrent moves queue instead of deadlocking.
       await client.query(
@@ -107,9 +104,7 @@ export function routineRoutes(pool: Pool, today: () => string) {
       const index = ids.indexOf(id);
       if (index < 0) {
         // Archived by another request between the two reads.
-        await client.query('ROLLBACK');
-        res.status(404).json(notFound);
-        return;
+        return { status: 404, body: notFound };
       }
       const swapWith = direction === 'up' ? index - 1 : index + 1;
       if (swapWith >= 0 && swapWith < ids.length)
@@ -124,14 +119,9 @@ export function routineRoutes(pool: Pool, today: () => string) {
         `SELECT ${routineColumns} FROM routines WHERE id = ANY($1::bigint[]) ORDER BY sort_order, routines.id`,
         [ids],
       );
-      await client.query('COMMIT');
-      res.json({ routines: rows });
-    } catch (error) {
-      await client.query('ROLLBACK').catch(() => {});
-      throw error;
-    } finally {
-      client.release();
-    }
+      return { status: 200, body: { routines: rows } };
+    });
+    res.status(reply.status).json(reply.body);
   });
 
   // Null clears the link. A project removed meanwhile answers 404, not a database error.

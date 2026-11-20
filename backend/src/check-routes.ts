@@ -10,6 +10,7 @@ import { routineAnchorDate, routineCadence } from './routines.js';
 const editableDays = 7;
 // A period's last 7 days, when unfinished four-week routines join the daily page (issue #7).
 const endingDays = 7;
+import { inTransaction } from './transaction.js';
 
 export const checklistQuery = z.object({
   cadence: routineCadence.default('daily'),
@@ -79,9 +80,7 @@ export function checkRoutes(pool: Pool, today: () => string) {
       res.status(400).json({ error: rangeError });
       return;
     }
-    const client = await pool.connect();
-    try {
-      await client.query('BEGIN');
+    const reply = await inTransaction(pool, async (client) => {
       const anchorDate = await routineAnchorDate(client, current);
       // FOR SHARE makes a concurrent archive wait, so an archived routine cannot gain a check.
       const target = await client.query<{ cadence: Cadence }>(
@@ -89,9 +88,7 @@ export function checkRoutes(pool: Pool, today: () => string) {
         [id],
       );
       if (!target.rows[0]) {
-        await client.query('ROLLBACK');
-        res.status(404).json(notFound);
-        return;
+        return { status: 404, body: notFound };
       }
       const period = periodFor(target.rows[0].cadence, date, anchorDate);
       await client.query(
@@ -101,14 +98,9 @@ export function checkRoutes(pool: Pool, today: () => string) {
           : 'DELETE FROM routine_checks WHERE routine_id = $1 AND period_start = $2',
         [id, period.start],
       );
-      await client.query('COMMIT');
-      res.json({ routineId: id, date, period, checked });
-    } catch (error) {
-      await client.query('ROLLBACK').catch(() => {});
-      throw error;
-    } finally {
-      client.release();
-    }
+      return { status: 200, body: { routineId: id, date, period, checked } };
+    });
+    res.status(reply.status).json(reply.body);
   };
 
   router.put('/routines/:id/checks/:date', (req, res) => changeCheck(req, res, true));
