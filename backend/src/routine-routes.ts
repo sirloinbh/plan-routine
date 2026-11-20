@@ -13,6 +13,22 @@ export const notFound = { error: 'Routine not found' };
 
 export const listQuery = z.object({ cadence: routineCadence.optional() });
 export const routineId = pathId('Invalid routine ID');
+
+export type Db = Pick<Pool, 'query'>;
+
+// Active routines only; archived ones keep their checks but leave the list. `limit` is for callers that must bound the
+// result (the AI tool); the route lists them all.
+export async function listRoutines(db: Db, cadence?: string, limit?: number) {
+  const params: unknown[] = [cadence ?? null];
+  if (limit !== undefined) params.push(limit);
+  const { rows } = await db.query(
+    `SELECT ${routineColumns} FROM routines
+     WHERE archived_at IS NULL AND ($1::text IS NULL OR cadence = $1)
+     ORDER BY cadence, category, sort_order, routines.id${limit === undefined ? '' : ' LIMIT $2'}`,
+    params,
+  );
+  return rows;
+}
 const idParam = z.object({ id: routineId });
 export const renameInput = z.object({ name: routineName }, badRequest);
 export const moveInput = z.object(
@@ -30,16 +46,9 @@ export const projectLinkInput = z.object(
 export function routineRoutes(pool: Pool, today: () => string) {
   const router = Router();
 
-  // Active routines only; archived ones keep their checks but leave the list.
   router.get('/', async (req, res) => {
     const { cadence } = listQuery.parse(req.query);
-    const { rows } = await pool.query(
-      `SELECT ${routineColumns} FROM routines
-       WHERE archived_at IS NULL AND ($1::text IS NULL OR cadence = $1)
-       ORDER BY cadence, category, sort_order, routines.id`,
-      [cadence ?? null],
-    );
-    res.json({ routines: rows });
+    res.json({ routines: await listRoutines(pool, cadence) });
   });
 
   router.post('/', async (req, res) => {
