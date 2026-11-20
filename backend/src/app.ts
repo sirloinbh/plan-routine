@@ -4,6 +4,7 @@ import type { Pool } from 'pg';
 import { types } from 'pg';
 import { z, ZodError } from 'zod/v4';
 
+import { tools } from './ai-tools.js';
 import { checkRoutes } from './check-routes.js';
 import { diaryRoutes } from './diary-routes.js';
 import { goalRoutes } from './goal-routes.js';
@@ -16,6 +17,7 @@ import { routineAnchorDate } from './routines.js';
 import { setInt8Parser } from './standard/db.js';
 import { MAX_ISSUES, requestLog } from './standard/http.js';
 import { apiRateLimit } from './standard/rate-limit.js';
+import { registerToolRoutes } from './standard/tools.js';
 import { statsRoutes } from './stats-routes.js';
 
 // DATE columns stay YYYY-MM-DD strings so the service time zone never shifts them.
@@ -39,7 +41,7 @@ export const periodsQuery = z.object({ date: calendarDate.optional() });
 
 export function createApp(
   pool: Pool,
-  options: { today?: () => string; auth?: express.RequestHandler } = {},
+  options: { today?: () => string; auth?: express.RequestHandler; toolsPublicKey?: string } = {},
 ) {
   const today = options.today ?? (() => serviceDate());
   const app = express();
@@ -69,6 +71,14 @@ export function createApp(
   app.use('/api/records', recordRoutes(pool, today));
   app.use('/api/stats', statsRoutes(pool, today));
   app.use('/api/routines', routineRoutes(pool, today));
+  // #711: shared-ai calls the AI tools here with a signed token. Outside /api, so the proxy never reaches it.
+  registerToolRoutes(app, {
+    app: 'plan-routine',
+    tools,
+    pool,
+    publicKey: options.toolsPublicKey,
+    requireBinding: true,
+  });
   app.use('/api', (_req, res) => {
     res.status(404).json({ error: 'API not found' });
   });
