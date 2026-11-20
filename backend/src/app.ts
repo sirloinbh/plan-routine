@@ -15,6 +15,7 @@ import { routineRoutes } from './routine-routes.js';
 import { routineAnchorDate } from './routines.js';
 import { setInt8Parser } from './standard/db.js';
 import { MAX_ISSUES, requestLog } from './standard/http.js';
+import { apiRateLimit } from './standard/rate-limit.js';
 import { statsRoutes } from './stats-routes.js';
 
 // DATE columns stay YYYY-MM-DD strings so the service time zone never shifts them.
@@ -45,6 +46,7 @@ export function createApp(
   app.disable('x-powered-by');
   // project-standards#552: a request ID and one JSON log line for every request, a 401 included.
   app.use(requestLog);
+  apiRateLimit(app);
   // #126: the shared sign-in guards every /api route except /api/health, before any route registers.
   if (options.auth) app.use('/api', options.auth);
   app.get('/api/me', meHandler);

@@ -6,6 +6,7 @@ import { bodyId, pathId } from './ids.js';
 import { daysBetween, periodFor } from './periods.js';
 import { badRequest, noNul, nulMessage, requestBody } from './request-input.js';
 import { routineAnchorDate } from './routines.js';
+import { inTransaction } from './transaction.js';
 
 const goalColumns = `id, period_start AS "periodStart", title, achieved,
   review_note AS "reviewNote", reviewed_at AS "reviewedAt"`;
@@ -142,9 +143,7 @@ export function goalRoutes(pool: Pool, today: () => string) {
   // First use and the new goal commit together; the server decides which period it belongs to.
   router.post('/', async (req, res) => {
     const { title } = goalInput.parse(requestBody(req.body));
-    const client = await pool.connect();
-    try {
-      await client.query('BEGIN');
+    const reply = await inTransaction(pool, async (client) => {
       const { period } = await currentPeriod(client);
       const { rows } = await client.query<GoalRow>(
         `INSERT INTO twelve_week_goals (period_start, title, sort_order)
@@ -153,14 +152,9 @@ export function goalRoutes(pool: Pool, today: () => string) {
          RETURNING ${goalColumns}`,
         [period.start, title],
       );
-      await client.query('COMMIT');
-      res.status(201).json({ goal: rows[0] });
-    } catch (error) {
-      await client.query('ROLLBACK').catch(() => {});
-      throw error;
-    } finally {
-      client.release();
-    }
+      return { status: 201, body: { goal: rows[0] } };
+    });
+    res.status(reply.status).json(reply.body);
   });
 
   // Answers why a goal outside the current period could not be changed.
@@ -190,20 +184,16 @@ export function goalRoutes(pool: Pool, today: () => string) {
   router.put('/:id/routines', async (req, res) => {
     const { id } = idParam.parse(req.params);
     const { routineIds } = routineLinksInput.parse(requestBody(req.body));
-    const client = await pool.connect();
-    try {
-      await client.query('BEGIN');
+    const reply = await inTransaction(pool, async (client) => {
       const { period } = await currentPeriod(client);
       const target = await client.query(
         'SELECT id FROM twelve_week_goals WHERE id = $1 AND period_start = $2 FOR UPDATE',
         [id, period.start],
       );
       if (!target.rows[0]) {
-        await client.query('ROLLBACK');
         // On this connection: waiting for another while holding it could stall every request.
         const refusal = await refuseUnchanged(id, client);
-        res.status(refusal === notFound ? 404 : 400).json(refusal);
-        return;
+        return { status: refusal === notFound ? 404 : 400, body: refusal };
       }
       // FOR SHARE makes a concurrent archive wait, so an archived routine cannot gain a link.
       const allowed = await client.query(
@@ -213,9 +203,10 @@ export function goalRoutes(pool: Pool, today: () => string) {
         [routineIds],
       );
       if (allowed.rows.length !== routineIds.length) {
-        await client.query('ROLLBACK');
-        res.status(400).json({ error: 'Some routines cannot be linked. Please check again' });
-        return;
+        return {
+          status: 400,
+          body: { error: 'Some routines cannot be linked. Please check again' },
+        };
       }
       await client.query('DELETE FROM twelve_week_goal_routines WHERE goal_id = $1', [id]);
       await client.query(
@@ -227,14 +218,12 @@ export function goalRoutes(pool: Pool, today: () => string) {
         linkedRoutinesSql,
         [[id]],
       );
-      await client.query('COMMIT');
-      res.json({ routines: rows.map((row) => ({ id: row.id, name: row.name })) });
-    } catch (error) {
-      await client.query('ROLLBACK').catch(() => {});
-      throw error;
-    } finally {
-      client.release();
-    }
+      return {
+        status: 200,
+        body: { routines: rows.map((row) => ({ id: row.id, name: row.name })) },
+      };
+    });
+    res.status(reply.status).json(reply.body);
   });
 
   router.delete('/:id', async (req, res) => {
@@ -255,9 +244,7 @@ export function goalRoutes(pool: Pool, today: () => string) {
   // All of a period's reviews save together: one bad goal cancels the whole request.
   router.put('/reviews', async (req, res) => {
     const { reviews } = reviewsInput.parse(requestBody(req.body));
-    const client = await pool.connect();
-    try {
-      await client.query('BEGIN');
+    const reply = await inTransaction(pool, async (client) => {
       const { period } = await currentPeriod(client);
       const ids = reviews.map((review) => review.id);
       const found = await client.query<{ periodStart: string }>(
@@ -266,14 +253,13 @@ export function goalRoutes(pool: Pool, today: () => string) {
         [ids],
       );
       if (found.rows.length !== ids.length) {
-        await client.query('ROLLBACK');
-        res.status(404).json(notFound);
-        return;
+        return { status: 404, body: notFound };
       }
       if (found.rows.some((row) => row.periodStart >= period.start)) {
-        await client.query('ROLLBACK');
-        res.status(400).json({ error: 'Goals of a period that has not ended cannot be reviewed' });
-        return;
+        return {
+          status: 400,
+          body: { error: 'Goals of a period that has not ended cannot be reviewed' },
+        };
       }
       for (const { id, achieved, note } of reviews)
         // Clearing both answers takes the goal back to "not reviewed yet".
@@ -290,14 +276,9 @@ export function goalRoutes(pool: Pool, today: () => string) {
          ORDER BY sort_order, twelve_week_goals.id`,
         [ids],
       );
-      await client.query('COMMIT');
-      res.json({ goals: rows });
-    } catch (error) {
-      await client.query('ROLLBACK').catch(() => {});
-      throw error;
-    } finally {
-      client.release();
-    }
+      return { status: 200, body: { goals: rows } };
+    });
+    res.status(reply.status).json(reply.body);
   });
 
   return router;
