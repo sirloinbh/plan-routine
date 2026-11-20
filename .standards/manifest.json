@@ -1,5 +1,5 @@
 {
-  "centralSha": "e5a7ee6e2a90090b5dfd687667c7fd8cb0e1cc84",
+  "centralSha": "04b2f6737785ee8523e013a1bc24450a3fa77cdf",
   "profile": "app",
   "project": "plan-routine",
   "files": {
@@ -125,7 +125,7 @@
     },
     ".github/dependabot.yml": {
       "mode": "full",
-      "sha256": "32c0c2b8ae82d2461b30ca81ea5b576b4026c7cc7d7e450e3ca148b7556e641a",
+      "sha256": "2f0727942c37c1e62ac3900734354a479510ea7ef3ca16231aef9b2ab4701c9c",
       "source": "templates/app/.github/dependabot.yml"
     },
     ".github/ISSUE_TEMPLATE/task.md": {
@@ -165,7 +165,7 @@
     },
     ".prettierignore": {
       "mode": "section",
-      "sha256": "574f9404b392a8fa23546ca0d80b9c7f2423e9b83567fc64ef912b1c04a47a86",
+      "sha256": "eecaa09e597906a8c0bfafaec67567ac980a312a46d0fc47f6d188aac62da3ff",
       "source": "templates/app/.prettierignore.tmpl"
     },
     ".standards/blocked-packages.json": {
@@ -295,7 +295,7 @@
     },
     "backend/src/standard/openapi.ts": {
       "mode": "full",
-      "sha256": "8c90b84e0298c77d62a4ca4ec23bb0c0691f944cdf9c07823d194301e85043d2",
+      "sha256": "75f71f04dfec9770d52b72ca87ae30fa0b84edf3f1ce1187753d35a3cff8378e",
       "source": "templates/app/backend/src/standard/openapi.ts"
     },
     "backend/src/standard/rate-limit.ts": {
@@ -305,7 +305,7 @@
     },
     "backend/src/standard/tools.ts": {
       "mode": "full",
-      "sha256": "833c04b69994066d759e99717e612658c2ced698f6767b2f535ddcac85343334",
+      "sha256": "ab47124dfdeca19e68ba17453f069a7c8194540a44e2b1f1209348f3907b21fa",
       "source": "templates/app/backend/src/standard/tools.ts"
     },
     "backend/test/standard-api.test.ts": {
@@ -368,6 +368,11 @@
       "sha256": "87a3866a2fc88a3c7e894a63350584c96c8ede6a469adbdd62e7a0d361d3db63",
       "source": "templates/deploy/deploy/backup.timer.tmpl"
     },
+    "deploy/bootstrap-env.sh": {
+      "mode": "full",
+      "sha256": "2f95d5d9e1e2a0adfbadf92ad9774b3d2a8b7bf260c3011083e72c7814bef9f4",
+      "source": "templates/app/deploy/bootstrap-env.sh.tmpl"
+    },
     "deploy/health.service": {
       "mode": "full",
       "sha256": "ada560f5619ff85ca932554e39d50c4e170f5a3f534c8029ffe8f4c10c03e9e6",
@@ -427,6 +432,16 @@
       "mode": "full",
       "sha256": "c127503dc4c7cccde884a91462760848e73f431eb8ae3302070fbc9bb8700a70",
       "source": "templates/deploy/deploy/ssm-get.sh.tmpl"
+    },
+    "e2e/support/jev.ts": {
+      "mode": "full",
+      "sha256": "83ec5d7d0250919b6f4361125aa8cb6c31f6c8fbb75869ef6140d41c3130086a",
+      "source": "templates/e2e/e2e/support/jev.ts"
+    },
+    "e2e/support/judged.ts": {
+      "mode": "full",
+      "sha256": "34f28bf74fc2d1289226e7e546b92d33f1487b67fc178d633f3faef287f14266",
+      "source": "templates/e2e/e2e/support/judged.ts"
     },
     "e2e/tsconfig.json": {
       "mode": "full",
@@ -975,7 +990,7 @@
     },
     "frontend/tsconfig.json": {
       "mode": "full",
-      "sha256": "0a086f123f3e30fdb63e62f26f7443200f6a71eb9848cb4a545cf68d3d36bf01",
+      "sha256": "e41dcca13115bee1ce0e7702c00a376d463969a59f638d067f1f6429bb26efe4",
       "source": "templates/app/frontend/tsconfig.json.tmpl"
     },
     "frontend/vite.config.ts": {
@@ -990,7 +1005,7 @@
     },
     "knip.json": {
       "mode": "full",
-      "sha256": "909bde707c1607e4a23fbb310fbda9b0ede39bb495c7d5e4453501ed5518ae55",
+      "sha256": "24b4699f1cf24f37df1e5d5f6f75914b955b06a2b7a913dad04cd63ad14686e3",
       "source": "templates/app/knip.json"
     },
     "lighthouserc.json": {
@@ -1054,7 +1069,7 @@
     },
     "scripts/contract.mjs": {
       "mode": "full",
-      "sha256": "e90007c2ce6bdfcc35f0126af68745532ec7717bd3500fa3349c732f634b789c",
+      "sha256": "abab9822dac0cd56188812efac00fc306e71f2a89e02d26d5393989bde578b19",
       "source": "templates/app/scripts/contract.mjs"
     },
     "scripts/gh-project.ps1": {
@@ -1069,7 +1084,7 @@
     },
     "scripts/test/contract.test.mjs": {
       "mode": "full",
-      "sha256": "9958d3633250b3ce2e1b96021562db989761142c1c3f71de11a02700bc6b0c81",
+      "sha256": "29763254f7b3d81db6eae67536e00362a9e495edf2bc5d66059ae6ef4277807b",
       "source": "templates/app/scripts/test/contract.test.mjs"
     },
     "skills/std-backlog/SKILL.md": {
