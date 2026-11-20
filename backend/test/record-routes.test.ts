@@ -6,7 +6,7 @@ import type { Pool } from 'pg';
 import { withApi } from './helpers.js';
 
 const wake = {
-  id: '1',
+  id: 1,
   name: 'Wake at 6',
   cadence: 'daily',
   category: 'wake',
@@ -14,7 +14,7 @@ const wake = {
   archived: false,
   checked: true,
 };
-const old = { ...wake, id: '2', name: 'Archived routine', archived: true, checked: false };
+const old = { ...wake, id: 2, name: 'Archived routine', archived: true, checked: false };
 const entry = {
   date: '2026-10-20',
   body: 'Spent it well',

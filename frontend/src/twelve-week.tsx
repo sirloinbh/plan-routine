@@ -19,7 +19,7 @@ import { serviceDate } from './service-date';
 import { isPassingFailure, useReloadOnDateChange } from './use-date-change';
 
 type Goal = {
-  id: string;
+  id: number;
   title: string;
   achieved: boolean | null;
   reviewNote: string | null;
@@ -46,8 +46,8 @@ const needsReview = ({ goals }: GoalPeriod) => goals.some((goal) => !goal.review
 
 const focusKeys = {
   period: (start: string) => `period-${start}`,
-  edit: (id: string) => `goal-edit-${id}`,
-  remove: (id: string) => `goal-remove-${id}`,
+  edit: (id: number) => `goal-edit-${id}`,
+  remove: (id: number) => `goal-remove-${id}`,
   renameInput: 'goal-rename-input',
   add: 'add-goal',
 };
@@ -65,7 +65,7 @@ function PastPeriod({
   onSaved: (goals: Goal[]) => void;
 }) {
   // Only what was edited; the rest shows what the server has, so a reload loses no typing.
-  const [drafts, setDrafts] = useState<Record<string, ReviewDraft>>({});
+  const [drafts, setDrafts] = useState<Record<number, ReviewDraft>>({});
   const [saving, setSaving] = useState(false);
   const { notice, status, error, clear } = useNotice();
   const draftOf = (goal: Goal): ReviewDraft =>
@@ -182,11 +182,11 @@ function CurrentGoals({
 }: {
   data: GoalsData;
   reload: () => void;
-  onLinked: (goalId: string, routines: LinkedRoutine[]) => void;
+  onLinked: (goalId: number, routines: LinkedRoutine[]) => void;
 }) {
   const [draft, setDraft] = useState('');
-  const [editing, setEditing] = useState<{ id: string; title: string } | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [editing, setEditing] = useState<{ id: number; title: string } | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   // Which button started the change: busy disables them all, only this one shows it is working.
   const [pending, setPending] = useState<string | null>(null);
@@ -194,7 +194,7 @@ function CurrentGoals({
   const { goals } = data.current;
   const { beginChange, requestFocus } = useFocusRequest(() => !busy);
   // Link panels left open, whose ticks go with the goal if it disappears.
-  const openPanels = useRef(new Map<string, string>());
+  const openPanels = useRef(new Map<number, string>());
 
   // One notice holds one message, so what was lost with a vanished goal is said together.
   const lostEdit = useRef<string | null>(null);
@@ -290,7 +290,7 @@ function CurrentGoals({
     ]);
   };
 
-  const cancelEditing = (id: string) => {
+  const cancelEditing = (id: number) => {
     beginChange();
     requestFocus([focusKeys.edit(id)]);
     setEditing(null);
@@ -535,7 +535,7 @@ export function TwelveWeek() {
     }
     reload();
   };
-  const routinesLinked = (goalId: string, routines: LinkedRoutine[]) =>
+  const routinesLinked = (goalId: number, routines: LinkedRoutine[]) =>
     setData(
       (current) =>
         current && {

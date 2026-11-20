@@ -13,11 +13,14 @@ import { recordRoutes } from './record-routes.js';
 import { requestFailure } from './request-input.js';
 import { routineRoutes } from './routine-routes.js';
 import { routineAnchorDate } from './routines.js';
+import { setInt8Parser } from './standard/db.js';
 import { MAX_ISSUES, requestLog } from './standard/http.js';
 import { statsRoutes } from './stats-routes.js';
 
 // DATE columns stay YYYY-MM-DD strings so the service time zone never shifts them.
 types.setTypeParser(1082, (value) => value);
+// BIGINT ids come back as numbers, and a value above 2^53 throws instead of rounding (ADR-0025).
+setInt8Parser(types);
 
 const serviceTimeZone = 'Asia/Seoul';
 

@@ -4,7 +4,7 @@ import { expect, test, vi } from 'vitest';
 import { FourWeekRoutines, WeeklyRoutines } from './period-routines';
 import { queryLive } from './test/live';
 
-type Seed = { id: string; name: string };
+type Seed = { id: number; name: string };
 
 // Sunday of the date's week, as backend/src/periods.ts counts it.
 function weekStart(date: string) {
@@ -62,7 +62,7 @@ function weeklyApi(seed: Seed[] = []) {
       writes.push({ method, path, body });
       if (method === 'POST' && path === '/api/routines') {
         const routine = {
-          id: String(nextId++),
+          id: nextId++,
           name: body!.name,
           cadence: 'weekly',
           category: null,
@@ -71,7 +71,8 @@ function weeklyApi(seed: Seed[] = []) {
         routines = [...routines, routine];
         return reply(201, { routine });
       }
-      const [, , , id, action, date] = path.split('/');
+      const [, , , rawId, action, date] = path.split('/');
+      const id = Number(rawId);
       const found = routines.find((r) => r.id === id);
       if (!found) return reply(404, { error: 'Routine not found' });
       if (action === 'checks') {
@@ -101,7 +102,7 @@ function weeklyApi(seed: Seed[] = []) {
       routines = [
         ...routines,
         {
-          id: String(nextId++),
+          id: nextId++,
           name,
           cadence: 'weekly',
           category: null,
@@ -109,7 +110,7 @@ function weeklyApi(seed: Seed[] = []) {
         },
       ];
     },
-    archiveElsewhere: (id: string) => (routines = routines.filter((r) => r.id !== id)),
+    archiveElsewhere: (id: number) => (routines = routines.filter((r) => r.id !== id)),
   };
 }
 
@@ -117,16 +118,16 @@ const flush = () => act(() => new Promise((resolve) => setTimeout(resolve)));
 const box = (name: string) => screen.findByRole('checkbox', { name });
 const thisWeek = () => screen.getByRole('region', { name: 'This week checklist' });
 const seed = [
-  { id: '1', name: 'Write a book report' },
-  { id: '2', name: 'Clean' },
-  { id: '3', name: 'Update the budget' },
+  { id: 1, name: 'Write a book report' },
+  { id: 2, name: 'Clean' },
+  { id: 3, name: 'Update the budget' },
 ];
 
 // The four-week page shares the weekly page's code, so only what differs is checked here.
 function fourWeekApi(remainingDays: number) {
   const writes: { method: string; path: string; body?: unknown }[] = [];
   const routines = [
-    { id: '1', name: 'Wash bedding', cadence: 'four_week', category: null, sortOrder: 0 },
+    { id: 1, name: 'Wash bedding', cadence: 'four_week', category: null, sortOrder: 0 },
   ];
   const reply = (body: unknown) =>
     Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(body) });
@@ -497,7 +498,7 @@ test('a routine archived elsewhere shows the English 404 and leaves the checklis
   const api = weeklyApi(seed);
   render(<WeeklyRoutines />);
   await box('Clean');
-  api.archiveElsewhere('2');
+  api.archiveElsewhere(2);
   fireEvent.click(await box('Clean'));
   await flush();
   expect(screen.getAllByRole('alert').map((n) => n.textContent)).toContain('Routine not found');

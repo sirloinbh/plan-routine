@@ -9,7 +9,7 @@ import { withApi } from './helpers.js';
 const today = '2026-10-22'; // A Thursday.
 const anchorDate = '2026-05-03'; // A Sunday, so four-week periods include 2026-10-18 ~ 2026-11-14.
 
-const routine = (over: Partial<StatsRoutine> & { id: string }): StatsRoutine => ({
+const routine = (over: Partial<StatsRoutine> & { id: number }): StatsRoutine => ({
   name: `Routine ${over.id}`,
   cadence: 'daily',
   category: 'wake',
@@ -61,10 +61,10 @@ test('daily weeks and months count routine-days, leaving out today until it is d
   const stats = buildStats({
     today,
     anchorDate,
-    routines: [routine({ id: '1', createdOn: '2026-10-19' })],
+    routines: [routine({ id: 1, createdOn: '2026-10-19' })],
     checks: [
-      { routineId: '1', periodStart: '2026-10-19' },
-      { routineId: '1', periodStart: '2026-10-21' },
+      { routineId: 1, periodStart: '2026-10-19' },
+      { routineId: 1, periodStart: '2026-10-21' },
     ],
   });
   // Mon done, Tue missed, Wed done, Thu is today and still open.
@@ -98,8 +98,8 @@ test("today's check counts as soon as it is done", () => {
   const stats = buildStats({
     today,
     anchorDate,
-    routines: [routine({ id: '1', createdOn: today })],
-    checks: [{ routineId: '1', periodStart: today }],
+    routines: [routine({ id: 1, createdOn: today })],
+    checks: [{ routineId: 1, periodStart: today }],
   });
   assert.equal(stats.daily.weeks[0].checked, 1);
   assert.equal(stats.daily.weeks[0].total, 1);
@@ -122,14 +122,14 @@ test('longer cadences list their recent periods, newest first, on period boundar
     today,
     anchorDate,
     routines: [
-      routine({ id: '1', cadence: 'weekly', category: null }),
-      routine({ id: '2', cadence: 'four_week', category: null }),
-      routine({ id: '3', cadence: 'twelve_week', category: null }),
+      routine({ id: 1, cadence: 'weekly', category: null }),
+      routine({ id: 2, cadence: 'four_week', category: null }),
+      routine({ id: 3, cadence: 'twelve_week', category: null }),
     ],
     checks: [
-      { routineId: '1', periodStart: '2026-10-11' },
-      { routineId: '2', periodStart: '2026-09-20' },
-      { routineId: '3', periodStart: '2026-07-26' },
+      { routineId: 1, periodStart: '2026-10-11' },
+      { routineId: 2, periodStart: '2026-09-20' },
+      { routineId: 3, periodStart: '2026-07-26' },
     ],
   });
   assert.equal(stats.weekly.length, 8);
@@ -177,8 +177,8 @@ test('each routine lists its own recent history with its rate', () => {
   const stats = buildStats({
     today,
     anchorDate,
-    routines: [routine({ id: '1', createdOn: '2026-10-20' })],
-    checks: [{ routineId: '1', periodStart: '2026-10-20' }],
+    routines: [routine({ id: 1, createdOn: '2026-10-20' })],
+    checks: [{ routineId: 1, periodStart: '2026-10-20' }],
   });
   const [item] = stats.items;
   assert.equal(item.periods.length, 14);
@@ -194,12 +194,12 @@ test('each routine lists its own recent history with its rate', () => {
 });
 
 test('an archived routine stays while its periods count and goes once they are all out of range', () => {
-  const recent = routine({ id: '1', archivedOn: '2026-10-20' });
-  const gone = routine({ id: '2', createdOn: '2025-01-01', archivedOn: '2025-02-01' });
+  const recent = routine({ id: 1, archivedOn: '2026-10-20' });
+  const gone = routine({ id: 2, createdOn: '2025-01-01', archivedOn: '2025-02-01' });
   const stats = buildStats({ today, anchorDate, routines: [recent, gone], checks: [] });
   assert.deepEqual(
     stats.items.map((item) => [item.id, item.archived]),
-    [['1', true]],
+    [[1, true]],
   );
   // The archived routine still weighs on weeks before it was archived, and not after.
   assert.equal(stats.daily.weeks[1].total, 7);
@@ -211,7 +211,7 @@ test('a routine with no record yet stays in the list with nothing to count', () 
   const stats = buildStats({
     today,
     anchorDate,
-    routines: [routine({ id: '1', createdOn: today })],
+    routines: [routine({ id: 1, createdOn: today })],
     checks: [],
   });
   assert.equal(stats.items[0].total, 0);
@@ -236,8 +236,8 @@ test('the API loads routines with archived ones and checks from the window start
       queries.push({ sql, params });
       if (sql.includes('app_settings')) return { rows: [{ value: anchorDate }] };
       if (sql.includes('FROM routine_checks'))
-        return { rows: [{ routineId: '1', periodStart: '2026-10-21' }] };
-      return { rows: [routine({ id: '1', createdOn: '2026-10-20' })] };
+        return { rows: [{ routineId: 1, periodStart: '2026-10-21' }] };
+      return { rows: [routine({ id: 1, createdOn: '2026-10-20' })] };
     },
   } as unknown as Pool;
   await withApi(

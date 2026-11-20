@@ -24,7 +24,7 @@ function fakePool(routine: { cadence: string } | null = { cadence: 'daily' }) {
 }
 
 const wake = {
-  id: '1',
+  id: 1,
   name: 'Wake at 6',
   cadence: 'daily',
   category: 'wake',
@@ -149,7 +149,7 @@ test('today and the date seven days ago can both be checked', async () => {
         const { status, data } = await call(`/api/routines/1/checks/${date}`, { method: 'PUT' });
         assert.equal(status, 200);
         assert.deepEqual(data, {
-          routineId: '1',
+          routineId: 1,
           date,
           period: { start: date, end: date },
           checked: true,
@@ -157,7 +157,7 @@ test('today and the date seven days ago can both be checked', async () => {
       },
       { today },
     );
-    assert.deepEqual(issued(queries, 'INSERT INTO routine_checks')[0].params, ['1', date]);
+    assert.deepEqual(issued(queries, 'INSERT INTO routine_checks')[0].params, [1, date]);
     assert.equal(issued(queries, 'COMMIT').length, 1);
   }
 });
@@ -176,7 +176,7 @@ test('a check records first use and is stored under the start of its period', as
     'routine_anchor_date',
     '2026-10-22',
   ]);
-  assert.deepEqual(issued(queries, 'INSERT INTO routine_checks')[0].params, ['1', '2026-10-18']);
+  assert.deepEqual(issued(queries, 'INSERT INTO routine_checks')[0].params, [1, '2026-10-18']);
 });
 
 test('unchecking deletes the check of that period', async () => {
@@ -192,7 +192,7 @@ test('unchecking deletes the check of that period', async () => {
     },
     { today },
   );
-  assert.deepEqual(issued(queries, 'DELETE FROM routine_checks')[0].params, ['1', '2026-10-22']);
+  assert.deepEqual(issued(queries, 'DELETE FROM routine_checks')[0].params, [1, '2026-10-22']);
 });
 
 test('a missing or archived routine is an English 404 and writes no check', async () => {

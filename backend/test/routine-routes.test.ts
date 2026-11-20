@@ -17,7 +17,7 @@ function scriptedPool(...results: { rows: unknown[] }[]) {
   return { pool, queries };
 }
 
-const wake = { id: '1', name: 'Wake at 6', cadence: 'daily', category: 'wake', sortOrder: 0 };
+const wake = { id: 1, name: 'Wake at 6', cadence: 'daily', category: 'wake', sortOrder: 0 };
 
 test('creating a routine records first use, then appends it to its category', async () => {
   const { pool, queries } = scriptedPool({ rows: [wake] });
@@ -81,7 +81,7 @@ test('renaming trims the name and a missing routine is an English 404', async ()
     assert.equal(missing.status, 404);
     assert.equal(missing.data.error, 'Routine not found');
   });
-  assert.deepEqual(queries[0].params, ['Wake at 6:30', '1']);
+  assert.deepEqual(queries[0].params, ['Wake at 6:30', 1]);
 });
 
 test('archiving a missing routine is an English 404', async () => {

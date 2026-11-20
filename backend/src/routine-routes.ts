@@ -2,16 +2,16 @@ import { Router } from 'express';
 import type { Pool } from 'pg';
 import { z } from 'zod/v4';
 
+import { bodyId, pathId } from './ids.js';
 import { badRequest, requestBody } from './request-input.js';
 import { anchorSettingKey, routineCadence, routineInput, routineName } from './routines.js';
 
-// routineColumns names id as text, so an ORDER BY on plain id would put 10 before 9: write routines.id.
 export const routineColumns =
-  'id::text AS id, name, cadence, category, sort_order AS "sortOrder", project_link_id::text AS "projectLinkId"';
+  'id, name, cadence, category, sort_order AS "sortOrder", project_link_id AS "projectLinkId"';
 export const notFound = { error: 'Routine not found' };
 
 export const listQuery = z.object({ cadence: routineCadence.optional() });
-export const routineId = z.string().regex(/^\d{1,18}$/, 'Invalid routine ID');
+export const routineId = pathId('Invalid routine ID');
 const idParam = z.object({ id: routineId });
 export const renameInput = z.object({ name: routineName }, badRequest);
 export const moveInput = z.object(
@@ -21,10 +21,7 @@ export const moveInput = z.object(
 
 export const projectLinkInput = z.object(
   {
-    projectLinkId: z
-      .string({ error: 'Invalid project to link' })
-      .regex(/^\d{1,18}$/, 'Invalid project to link')
-      .nullable(),
+    projectLinkId: bodyId('Invalid project to link').nullable(),
   },
   badRequest,
 );
@@ -100,8 +97,8 @@ export function routineRoutes(pool: Pool, today: () => string) {
          ORDER BY id FOR UPDATE`,
         [target.rows[0].cadence, target.rows[0].category],
       );
-      const group = await client.query<{ id: string }>(
-        `SELECT id::text AS id FROM routines
+      const group = await client.query<{ id: number }>(
+        `SELECT id FROM routines
          WHERE cadence = $1 AND category IS NOT DISTINCT FROM $2 AND archived_at IS NULL
          ORDER BY sort_order, routines.id`,
         [target.rows[0].cadence, target.rows[0].category],

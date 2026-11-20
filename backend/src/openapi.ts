@@ -331,10 +331,10 @@ const statusText: Record<number, string> = {
   503: 'The shared sign-in service is unavailable or not configured',
 };
 
-// Path parameters: ids are digit strings (bigint ids are sent as text) and dates are YYYY-MM-DD.
+// Path parameters: ids are positive integers of up to 15 digits (ADR-0025) and dates are YYYY-MM-DD.
 function pathParam(name: string): Json {
   if (name === 'date') return { type: 'string', format: 'date' };
-  if (name === 'id') return { type: 'string', pattern: '^\\d{1,18}$' };
+  if (name === 'id') return { type: 'integer', minimum: 1, maximum: 999999999999999 };
   return { type: 'string' };
 }
 
@@ -398,7 +398,7 @@ export function buildOpenApi(app: express.Express) {
       title: 'Plan Routine API',
       version: '1.0.0',
       description:
-        'Dates are YYYY-MM-DD (Asia/Seoul). Ids are digit strings. Every error response is { error: English message }.',
+        'Dates are YYYY-MM-DD (Asia/Seoul). Ids are positive integers (numbers, up to 15 digits). Every error response is { error: English message }.',
     },
     servers: [{ url: '/' }],
     paths,

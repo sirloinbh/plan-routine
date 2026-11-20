@@ -72,7 +72,7 @@ export function recordRoutes(pool: Pool, today: () => string) {
       return;
     }
     const routines = await pool.query<{ checked: boolean }>(
-      `SELECT routines.id::text AS id, routines.name, routines.cadence, routines.category,
+      `SELECT routines.id, routines.name, routines.cadence, routines.category,
          routines.sort_order AS "sortOrder",
          routines.archived_at IS NOT NULL AS archived,
          EXISTS (

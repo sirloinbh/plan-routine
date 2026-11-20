@@ -75,7 +75,7 @@ function fakePool(rows: unknown[] = []) {
 }
 
 test('a project is stored with its name trimmed and its address normalised', async () => {
-  const stored = { id: '1', name: 'Budget', url: 'https://example.com/' };
+  const stored = { id: 1, name: 'Budget', url: 'https://example.com/' };
   const { pool, queries } = fakePool([stored]);
   await withApi(pool, async (call) => {
     const { status, data } = await call('/api/project-links', {
@@ -150,12 +150,12 @@ test('removing answers for a missing project', async () => {
 });
 
 test('a routine link is set or cleared, and refused for something missing', async () => {
-  const routine = { id: '1', name: 'Update the budget' };
+  const routine = { id: 1, name: 'Update the budget' };
   const found = fakePool([routine]);
   await withApi(found.pool, async (call) => {
     const set = await call('/api/routines/1/project-link', {
       method: 'PUT',
-      body: { projectLinkId: '7' },
+      body: { projectLinkId: 7 },
     });
     assert.equal(set.status, 200);
     assert.deepEqual(set.data.routine, routine);
@@ -168,8 +168,8 @@ test('a routine link is set or cleared, and refused for something missing', asyn
   assert.deepEqual(
     found.queries.map((query) => query.params),
     [
-      ['7', '1'],
-      [null, '1'],
+      [7, 1],
+      [null, 1],
     ],
   );
 
@@ -177,11 +177,11 @@ test('a routine link is set or cleared, and refused for something missing', asyn
   await withApi(missing.pool, async (call) => {
     const { status, data } = await call('/api/routines/1/project-link', {
       method: 'PUT',
-      body: { projectLinkId: '7' },
+      body: { projectLinkId: 7 },
     });
     assert.equal(status, 404);
     assert.equal(data.error, 'Routine or project not found');
-    for (const body of [{}, { projectLinkId: 'abc' }, { projectLinkId: 7 }, []]) {
+    for (const body of [{}, { projectLinkId: 'abc' }, { projectLinkId: '7' }, []]) {
       const refused = await call('/api/routines/1/project-link', { method: 'PUT', body });
       assert.equal(refused.status, 400);
     }

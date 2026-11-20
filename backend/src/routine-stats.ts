@@ -1,7 +1,7 @@
 import { addDays, type Cadence, type Period, periodFor, shiftMonth, weekStart } from './periods.js';
 
 export type StatsRoutine = {
-  id: string;
+  id: number;
   name: string;
   cadence: Cadence;
   category: string | null;
@@ -10,7 +10,7 @@ export type StatsRoutine = {
   createdOn: string;
   archivedOn: string | null;
 };
-export type StatsCheck = { routineId: string; periodStart: string };
+export type StatsCheck = { routineId: number; periodStart: string };
 
 export type PeriodStatus = 'done' | 'missed' | 'open' | 'none';
 export type Tally = { checked: number; total: number };

@@ -67,14 +67,14 @@ test(
       const rejects = async (sql: string, code: string) => {
         await client.query('BEGIN');
         try {
-          const { rows } = await client.query<{ id: string }>(
+          const { rows } = await client.query<{ id: number }>(
             "INSERT INTO routines (name, cadence, category) VALUES ('Wake up', 'daily', 'wake') RETURNING id",
           );
           await client.query(
             "INSERT INTO routine_checks (routine_id, period_start) VALUES ($1, '2026-10-22')",
             [rows[0].id],
           );
-          await assert.rejects(client.query(sql.replaceAll(':id', rows[0].id)), { code });
+          await assert.rejects(client.query(sql.replaceAll(':id', String(rows[0].id))), { code });
         } finally {
           await client.query('ROLLBACK');
         }
@@ -147,7 +147,7 @@ test(
         'SELECT value FROM app_settings WHERE key = $1',
         [anchorSettingKey],
       );
-      const created: string[] = [];
+      const created: number[] = [];
       try {
         await withApi(
           pool,
@@ -157,13 +157,13 @@ test(
                 method: 'POST',
                 body: { name, cadence: 'daily', category: 'care' },
               });
-              created.push((data.routine as { id: string }).id);
+              created.push((data.routine as { id: number }).id);
             }
             const [target, other] = created;
             const checked = async (date: string) => {
               const { status, data } = await call(`/api/checklist?date=${date}`);
               assert.equal(status, 200);
-              return (data.items as { id: string; checked: boolean }[])
+              return (data.items as { id: number; checked: boolean }[])
                 .filter((item) => created.includes(item.id))
                 .map((item) => [item.id, item.checked]);
             };
@@ -252,7 +252,7 @@ test(
         'SELECT value FROM app_settings WHERE key = $1',
         [anchorSettingKey],
       );
-      const created: string[] = [];
+      const created: number[] = [];
       try {
         await withApi(
           pool,
@@ -261,7 +261,7 @@ test(
               method: 'POST',
               body: { name: 'Archive and check race', cadence: 'daily', category: 'care' },
             });
-            const id = (data.routine as { id: string }).id;
+            const id = (data.routine as { id: number }).id;
             created.push(id);
             const { rows } = await client.query<{ pid: number }>('SELECT pg_backend_pid() AS pid');
 
@@ -338,7 +338,7 @@ test(
         'SELECT value FROM app_settings WHERE key = $1',
         [anchorSettingKey],
       );
-      const created: string[] = [];
+      const created: number[] = [];
       const dates = ['2026-10-22', '2026-10-21', '2001-02-03'];
       try {
         await withApi(
@@ -413,7 +413,7 @@ test(
                 method: 'POST',
                 body: { name, cadence: 'daily', category: 'care' },
               });
-              created.push((data.routine as { id: string }).id);
+              created.push((data.routine as { id: number }).id);
             }
             // They have to exist by the day asked about; the injected today is not the real clock.
             await client.query('UPDATE routines SET created_at = $2 WHERE id = ANY($1::bigint[])', [
@@ -469,7 +469,7 @@ test(
         'SELECT value FROM app_settings WHERE key = $1',
         [anchorSettingKey],
       );
-      const created: string[] = [];
+      const created: number[] = [];
       let today = '2026-10-22';
       try {
         await withApi(
@@ -480,14 +480,14 @@ test(
               body: { name: 'Weekly cleaning', cadence: 'weekly' },
             });
             assert.equal(added.status, 201);
-            const { id, category } = added.data.routine as { id: string; category: unknown };
+            const { id, category } = added.data.routine as { id: number; category: unknown };
             created.push(id);
             assert.equal(category, null);
 
             const week = async () => {
               const { status, data } = await call('/api/checklist?cadence=weekly');
               assert.equal(status, 200);
-              const item = (data.items as { id: string; checked: boolean }[]).find(
+              const item = (data.items as { id: number; checked: boolean }[]).find(
                 (entry) => entry.id === id,
               );
               return { period: data.period, checked: item?.checked };
@@ -528,14 +528,14 @@ test(
               method: 'POST',
               body: { name: 'Weekly budget', cadence: 'weekly' },
             });
-            const secondId = (second.data.routine as { id: string }).id;
+            const secondId = (second.data.routine as { id: number }).id;
             created.push(secondId);
             const moved = await call(`/api/routines/${secondId}/move`, {
               method: 'POST',
               body: { direction: 'up' },
             });
             assert.equal(moved.status, 200);
-            const order = (moved.data.routines as { id: string }[]).map((routine) => routine.id);
+            const order = (moved.data.routines as { id: number }[]).map((routine) => routine.id);
             assert.ok(order.indexOf(secondId) < order.indexOf(id));
             const renamed = await call(`/api/routines/${secondId}`, {
               method: 'PATCH',
@@ -577,7 +577,7 @@ test(
         [anchorSettingKey],
       );
       await client.query('DELETE FROM app_settings WHERE key = $1', [anchorSettingKey]);
-      const created: string[] = [];
+      const created: number[] = [];
       let today = '2026-10-22';
       try {
         await withApi(
@@ -589,13 +589,13 @@ test(
               body: { name: 'Wash bedding', cadence: 'four_week' },
             });
             assert.equal(added.status, 201);
-            const { id } = added.data.routine as { id: string };
+            const { id } = added.data.routine as { id: number };
             created.push(id);
 
             const period = async () => {
               const { status, data } = await call('/api/checklist?cadence=four_week');
               assert.equal(status, 200);
-              const item = (data.items as { id: string; checked: boolean }[]).find(
+              const item = (data.items as { id: number; checked: boolean }[]).find(
                 (entry) => entry.id === id,
               );
               return {
@@ -722,7 +722,7 @@ test(
         [anchorSettingKey],
       );
       await client.query('DELETE FROM app_settings WHERE key = $1', [anchorSettingKey]);
-      const created: string[] = [];
+      const created: number[] = [];
       let today = '2026-10-22';
       try {
         await withApi(
@@ -731,7 +731,7 @@ test(
             type Period = {
               period: { start: string };
               goals: {
-                id: string;
+                id: number;
                 title: string;
                 achieved: boolean | null;
                 reviewNote: string | null;
@@ -745,7 +745,7 @@ test(
                 body: { title },
               });
               assert.equal(status, 201);
-              const { id } = data.goal as { id: string };
+              const { id } = data.goal as { id: number };
               created.push(id);
               return id;
             };
@@ -872,16 +872,16 @@ test(
   { skip: !url, timeout: 30_000 },
   () =>
     withClient(async (client, pool) => {
-      const created: string[] = [];
+      const created: number[] = [];
       // Created at 15:30 UTC on 03-09, which is 00:30 on 03-10 in Seoul.
       const add = async (
         name: string,
         archivedAt: string | null,
         createdAt = '2025-03-09T15:30:00Z',
       ) => {
-        const { rows } = await client.query<{ id: string }>(
+        const { rows } = await client.query<{ id: number }>(
           `INSERT INTO routines (name, cadence, category, sort_order, created_at, archived_at)
-           VALUES ($1, 'daily', 'care', $2, $3, $4) RETURNING id::text AS id`,
+           VALUES ($1, 'daily', 'care', $2, $3, $4) RETURNING id`,
           [name, created.length, createdAt, archivedAt],
         );
         created.push(rows[0].id);
@@ -910,7 +910,7 @@ test(
           async (call) => {
             const names = async (date: string) => {
               const { data } = await call(`/api/records/${date}`);
-              return (data.routines as { id: string; name: string; checked: boolean }[])
+              return (data.routines as { id: number; name: string; checked: boolean }[])
                 .filter((routine) => created.includes(routine.id))
                 .map((routine) => [routine.name, routine.checked]);
             };
@@ -946,7 +946,7 @@ test(
             ]);
             const archivedDay = await call('/api/records/2025-03-14');
             assert.equal(
-              (archivedDay.data.routines as { id: string; archived: boolean }[]).find(
+              (archivedDay.data.routines as { id: number; archived: boolean }[]).find(
                 (routine) => routine.id === archived,
               )?.archived,
               true,
@@ -1015,7 +1015,7 @@ test(
         'SELECT value FROM app_settings WHERE key = $1',
         [anchorSettingKey],
       );
-      const created: string[] = [];
+      const created: number[] = [];
       const add = async (
         name: string,
         cadence: string,
@@ -1023,9 +1023,9 @@ test(
         createdAt: string,
         archivedAt: string | null = null,
       ) => {
-        const { rows } = await client.query<{ id: string }>(
+        const { rows } = await client.query<{ id: number }>(
           `INSERT INTO routines (name, cadence, category, created_at, archived_at)
-           VALUES ($1, $2, $3, $4, $5) RETURNING id::text AS id`,
+           VALUES ($1, $2, $3, $4, $5) RETURNING id`,
           [name, cadence, category, createdAt, archivedAt],
         );
         created.push(rows[0].id);
@@ -1069,13 +1069,13 @@ test(
             const { status, data } = await call('/api/stats');
             assert.equal(status, 200);
             type Item = Tally & {
-              id: string;
+              id: number;
               archived: boolean;
               checked: number;
               total: number;
               periods: { start: string; status: string }[];
             };
-            const item = (id: string) => (data.items as Item[]).find((entry) => entry.id === id)!;
+            const item = (id: number) => (data.items as Item[]).find((entry) => entry.id === id)!;
             const statusOn = (entry: Item, date: string) =>
               entry.periods.find((period) => period.start === date)?.status;
 
@@ -1162,7 +1162,7 @@ test(
         'SELECT value FROM app_settings WHERE key = $1',
         [anchorSettingKey],
       );
-      const created: string[] = [];
+      const created: number[] = [];
       try {
         await withApi(
           pool,
@@ -1173,11 +1173,11 @@ test(
                 body: { name, cadence: 'daily', category: 'wake' },
               });
               assert.equal(status, 201);
-              created.push((data.routine as { id: string }).id);
+              created.push((data.routine as { id: number }).id);
             }
             const names = async () => {
               const { data } = await call('/api/routines?cadence=daily');
-              return (data.routines as { id: string; name: string }[])
+              return (data.routines as { id: number; name: string }[])
                 .filter((routine) => created.includes(routine.id))
                 .map((routine) => routine.name);
             };
@@ -1260,8 +1260,8 @@ test(
         'SELECT value FROM app_settings WHERE key = $1',
         [anchorSettingKey],
       );
-      const routines: string[] = [];
-      const goals: string[] = [];
+      const routines: number[] = [];
+      const goals: number[] = [];
       try {
         await withApi(
           pool,
@@ -1271,7 +1271,7 @@ test(
                 method: 'POST',
                 body: { name, cadence, category },
               });
-              const { id } = data.routine as { id: string };
+              const { id } = data.routine as { id: number };
               routines.push(id);
               return id;
             };
@@ -1282,15 +1282,15 @@ test(
               method: 'POST',
               body: { title: 'Link goal' },
             });
-            const goalId = (created.data.goal as { id: string }).id;
+            const goalId = (created.data.goal as { id: number }).id;
             goals.push(goalId);
             const path = `/api/goals/${goalId}/routines`;
-            const put = (routineIds: string[]) =>
+            const put = (routineIds: number[]) =>
               call(path, { method: 'PUT', body: { routineIds } });
             const shown = async () => {
               const { data } = await call('/api/goals');
               const { goals: list } = data.current as {
-                goals: { id: string; routines: { id: string; name: string }[] }[];
+                goals: { id: number; routines: { id: number; name: string }[] }[];
               };
               return list.find((goal) => goal.id === goalId)!.routines;
             };
@@ -1358,7 +1358,7 @@ test(
       );
       // As text, 1000000 would sort before 999999. Ids are set so the test does not depend on
       // how far the sequences have run; the sequences themselves are left alone.
-      const ids = Array.from({ length: 11 }, (_, index) => String(999_995 + index));
+      const ids = Array.from({ length: 11 }, (_, index) => 999_995 + index);
       try {
         await client.query(
           `INSERT INTO routines (id, name, cadence, sort_order) OVERRIDING SYSTEM VALUE
@@ -1369,7 +1369,7 @@ test(
           pool,
           async (call) => {
             const inOrder = (rows: unknown) =>
-              (rows as { id: string }[]).map((row) => row.id).filter((id) => ids.includes(id));
+              (rows as { id: number }[]).map((row) => row.id).filter((id) => ids.includes(id));
 
             const list = await call('/api/routines?cadence=weekly');
             assert.deepEqual(inOrder(list.data.routines), ids);
@@ -1400,8 +1400,8 @@ test(
             const after = await call('/api/routines?cadence=weekly');
             assert.deepEqual(inOrder(after.data.routines), [
               ...ids.slice(0, 4),
-              '1000000',
-              '999999',
+              1000000,
+              999999,
               ...ids.slice(6),
             ]);
           },
@@ -1475,8 +1475,8 @@ test(
         'SELECT value FROM app_settings WHERE key = $1',
         [anchorSettingKey],
       );
-      let routineId = '';
-      let projectId = '';
+      let routineId = 0;
+      let projectId = 0;
       try {
         await withApi(
           pool,
@@ -1485,13 +1485,13 @@ test(
               method: 'POST',
               body: { name: 'Link routine', cadence: 'weekly' },
             });
-            routineId = (routine.data.routine as { id: string }).id;
+            routineId = (routine.data.routine as { id: number }).id;
             const project = await call('/api/project-links', {
               method: 'POST',
               body: { name: 'Link test', url: 'https://books.example' },
             });
             assert.equal(project.status, 201);
-            projectId = (project.data.project as { id: string; url: string }).id;
+            projectId = (project.data.project as { id: number; url: string }).id;
             assert.equal((project.data.project as { url: string }).url, 'https://books.example/');
 
             const same = await call('/api/project-links', {
@@ -1502,7 +1502,7 @@ test(
 
             const item = async () => {
               const { data } = await call('/api/checklist?cadence=weekly&date=2026-10-22');
-              return (data.items as { id: string; linkName: unknown; linkUrl: unknown }[]).find(
+              return (data.items as { id: number; linkName: unknown; linkUrl: unknown }[]).find(
                 (entry) => entry.id === routineId,
               )!;
             };
@@ -1512,7 +1512,7 @@ test(
             const linked = await call(path, { method: 'PUT', body: { projectLinkId: projectId } });
             assert.equal(linked.status, 200);
             assert.equal(
-              (linked.data.routine as { projectLinkId: string }).projectLinkId,
+              (linked.data.routine as { projectLinkId: number }).projectLinkId,
               projectId,
             );
             const shown = await item();
@@ -1521,7 +1521,7 @@ test(
 
             const missing = await call(path, {
               method: 'PUT',
-              body: { projectLinkId: '999999999' },
+              body: { projectLinkId: 999999999 },
             });
             assert.equal(missing.status, 404);
 
@@ -1533,7 +1533,7 @@ test(
             await call(`/api/project-links/${projectId}`, { method: 'DELETE' });
             assert.equal((await item()).linkUrl, null);
             const list = await call('/api/routines?cadence=weekly');
-            const kept = (list.data.routines as { id: string; projectLinkId: unknown }[]).find(
+            const kept = (list.data.routines as { id: number; projectLinkId: unknown }[]).find(
               (entry) => entry.id === routineId,
             );
             assert.equal(kept?.projectLinkId, null);

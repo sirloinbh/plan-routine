@@ -5,7 +5,7 @@ import { DailyChecklist } from './daily-checklist';
 import { formatDate } from './format-date';
 import { findLive, getLive, queryLive } from './test/live';
 
-type Seed = { id: string; name: string; category: string; sortOrder?: number };
+type Seed = { id: number; name: string; category: string; sortOrder?: number };
 
 const today = '2026-10-22';
 const editable = [
@@ -62,7 +62,8 @@ function checklistApi(seed: Seed[] = [], options: { failWrites?: string } = {}) 
       }
       writes.push({ method, path: url });
       if (options.failWrites) return reply(500, { error: options.failWrites });
-      const [, , , id, , date] = url.split('/');
+      const [, , , rawId, , date] = url.split('/');
+      const id = Number(rawId);
       if (!routines.some((r) => r.id === id)) return reply(404, { error: 'Routine not found' });
       const commit = () => {
         if (method === 'PUT') checks.add(`${id}/${date}`);
@@ -78,7 +79,7 @@ function checklistApi(seed: Seed[] = [], options: { failWrites?: string } = {}) 
   );
   return {
     writes,
-    archiveElsewhere: (id: string) => (routines = routines.filter((r) => r.id !== id)),
+    archiveElsewhere: (id: number) => (routines = routines.filter((r) => r.id !== id)),
     setToday: (date: string) => (serverToday = date),
     failNextLoad: () => (failNextLoad = true),
     holdWrites: () => (holdWrites = true),
@@ -97,9 +98,9 @@ const box = (name: string) => screen.findByRole('checkbox', { name });
 const region = (label: string) => screen.getByRole('region', { name: `${label} checklist` });
 
 const seed = [
-  { id: '1', name: 'Wake at 6', category: 'wake' },
-  { id: '2', name: 'Drink water', category: 'wake' },
-  { id: '3', name: 'Squats', category: 'exercise' },
+  { id: 1, name: 'Wake at 6', category: 'wake' },
+  { id: 2, name: 'Drink water', category: 'wake' },
+  { id: 3, name: 'Squats', category: 'exercise' },
 ];
 
 test('shows today with routines by category, hiding empty categories', async () => {
@@ -172,7 +173,7 @@ test('a routine archived elsewhere shows the English 404 and leaves the list', a
   const api = checklistApi(seed);
   render(<DailyChecklist />);
   await box('Drink water');
-  api.archiveElsewhere('2');
+  api.archiveElsewhere(2);
   fireEvent.click(await box('Drink water'));
   expect(await findLive('alert')).toHaveTextContent('Routine not found');
   await waitFor(() =>
@@ -288,7 +289,7 @@ test('a load error goes away when a later load works, but a save error stays', a
   await showPageAgain();
   expect(queryLive('alert')).toBeNull();
 
-  api.archiveElsewhere('2');
+  api.archiveElsewhere(2);
   fireEvent.click(await box('Drink water'));
   await flush();
   await flush();

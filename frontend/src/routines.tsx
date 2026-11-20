@@ -6,12 +6,12 @@ import { RoutineAddForm, RoutineItems, RoutineNotices } from './routine-list';
 import { useRoutineList } from './use-routine-list';
 
 export type Routine = {
-  id: string;
+  id: number;
   name: string;
   cadence: string;
   category: string | null;
   sortOrder: number;
-  projectLinkId?: string | null;
+  projectLinkId?: number | null;
 };
 
 export function DailyRoutines() {

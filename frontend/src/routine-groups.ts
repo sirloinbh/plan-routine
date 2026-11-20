@@ -16,6 +16,6 @@ export function groupByCategory<T extends Routine>(routines: T[]) {
     ...category,
     routines: routines
       .filter((routine) => routine.category === category.key)
-      .sort((a, b) => a.sortOrder - b.sortOrder || Number(a.id) - Number(b.id)),
+      .sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id),
   }));
 }

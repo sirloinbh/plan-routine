@@ -6,7 +6,7 @@ import type { Pool } from 'pg';
 import { withApi } from './helpers.js';
 
 type Row = {
-  id: string;
+  id: number;
   periodStart: string;
   title: string;
   achieved: boolean | null;
@@ -14,7 +14,7 @@ type Row = {
   reviewedAt: string | null;
 };
 
-const goal = (id: string, periodStart: string, title: string): Row => ({
+const goal = (id: number, periodStart: string, title: string): Row => ({
   id,
   periodStart,
   title,
@@ -31,9 +31,9 @@ function fakePool(rows: Row[] = []) {
     queries.push({ sql, params });
     if (sql.includes('app_settings')) return { rows: [{ value: '2026-10-18' }] };
     if (sql.includes('INSERT INTO twelve_week_goals'))
-      return { rows: [goal('9', '2026-10-18', String(params[1]))] };
+      return { rows: [goal(9, '2026-10-18', String(params[1]))] };
     if (sql.includes('FOR UPDATE'))
-      return { rows: rows.filter((row) => (params[0] as string[]).includes(row.id)) };
+      return { rows: rows.filter((row) => (params[0] as number[]).includes(row.id)) };
     if (sql.startsWith('UPDATE twelve_week_goals SET title') || sql.startsWith('DELETE')) {
       const id = sql.startsWith('DELETE') ? params[0] : params[1];
       const start = sql.startsWith('DELETE') ? params[1] : params[2];
@@ -56,10 +56,10 @@ const issued = (queries: { sql: string; params: unknown[] }[], word: string) =>
 
 test('the page data holds the period, weeks left, goals and past periods newest first', async () => {
   const { pool, queries } = fakePool([
-    goal('3', '2026-10-18', 'Current goal'),
-    goal('2', '2026-07-26', 'Past goal'),
-    goal('4', '2026-07-26', 'Past goal 2'),
-    goal('1', '2026-05-03', 'Earlier goal'),
+    goal(3, '2026-10-18', 'Current goal'),
+    goal(2, '2026-07-26', 'Past goal'),
+    goal(4, '2026-07-26', 'Past goal 2'),
+    goal(1, '2026-05-03', 'Earlier goal'),
   ]);
   await withApi(
     pool,
@@ -78,8 +78,8 @@ test('the page data holds the period, weeks left, goals and past periods newest 
       assert.deepEqual(
         past.map((entry) => [entry.period, entry.goals.map((row) => row.id)]),
         [
-          [{ start: '2026-07-26', end: '2026-10-17' }, ['2', '4']],
-          [{ start: '2026-05-03', end: '2026-07-25' }, ['1']],
+          [{ start: '2026-07-26', end: '2026-10-17' }, [2, 4]],
+          [{ start: '2026-05-03', end: '2026-07-25' }, [1]],
         ],
       );
     },
@@ -157,17 +157,17 @@ test('invalid goals are English 400s before any query', async () => {
 });
 
 test('goals of the current period can change; past ones refuse and missing ones are 404s', async () => {
-  const { pool } = fakePool([goal('1', '2026-10-18', 'Current'), goal('2', '2026-07-26', 'Past')]);
+  const { pool } = fakePool([goal(1, '2026-10-18', 'Current'), goal(2, '2026-07-26', 'Past')]);
   await withApi(
     pool,
     async (call) => {
-      const rename = (id: string) =>
+      const rename = (id: number) =>
         call(`/api/goals/${id}`, { method: 'PATCH', body: { title: 'New name' } });
-      assert.equal((await rename('1')).status, 200);
-      const past = await rename('2');
+      assert.equal((await rename(1)).status, 200);
+      const past = await rename(2);
       assert.equal(past.status, 400);
       assert.equal(past.data.error, 'Goals of past periods cannot be edited');
-      const missing = await rename('9');
+      const missing = await rename(9);
       assert.equal(missing.status, 404);
       assert.equal(missing.data.error, 'Goal not found');
 
@@ -185,8 +185,8 @@ const putReviews = (reviews: unknown) => ({ method: 'PUT', body: { reviews } });
 
 test('reviews of past goals save in one transaction, with blank notes as none', async () => {
   const { pool, queries } = fakePool([
-    goal('2', '2026-07-26', 'Past'),
-    goal('4', '2026-07-26', 'Another'),
+    goal(2, '2026-07-26', 'Past'),
+    goal(4, '2026-07-26', 'Another'),
   ]);
   await withApi(
     pool,
@@ -194,8 +194,8 @@ test('reviews of past goals save in one transaction, with blank notes as none', 
       const { status } = await call(
         '/api/goals/reviews',
         putReviews([
-          { id: '2', achieved: true, note: ' Done it ' },
-          { id: '4', achieved: null, note: '  ' },
+          { id: 2, achieved: true, note: ' Done it ' },
+          { id: 4, achieved: null, note: '  ' },
         ]),
       );
       assert.equal(status, 200);
@@ -203,15 +203,15 @@ test('reviews of past goals save in one transaction, with blank notes as none', 
     { today },
   );
   const updates = issued(queries, 'SET achieved');
-  assert.deepEqual(updates[0].params, ['2', true, 'Done it']);
-  assert.deepEqual(updates[1].params, ['4', null, null]);
+  assert.deepEqual(updates[0].params, [2, true, 'Done it']);
+  assert.deepEqual(updates[1].params, [4, null, null]);
   assert.equal(queries.at(-1)?.sql, 'COMMIT');
 });
 
 test('reviewing a goal of the running period or a missing goal cancels everything', async () => {
   const { pool, queries } = fakePool([
-    goal('1', '2026-10-18', 'Current'),
-    goal('2', '2026-07-26', 'Past'),
+    goal(1, '2026-10-18', 'Current'),
+    goal(2, '2026-07-26', 'Past'),
   ]);
   await withApi(
     pool,
@@ -219,8 +219,8 @@ test('reviewing a goal of the running period or a missing goal cancels everythin
       const running = await call(
         '/api/goals/reviews',
         putReviews([
-          { id: '2', achieved: true },
-          { id: '1', achieved: true },
+          { id: 2, achieved: true },
+          { id: 1, achieved: true },
         ]),
       );
       assert.equal(running.status, 400);
@@ -228,8 +228,8 @@ test('reviewing a goal of the running period or a missing goal cancels everythin
       const missing = await call(
         '/api/goals/reviews',
         putReviews([
-          { id: '2', achieved: true },
-          { id: '9', achieved: false },
+          { id: 2, achieved: true },
+          { id: 9, achieved: false },
         ]),
       );
       assert.equal(missing.status, 404);
@@ -251,20 +251,20 @@ test('invalid reviews are English 400s before any query', async () => {
         [[], 'There are no goals to review'],
         ['goal', 'There are no goals to review'],
         [[{ id: 'x', achieved: true }], 'Invalid goal ID'],
-        [[{ id: '2', achieved: 'yes' }], 'Invalid achieved value'],
-        [[{ id: '2' }], 'Invalid achieved value'],
+        [[{ id: 2, achieved: 'yes' }], 'Invalid achieved value'],
+        [[{ id: 2 }], 'Invalid achieved value'],
         [[{ achieved: true }], 'Invalid goal ID'],
-        [[{ id: 3, achieved: true }], 'Invalid goal ID'],
+        [[{ id: '3', achieved: true }], 'Invalid goal ID'],
         [['x'], 'Invalid review content'],
         [
-          [{ id: '2', achieved: true, note: 'a'.repeat(1001) }],
+          [{ id: 2, achieved: true, note: 'a'.repeat(1001) }],
           'The note must be 1000 characters or fewer',
         ],
-        [[{ id: '2', achieved: true, note: 'a\0b' }], 'Contains characters that are not allowed'],
+        [[{ id: 2, achieved: true, note: 'a\0b' }], 'Contains characters that are not allowed'],
         [
           [
-            { id: '2', achieved: true },
-            { id: '2', achieved: false },
+            { id: 2, achieved: true },
+            { id: 2, achieved: false },
           ],
           'The same goal cannot be reviewed twice',
         ],
@@ -302,7 +302,7 @@ test('goal input of the wrong type answers with one message, even if it has a le
 
 test('a review request over the limit is refused before any query, and one at the limit is not', async () => {
   const reviews = (count: number) =>
-    Array.from({ length: count }, (_, index) => ({ id: String(index + 1), achieved: true }));
+    Array.from({ length: count }, (_, index) => ({ id: index + 1, achieved: true }));
   const { pool, queries } = fakePool();
   await withApi(
     pool,
@@ -326,7 +326,7 @@ test('a review request over the limit is refused before any query, and one at th
 });
 
 // Answers the linking route's queries in order, like the database would.
-function linkPool(options: { goal?: boolean; goalElsewhere?: boolean; allowed?: string[] } = {}) {
+function linkPool(options: { goal?: boolean; goalElsewhere?: boolean; allowed?: number[] } = {}) {
   const queries: { sql: string; params: unknown[] }[] = [];
   const query = async (sql: string, params: unknown[] = []) => {
     queries.push({ sql, params });
@@ -337,7 +337,9 @@ function linkPool(options: { goal?: boolean; goalElsewhere?: boolean; allowed?: 
     if (sql.includes('FROM routines'))
       return { rows: (options.allowed ?? []).map((id) => ({ id })) };
     if (sql.includes('JOIN routines'))
-      return { rows: (options.allowed ?? []).map((id) => ({ id, name: id, goalId: params[0] })) };
+      return {
+        rows: (options.allowed ?? []).map((id) => ({ id, name: String(id), goalId: params[0] })),
+      };
     return { rows: [] };
   };
   const pool = { query, connect: async () => ({ query, release() {} }) } as unknown as Pool;
@@ -346,15 +348,15 @@ function linkPool(options: { goal?: boolean; goalElsewhere?: boolean; allowed?: 
 const putLinks = (routineIds: unknown) => ({ method: 'PUT', body: { routineIds } });
 
 test('linking replaces the links of a current goal in one transaction', async () => {
-  const { pool, queries } = linkPool({ allowed: ['1', '2'] });
+  const { pool, queries } = linkPool({ allowed: [1, 2] });
   await withApi(
     pool,
     async (call) => {
-      const { status, data } = await call('/api/goals/9/routines', putLinks(['1', '2']));
+      const { status, data } = await call('/api/goals/9/routines', putLinks([1, 2]));
       assert.equal(status, 200);
       assert.deepEqual(data.routines, [
-        { id: '1', name: '1' },
-        { id: '2', name: '2' },
+        { id: 1, name: '1' },
+        { id: 2, name: '2' },
       ]);
     },
     { today },
@@ -371,18 +373,15 @@ test('linking replaces the links of a current goal in one transaction', async ()
   assert.ok(removed >= 0);
   assert.ok(removed < added);
   assert.equal(issued(queries, 'FOR SHARE').length, 1);
-  assert.deepEqual(issued(queries, 'INSERT INTO twelve_week_goal_routines')[0].params, [
-    '9',
-    ['1', '2'],
-  ]);
+  assert.deepEqual(issued(queries, 'INSERT INTO twelve_week_goal_routines')[0].params, [9, [1, 2]]);
 });
 
 test('linking refuses a routine that cannot serve a goal and changes nothing', async () => {
-  const { pool, queries } = linkPool({ allowed: ['1'] });
+  const { pool, queries } = linkPool({ allowed: [1] });
   await withApi(
     pool,
     async (call) => {
-      const { status, data } = await call('/api/goals/9/routines', putLinks(['1', '2']));
+      const { status, data } = await call('/api/goals/9/routines', putLinks([1, 2]));
       assert.equal(status, 400);
       assert.match(String(data.error), /cannot be linked/);
     },
@@ -422,14 +421,14 @@ test('linking refuses bad input in English before touching the database', async 
         [{}, 'Invalid list of routines to link'],
         [{ routineIds: 'x' }, 'Invalid list of routines to link'],
         [{ routineIds: ['abc'] }, 'Invalid routine ID'],
-        [{ routineIds: [1] }, 'Invalid routine ID'],
-        [{ routineIds: ['1', '1'] }, 'The same routine cannot be linked twice'],
+        [{ routineIds: ['1'] }, 'Invalid routine ID'],
+        [{ routineIds: [1, 1] }, 'The same routine cannot be linked twice'],
       ] as const) {
         const { status, data } = await call('/api/goals/9/routines', { method: 'PUT', body });
         assert.equal(status, 400);
         assert.equal(data.error, message);
       }
-      const many = Array.from({ length: 201 }, (_, index) => String(index));
+      const many = Array.from({ length: 201 }, (_, index) => index + 1);
       const tooMany = await call('/api/goals/9/routines', putLinks(many));
       assert.equal(tooMany.status, 400);
       assert.match(String(tooMany.data.error), /at most 200 routines/);

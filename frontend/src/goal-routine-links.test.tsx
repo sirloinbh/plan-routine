@@ -16,16 +16,16 @@ beforeEach(() => {
 });
 
 const routines = [
-  { id: '1', name: 'Wake at 6', cadence: 'daily', category: 'wake', sortOrder: 0 },
-  { id: '2', name: 'Deep clean', cadence: 'weekly', category: null, sortOrder: 0 },
-  { id: '3', name: 'Tidy the budget', cadence: 'four_week', category: null, sortOrder: 0 },
-  { id: '4', name: 'Reset goals', cadence: 'twelve_week', category: null, sortOrder: 0 },
+  { id: 1, name: 'Wake at 6', cadence: 'daily', category: 'wake', sortOrder: 0 },
+  { id: 2, name: 'Deep clean', cadence: 'weekly', category: null, sortOrder: 0 },
+  { id: 3, name: 'Tidy the budget', cadence: 'four_week', category: null, sortOrder: 0 },
+  { id: 4, name: 'Reset goals', cadence: 'twelve_week', category: null, sortOrder: 0 },
 ];
 
 const reply = (status: number, body: unknown) =>
   Promise.resolve({ ok: status < 400, status, json: () => Promise.resolve(body) });
 
-const saved = [{ id: '1', name: 'Wake at 6' }];
+const saved = [{ id: 1, name: 'Wake at 6' }];
 
 function api(options: { list?: typeof routines; failList?: boolean; failSave?: boolean } = {}) {
   const writes: { path: string; body: unknown }[] = [];
@@ -45,7 +45,7 @@ function api(options: { list?: typeof routines; failList?: boolean; failSave?: b
   return writes;
 }
 
-const goal = { id: '9', title: 'Read a book', routines: [{ id: '1', name: 'Wake at 6' }] };
+const goal = { id: 9, title: 'Read a book', routines: [{ id: 1, name: 'Wake at 6' }] };
 const flush = () => act(() => new Promise((resolve) => setTimeout(resolve)));
 const opener = () => screen.getByRole('button', { name: 'Link routines to Read a book' });
 const panel = () => screen.getByRole('form', { name: 'Link routines to Read a book' });
@@ -115,7 +115,7 @@ test('saving sends what is ticked and returns focus to the button', async () => 
   save.focus();
   fireEvent.click(save);
   await flush();
-  expect(writes).toEqual([{ path: '/api/goals/9/routines', body: { routineIds: ['1', '2'] } }]);
+  expect(writes).toEqual([{ path: '/api/goals/9/routines', body: { routineIds: [1, 2] } }]);
   expect(onSaved).toHaveBeenCalledWith("Linked 2 routines to the goal 'Read a book'", saved);
   expect(screen.queryByRole('form')).not.toBeInTheDocument();
   expect(opener()).toHaveFocus();
@@ -198,7 +198,7 @@ test('after a refused save the list is fetched again, so the next save can succe
   expect(within(panel()).queryByRole('checkbox', { name: 'Deep clean' })).not.toBeInTheDocument();
   fireEvent.click(within(panel()).getByRole('button', { name: 'Save links' }));
   await flush();
-  expect(writes.at(-1)?.body).toEqual({ routineIds: ['1'] });
+  expect(writes.at(-1)?.body).toEqual({ routineIds: [1] });
 });
 
 test('a list that fails after the user moved on leaves their focus alone', async () => {

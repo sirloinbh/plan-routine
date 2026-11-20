@@ -5,7 +5,7 @@ import { Checklist } from './checklist';
 import { ProjectLinks } from './project-links';
 import { getLive, queryLive } from './test/live';
 
-type Project = { id: string; name: string; url: string };
+type Project = { id: number; name: string; url: string };
 
 const reply = (status: number, body: unknown) =>
   Promise.resolve({ ok: status < 400, status, json: () => Promise.resolve(structuredClone(body)) });
@@ -26,12 +26,12 @@ function api(seed: Project[] = []) {
       if (method === 'POST') {
         if (body!.url.startsWith('javascript:'))
           return reply(400, { error: 'The URL must be https:// or a private access address' });
-        const project = { id: String(nextId++), name: body!.name, url: body!.url };
+        const project = { id: nextId++, name: body!.name, url: body!.url };
         projects = [...projects, project];
         return reply(201, { project });
       }
-      const id = path.split('/')[3];
-      if (id === '500') return reply(500, { error: 'A server error occurred' });
+      const id = Number(path.split('/')[3]);
+      if (id === 500) return reply(500, { error: 'A server error occurred' });
       projects = projects.filter((project) => project.id !== id);
       return reply(200, { id });
     }),
@@ -44,8 +44,8 @@ const button = (name: string) => screen.getByRole('button', { name });
 const field = (name: string) => screen.getByRole('textbox', { name });
 const type = (name: string, value: string) => fireEvent.change(field(name), { target: { value } });
 
-const books = { id: '1', name: 'Reading log', url: 'https://books.example/' };
-const money = { id: '2', name: 'Budget', url: 'http://nas.local/' };
+const books = { id: 1, name: 'Reading log', url: 'https://books.example/' };
+const money = { id: 2, name: 'Budget', url: 'http://nas.local/' };
 
 test('shows registered projects, or that there are none', async () => {
   api([books]);
@@ -114,7 +114,7 @@ test('removing asks first, then moves focus to the next project', async () => {
 });
 
 test('a removal that fails stays on its own row', async () => {
-  api([{ ...books, id: '500' }]);
+  api([{ ...books, id: 500 }]);
   render(<ProjectLinks />);
   await flush();
   fireEvent.click(button('Delete Reading log'));
@@ -130,13 +130,13 @@ test('a checklist item opens its project in a new tab, safely', () => {
       title="Reading"
       items={[
         {
-          id: '1',
+          id: 1,
           name: 'Read 30 min',
           checked: false,
           linkName: 'Reading log',
           linkUrl: 'https://books.example/',
         },
-        { id: '2', name: 'Take notes', checked: false },
+        { id: 2, name: 'Take notes', checked: false },
       ]}
       onToggle={() => {}}
     />,
@@ -154,7 +154,7 @@ test('a checklist never renders an address that is not http or https', () => {
       title="Reading"
       items={[
         {
-          id: '1',
+          id: 1,
           name: 'Read 30 min',
           checked: false,
           linkName: 'Bad URL',
