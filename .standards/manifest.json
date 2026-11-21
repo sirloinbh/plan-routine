@@ -1,5 +1,5 @@
 {
-  "centralSha": "686734e92c60717d304d1655535b297f4c177720",
+  "centralSha": "55c93a51e450a426406430f35bcc4c97aa2193c5",
   "profile": "app",
   "project": "plan-routine",
   "files": {
@@ -405,7 +405,7 @@
     },
     "deploy/remote-deploy.sh": {
       "mode": "full",
-      "sha256": "304aa78167a6a5f5eb9ac2fb958be8f0e390cb17aa09d2185b881bec06de8f1e",
+      "sha256": "d9e21193bc053f12d0a5f5a0234f41a09951b3300e68aaed112e5146bffca96b",
       "source": "templates/deploy/deploy/remote-deploy.sh.tmpl"
     },
     "deploy/report.service": {
