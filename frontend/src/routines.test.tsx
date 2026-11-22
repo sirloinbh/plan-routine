@@ -1,9 +1,10 @@
-import { act, configure, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, configure, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { expect, test, vi } from 'vitest';
 
 import { groupByCategory } from './routine-groups';
 import { DailyRoutines, type Routine } from './routines';
 import { findLive, getLive } from './test/live';
+import { render } from './test/render';
 import { unexpectedRequest } from './test/unexpected-request';
 
 // Focus follows a reload, which on a busy machine can outlast the default one second.
@@ -72,6 +73,13 @@ function routineApi(seed: Seed[] = []) {
   };
 }
 
+// The query layer tells the screen about a result one timer tick after the answer arrives.
+const tick = () => new Promise((resolve) => setTimeout(resolve));
+const flush = () =>
+  act(async () => {
+    await tick();
+    await tick();
+  });
 const region = (label: string) => screen.getByRole('region', { name: `${label} routines` });
 const names = (label: string) =>
   within(region(label))
@@ -394,7 +402,7 @@ test('a change does not take focus back once the user has moved on', async () =>
   reading.focus();
   release();
   await screen.findByText('Morning stretch');
-  await act(() => new Promise((resolve) => setTimeout(resolve)));
+  await flush();
   expect(reading).toHaveFocus();
 });
 
@@ -406,7 +414,7 @@ test('a reload from elsewhere does not move focus', async () => {
   add.focus();
   const loads = vi.mocked(fetch).mock.calls.length;
   document.dispatchEvent(new Event('visibilitychange'));
-  await act(() => new Promise((resolve) => setTimeout(resolve)));
+  await flush();
   // The routines and the projects a routine can link to.
   expect(vi.mocked(fetch).mock.calls.length).toBe(loads + 2);
   expect(add).toHaveFocus();
@@ -423,7 +431,7 @@ test('on a touch screen no field takes focus, so no keyboard pops up unasked', a
   fireEvent.click(button('Archive Wake at 6'));
   fireEvent.click(button('Confirm archiving Wake at 6'));
   await waitFor(() => expect(screen.queryByText('Wake at 6')).not.toBeInTheDocument());
-  await act(() => new Promise((resolve) => setTimeout(resolve)));
+  await flush();
   expect(screen.getByRole('textbox', { name: 'New wake-up routine name' })).not.toHaveFocus();
 });
 
@@ -498,7 +506,7 @@ test('with no projects registered a routine offers no link', async () => {
   routineApi(twoRoutines);
   render(<DailyRoutines />);
   await screen.findByText('Wake at 6');
-  await act(() => new Promise((resolve) => setTimeout(resolve)));
+  await flush();
   expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
 });
 
@@ -527,7 +535,7 @@ test('only the add button that was pressed spins', async () => {
     target: { value: 'Morning stretch' },
   });
   fireEvent.click(within(region('Wake-up')).getByRole('button', { name: 'Add' }));
-  await act(() => new Promise((resolve) => setTimeout(resolve)));
+  await flush();
   expect(screen.getAllByRole('status', { name: 'Saving' })).toHaveLength(1);
   expect(within(region('Wake-up')).getByRole('status', { name: 'Saving' })).toBeInTheDocument();
   release();
@@ -543,7 +551,7 @@ test('moving a routine spins nothing, and an archive spins only its own row', as
   await screen.findByText('Wake at 6');
   const release = holdWrites();
   fireEvent.click(button('Move Drink water up'));
-  await act(() => new Promise((resolve) => setTimeout(resolve)));
+  await flush();
   expect(screen.queryByRole('status', { name: /ing/ })).not.toBeInTheDocument();
   release();
   await waitFor(() => expect(button('Rename Drink water')).not.toBeDisabled());
@@ -551,7 +559,7 @@ test('moving a routine spins nothing, and an archive spins only its own row', as
   const again = holdWrites();
   fireEvent.click(button('Archive Wake at 6'));
   fireEvent.click(button('Confirm archiving Wake at 6'));
-  await act(() => new Promise((resolve) => setTimeout(resolve)));
+  await flush();
   expect(
     within(button('Confirm archiving Wake at 6')).getByRole('status', { name: 'Working' }),
   ).toBeInTheDocument();
@@ -563,4 +571,26 @@ test('moving a routine spins nothing, and an archive spins only its own row', as
     expect(screen.queryByRole('status', { name: /ing/ })).not.toBeInTheDocument(),
   );
   expect(screen.getByText('Drink water')).toBeVisible();
+});
+
+test('a failed project list says so instead of looking like no projects', async () => {
+  routineApi(twoRoutines);
+  const working = vi.mocked(fetch).getMockImplementation()!;
+  vi.stubGlobal(
+    'fetch',
+    vi.fn((url: string, init?: RequestInit) =>
+      url === '/api/project-links'
+        ? Promise.resolve(
+            new Response(JSON.stringify({ error: 'A server error occurred' }), { status: 500 }),
+          )
+        : working(url, init),
+    ),
+  );
+  render(<DailyRoutines />);
+  await screen.findByText('Wake at 6');
+  await flush();
+  expect(getLive('alert')).toHaveTextContent(
+    'Could not load the projects a routine can link to. A server error occurred',
+  );
+  expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
 });

@@ -1,9 +1,13 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useCallback, useRef, useState } from 'react';
 
-import { requestJson } from './api';
 import { useFocusRequest } from './focus-moves';
+import { requestJson } from './lib/api';
+import { apiKey, useApiQuery } from './lib/query';
+import { errorText } from './lib/use-notice';
 import type { ProjectLink } from './project-links';
 import type { Routine } from './routines';
+import { useReloadWhenShown } from './use-date-change';
 
 export type RoutineNotice = { kind: 'status' | 'alert'; text: string } | null;
 
@@ -17,22 +21,18 @@ const focusKeys = {
 };
 
 // Loads one cadence's routines and changes them. All state lives here (not in child components)
-// so per-item editing survives re-renders. `version` changes after every change made here;
-// `refresh` only loads again, so it does not tell other lists on the page that something changed.
+// so per-item editing survives re-renders. After every change made here the lists and checklists
+// on the page load again; `refresh` only loads this list again.
 export function useRoutineList(cadence: string) {
-  const [routines, setRoutines] = useState<Routine[] | null>(null);
-  const [version, setVersion] = useState(0);
-  const [refreshes, setRefreshes] = useState(0);
-  const [loadFailed, setLoadFailed] = useState(false);
+  const client = useQueryClient();
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [editing, setEditing] = useState<{ id: number; name: string } | null>(null);
   const [confirmArchive, setConfirmArchive] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   // Which button started the change: busy disables them all, only this one shows it is working.
   const [pending, setPending] = useState<string | null>(null);
-  const [notice, setNotice] = useState<RoutineNotice>(null);
-  const [projects, setProjects] = useState<ProjectLink[]>([]);
-  const loadErrorShown = useRef(false);
+  // The message of a change made here. A failed load shows its own message when there is none.
+  const [changeNotice, setNotice] = useState<RoutineNotice>(null);
   // Focus waits for the reload after a change, because moving a row also moves its buttons.
   const changesMade = useRef(0);
   const [loadedVersion, setLoadedVersion] = useState(0);
@@ -40,56 +40,39 @@ export function useRoutineList(cadence: string) {
     () => !busy && loadedVersion >= changesMade.current,
   );
 
-  useEffect(() => {
-    // A newer reload supersedes this one, so a slow older response cannot overwrite it.
-    let ignore = false;
-    requestJson<{ routines: Routine[] }>(`/api/routines?cadence=${cadence}`)
-      .then((data) => {
-        if (ignore) return;
-        setRoutines(data.routines);
-        setLoadedVersion(version);
-        setLoadFailed(false);
-        // Only a load's own error: the message of a failed change must survive the reload after it.
-        if (loadErrorShown.current) setNotice(null);
-        loadErrorShown.current = false;
-      })
-      .catch((error: Error) => {
-        if (ignore) return;
-        setRoutines((current) => current ?? []);
-        setLoadedVersion(version);
-        setLoadFailed(true);
-        loadErrorShown.current = true;
-        setNotice({ kind: 'alert', text: error.message });
-      });
-    return () => {
-      ignore = true;
-    };
-  }, [cadence, version, refreshes]);
+  const routinesKey = apiKey('/api/routines', cadence);
+  const routinesQuery = useApiQuery<{ routines: Routine[] }>(
+    routinesKey,
+    `/api/routines?cadence=${cadence}`,
+    { staleTime: 0 },
+  );
+  // Only offers a choice, so without it a routine simply has nothing to link to. Every list on a page
+  // shares this one load, and a failed load is said so rather than looking like "no projects".
+  const projectsQuery = useApiQuery<{ projects?: ProjectLink[] }>(
+    apiKey('/api/project-links'),
+    '/api/project-links',
+  );
+  const routines = routinesQuery.data?.routines ?? (routinesQuery.isError ? [] : null);
+  const projects = projectsQuery.data?.projects ?? [];
+  const loadFailed = routinesQuery.isError;
+  const loadNotice: RoutineNotice = routinesQuery.error
+    ? { kind: 'alert', text: errorText(routinesQuery.error) }
+    : projectsQuery.error
+      ? {
+          kind: 'alert',
+          text: `Could not load the projects a routine can link to. ${errorText(projectsQuery.error)}`,
+        }
+      : null;
+  const notice = changeNotice ?? loadNotice;
 
-  // Only offers a choice, so without it a routine simply has nothing to link to. Loaded along with
-  // the routines, since another tab may have changed the projects.
-  useEffect(() => {
-    let ignore = false;
-    requestJson<{ projects?: ProjectLink[] }>('/api/project-links')
-      .then((data) => {
-        if (!ignore) setProjects(data.projects ?? []);
-      })
-      .catch(() => {});
-    return () => {
-      ignore = true;
-    };
-  }, [version, refreshes]);
-
-  const refresh = useCallback(() => setRefreshes((value) => value + 1), []);
-
+  const { refetch: refetchRoutines } = routinesQuery;
+  const { refetch: refetchProjects } = projectsQuery;
+  const refresh = useCallback(() => {
+    void refetchRoutines();
+    void refetchProjects();
+  }, [refetchRoutines, refetchProjects]);
   // Picks up changes made elsewhere when the page is shown again.
-  useEffect(() => {
-    const reloadWhenShown = () => {
-      if (document.visibilityState === 'visible') refresh();
-    };
-    document.addEventListener('visibilitychange', reloadWhenShown);
-    return () => document.removeEventListener('visibilitychange', reloadWhenShown);
-  }, [refresh]);
+  useReloadWhenShown(refresh);
 
   const run = async (
     action: () => Promise<unknown>,
@@ -99,7 +82,7 @@ export function useRoutineList(cadence: string) {
     setBusy(true);
     setPending(started);
     beginChange();
-    loadErrorShown.current = false;
+    setNotice(null);
     try {
       await action();
       setNotice({ kind: 'status', text: done });
@@ -108,13 +91,17 @@ export function useRoutineList(cadence: string) {
       setNotice({ kind: 'alert', text: (error as Error).message });
       return false;
     } finally {
-      // A load that failed during this change must not make the next load clear its message.
-      loadErrorShown.current = false;
-      // Reload after failures too: a 404 usually means the list is stale (changed elsewhere).
+      // Reload after failures too: a 404 usually means the list is stale (changed elsewhere). The
+      // checklist of this cadence on the same page changes with the routines.
       changesMade.current += 1;
-      setVersion(changesMade.current);
+      const change = changesMade.current;
       setBusy(false);
       setPending(null);
+      void Promise.all([
+        client.invalidateQueries({ queryKey: routinesKey }),
+        client.invalidateQueries({ queryKey: apiKey('/api/project-links') }),
+        client.invalidateQueries({ queryKey: apiKey('/api/checklist') }),
+      ]).then(() => setLoadedVersion(change));
     }
   };
 
@@ -155,7 +142,8 @@ export function useRoutineList(cadence: string) {
       focusKeys.edit(editing.id),
       focusKeys.add(draftKey),
     ]);
-    if (ok) setEditing(null);
+    // The routine may have gone, or another one been opened for editing, while this was saving.
+    if (ok) setEditing((current) => (current?.id === editing.id ? null : current));
   };
 
   const cancelEditing = () => {
@@ -218,7 +206,6 @@ export function useRoutineList(cadence: string) {
     pending,
     projects,
     setProjectLink,
-    version,
     loadFailed,
     refresh,
     drafts,

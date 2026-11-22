@@ -19,13 +19,9 @@ export type ChecklistData<T> = {
   items: T[];
 };
 
-// Loads a cadence's checklist and saves checks, showing them at once. Changing `reloadKey` loads
-// again, for pages that also change the routines themselves; `onSaveFailed` tells them a save failed.
-export function useChecklist<T extends ChecklistItem>(
-  cadence: string,
-  reloadKey = 0,
-  onSaveFailed?: () => void,
-) {
+// Loads a cadence's checklist and saves checks, showing them at once. `onSaveFailed` tells pages that
+// also list the routines that a save failed. Changes to the routines invalidate this checklist's query.
+export function useChecklist<T extends ChecklistItem>(cadence: string, onSaveFailed?: () => void) {
   const client = useQueryClient();
   // null follows the server's today: the next load after midnight shows the new day.
   const [date, setDate] = useState<string | null>(null);
@@ -86,15 +82,6 @@ export function useChecklist<T extends ChecklistItem>(
 
   // A page left open (an installed app, a phone tab) must not keep saving to an earlier period.
   useReloadWhenCurrent(query, '/api/checklist');
-
-  // Pages that change the routines themselves load the checklist again.
-  const firstKey = useRef(reloadKey);
-  useEffect(() => {
-    if (reloadKey !== firstKey.current) {
-      firstKey.current = reloadKey;
-      void refetch();
-    }
-  }, [reloadKey, refetch]);
 
   // Show the load's own failure unless a save or a date message is on screen.
   const notice =

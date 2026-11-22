@@ -228,6 +228,20 @@ describe('the goals of this period', () => {
     expect(screen.queryByText(/set new ones/)).not.toBeInTheDocument();
   });
 
+  test('the routine list asks for the projects once when the page opens', async () => {
+    goalsApi();
+    // Strict mode mounts every effect twice, which would double any count; this test counts real requests.
+    configure({ reactStrictMode: false });
+    try {
+      render(<TwelveWeek />);
+      await flush();
+    } finally {
+      configure({ reactStrictMode: true });
+    }
+    const asked = vi.mocked(fetch).mock.calls.filter(([url]) => url === '/api/project-links');
+    expect(asked).toHaveLength(1);
+  });
+
   test('several goals can be added, and an empty one shows an English error', async () => {
     const api = goalsApi();
     render(<TwelveWeek />);
