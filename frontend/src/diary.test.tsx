@@ -18,6 +18,11 @@ const today = '2026-10-22';
 
 // A fake diary API with state, like the server: one entry per date and an English 400 for an empty
 // body. A plain object rather than a Response resolves in microtasks only, so flush() is exact.
+const refused = (path: string, message: string) => ({
+  error: message,
+  fields: [{ path, message }],
+});
+
 function diaryApi(seed: Entry[] = []) {
   const entries = new Map(seed.map((entry) => [entry.date, entry]));
   const writes: { path: string; body: Record<string, string> }[] = [];
@@ -66,7 +71,7 @@ function diaryApi(seed: Entry[] = []) {
         return reply(500, { error: 'A server error occurred' });
       }
       if (!body.body.trim()) {
-        const refusal = reply(400, { error: 'Enter the diary entry' });
+        const refusal = reply(400, refused('body', 'Enter the diary entry'));
         if (!holdNextSave) return refusal;
         holdNextSave = false;
         return new Promise((resolve) => {
@@ -74,7 +79,12 @@ function diaryApi(seed: Entry[] = []) {
         });
       }
       if (body.body.length > 5000)
-        return reply(400, { error: 'The diary entry must be 5000 characters or fewer' });
+        return reply(400, refused('body', 'The diary entry must be 5000 characters or fewer'));
+      if (body.goodNote.length > 1000)
+        return reply(400, refused('goodNote', 'Good points must be 1000 characters or fewer'));
+      // An older server answers a 400 without `fields`.
+      if (body.regretNote.length > 1000)
+        return reply(400, { error: 'Regrets must be 1000 characters or fewer' });
       const date = url.split('/')[3];
       const entry = {
         date,
@@ -607,6 +617,36 @@ test('an empty body is marked and takes focus when saving fails, until it is typ
   expect(body).toHaveAttribute('aria-invalid', 'true');
   await type('Looking back on the day', 'Just wrote');
   expect(body).not.toHaveAttribute('aria-invalid');
+});
+
+test('a note the server names is marked and takes focus, not the body', async () => {
+  diaryApi();
+  render(<Diary />);
+  await type('Looking back on the day', 'A fine day');
+  await type('What went well (optional)', 'x'.repeat(1001));
+  press('Save');
+  await flush();
+  expect(getLive('alert')).toHaveTextContent('Good points must be 1000 characters or fewer');
+  const note = await field('What went well (optional)');
+  expect(note).toHaveFocus();
+  expect(note).toHaveAttribute('aria-invalid', 'true');
+  expect(await field('Looking back on the day')).not.toHaveAttribute('aria-invalid');
+});
+
+test('a 400 that names no field shows its message and marks nothing', async () => {
+  diaryApi();
+  render(<Diary />);
+  await type('Looking back on the day', 'A fine day');
+  await type('What could be better (optional)', 'x'.repeat(1001));
+  const save = screen.getByRole('button', { name: 'Save' });
+  save.focus();
+  press('Save');
+  await flush();
+  expect(getLive('alert')).toHaveTextContent('Regrets must be 1000 characters or fewer');
+  for (const textbox of screen.getAllByRole('textbox')) {
+    expect(textbox).not.toHaveAttribute('aria-invalid');
+  }
+  expect(save).toHaveFocus();
 });
 
 test("a body over the limit is marked too, but a server failure is not the body's fault", async () => {

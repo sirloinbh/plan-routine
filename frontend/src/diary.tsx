@@ -8,12 +8,12 @@ import { Spinner } from './components/ui/spinner';
 import {
   clearDraft,
   type DiaryForm,
-  draftKey,
   readDraft,
   sameForm,
   sameText,
-  writeDraft,
+  useDiaryDraft,
 } from './diary-draft';
+import { diaryLimits } from './diary-limits';
 import { isFocusFree, useDateHeading } from './focus-moves';
 import { dateHeading, formatDate } from './format-date';
 import { LabeledTextarea } from './labeled-textarea';
@@ -39,6 +39,14 @@ type DiaryData = {
   entry: DiaryEntry | null;
 };
 
+// The textarea of each form field, to focus the one a 400 names.
+const fieldIds: Record<keyof DiaryForm, string> = {
+  body: 'diary-body',
+  goodNote: 'diary-good',
+  regretNote: 'diary-regret',
+  tomorrowNote: 'diary-tomorrow',
+};
+
 const formFrom = (entry: DiaryEntry | null): DiaryForm => ({
   body: entry?.body ?? '',
   goodNote: entry?.goodNote ?? '',
@@ -58,17 +66,20 @@ export function Diary() {
   // A notice appears beside what it is about: the save button or the date buttons.
   const [noticeAtSave, setNoticeAtSave] = useState(false);
   const openedForDraft = useRef(date !== null);
-  const [draftFailed, setDraftFailed] = useState(false);
-  const [bodyInvalid, setBodyInvalid] = useState(false);
+  // The field the server refused in the last save, named in its 400 answer.
+  const [invalidField, setInvalidField] = useState<keyof DiaryForm | null>(null);
   const [confirmingDiscard, setConfirmingDiscard] = useState(false);
-  // What this tab last stored. Only that may be cleared: a draft may be another tab's by now.
-  const lastWritten = useRef<DiaryForm | null>(null);
-  const draftBase = useRef<DiaryForm | null>(null);
   const saveButton = useRef<HTMLButtonElement>(null);
   const discardButton = useRef<HTMLButtonElement>(null);
   const confirmDiscardButton = useRef<HTMLButtonElement>(null);
   const { notice, status, error, clear } = useNotice();
   const { heading, expectMove } = useDateHeading(data?.date);
+  // While a day is loading, the form still holds the previous day's text.
+  const { draftFailed, adopt } = useDiaryDraft({
+    date: data && !loading ? data.date : null,
+    form,
+    savedForm,
+  });
 
   useEffect(() => {
     // A newer load supersedes this one, so a slow older response cannot overwrite it.
@@ -90,10 +101,7 @@ export function Diary() {
         }
         // A draft saying what is already saved has nothing left to keep.
         if (stored?.date === loaded.date && !draft) clearDraft(loaded.date);
-        // Read only here: a stored draft may by now be another tab's, with a base of its own.
-        draftBase.current = draft?.base ?? null;
-        // A restored draft is this tab's now, even if storing it again is refused.
-        lastWritten.current = draft?.form ?? null;
+        adopt(draft);
         setData(loaded);
         setForm(draft?.form ?? server);
         setSavedForm(server);
@@ -125,62 +133,13 @@ export function Diary() {
     return () => {
       ignore = true;
     };
-  }, [date, version, error, status]);
+  }, [date, version, error, status, adopt]);
 
   const dirty = !sameForm(form, savedForm);
 
-  // While a day is loading, the form still holds the previous day's text.
-  useEffect(() => {
-    if (!data || loading) return;
-    if (!sameText(form, savedForm)) {
-      // The draft keeps its first base, or a save made elsewhere would be forgotten on the next visit.
-      const base = draftBase.current ?? savedForm;
-      draftBase.current = base;
-      const written = writeDraft({ date: data.date, form, base });
-      if (written) lastWritten.current = form;
-      setDraftFailed(!written);
-      return;
-    }
-    if (lastWritten.current) clearDraft(data.date, lastWritten.current);
-    lastWritten.current = null;
-    draftBase.current = null;
-    setDraftFailed(false);
-  }, [data, loading, form, savedForm]);
-
-  // Another tab shares the one draft. If it took the draft, this tab's text is no longer kept, so
-  // say so until the next keystroke takes it back. If it cleared the draft, put this tab's back.
-  useEffect(() => {
-    if (!data || loading || sameText(form, savedForm)) return;
-    const othersChanged = (event: StorageEvent) => {
-      // A null key is the whole storage being cleared.
-      if (event.key !== null && event.key !== draftKey) return;
-      if (event.newValue !== null) {
-        // This event can be older than this tab's own write, when tabs write at nearly the same time.
-        const stored = readDraft();
-        setDraftFailed(!(stored?.date === data.date && sameForm(stored.form, form)));
-        return;
-      }
-      const base = draftBase.current ?? savedForm;
-      const written = writeDraft({ date: data.date, form, base });
-      if (written) lastWritten.current = form;
-      setDraftFailed(!written);
-    };
-    window.addEventListener('storage', othersChanged);
-    return () => window.removeEventListener('storage', othersChanged);
-  }, [data, loading, form, savedForm]);
-
-  // A draft survives closing the tab. Only when it could not be kept does leaving need a warning.
-  const leavingLosesText = dirty && draftFailed;
-  useEffect(() => {
-    if (!leavingLosesText) return;
-    const warn = (event: BeforeUnloadEvent) => event.preventDefault();
-    window.addEventListener('beforeunload', warn);
-    return () => window.removeEventListener('beforeunload', warn);
-  }, [leavingLosesText]);
-
   const setField = (field: keyof DiaryForm) => (value: string) => {
     setConfirmingDiscard(false);
-    if (field === 'body') setBodyInvalid(false);
+    setInvalidField((current) => (current === field ? null : current));
     setForm((current) => ({ ...current, [field]: value }));
   };
 
@@ -193,7 +152,7 @@ export function Diary() {
       return;
     }
     clear();
-    setBodyInvalid(false);
+    setInvalidField(null);
     expectMove();
     setLoading(true);
     setDate(target);
@@ -204,7 +163,7 @@ export function Diary() {
     if (saving || loading) return;
     const origin = document.activeElement;
     setSaving(true);
-    setBodyInvalid(false);
+    setInvalidField(null);
     setConfirmingDiscard(false);
     setNoticeAtSave(true);
     clear();
@@ -220,16 +179,20 @@ export function Diary() {
       status(`Saved the diary entry for ${formatDate(target)}`);
     } catch (cause) {
       error(cause);
-      // What the server refuses is the body when it is empty or too long, so take the user there.
-      const body = form.body.trim();
-      if (cause instanceof RequestError && cause.status === 400 && (!body || body.length > 5000)) {
+      // Take the user to the field the 400 names. Without one, the message alone says what is wrong.
+      const named =
+        cause instanceof RequestError && cause.status === 400
+          ? cause.fields.map(({ path }) => path).find((path) => Object.hasOwn(fieldIds, path))
+          : undefined;
+      if (named) {
+        const field = named as keyof DiaryForm;
         // Drawn first, so the field is read out as editable and invalid when focus reaches it.
         const free = isFocusFree(origin);
         flushSync(() => {
           setSaving(false);
-          setBodyInvalid(true);
+          setInvalidField(field);
         });
-        if (free) document.getElementById('diary-body')?.focus();
+        if (free) document.getElementById(fieldIds[field])?.focus();
       }
     } finally {
       setSaving(false);
@@ -245,7 +208,7 @@ export function Diary() {
   const discard = () => {
     flushSync(() => {
       setForm(savedForm);
-      setBodyInvalid(false);
+      setInvalidField(null);
       setConfirmingDiscard(false);
       setNoticeAtSave(true);
       status('Discarded the unsaved changes');
@@ -327,9 +290,9 @@ export function Diary() {
               label="Looking back on the day"
               value={form.body}
               rows={8}
-              limit={5000}
+              limit={diaryLimits.body}
               readOnly={readOnly}
-              invalid={bodyInvalid}
+              invalid={invalidField === 'body'}
               onChange={setField('body')}
             />
             <LabeledTextarea
@@ -337,8 +300,9 @@ export function Diary() {
               label="What went well (optional)"
               value={form.goodNote}
               rows={2}
-              limit={1000}
+              limit={diaryLimits.note}
               readOnly={readOnly}
+              invalid={invalidField === 'goodNote'}
               onChange={setField('goodNote')}
             />
             <LabeledTextarea
@@ -346,8 +310,9 @@ export function Diary() {
               label="What could be better (optional)"
               value={form.regretNote}
               rows={2}
-              limit={1000}
+              limit={diaryLimits.note}
               readOnly={readOnly}
+              invalid={invalidField === 'regretNote'}
               onChange={setField('regretNote')}
             />
             <LabeledTextarea
@@ -355,8 +320,9 @@ export function Diary() {
               label="To do tomorrow (optional)"
               value={form.tomorrowNote}
               rows={2}
-              limit={1000}
+              limit={diaryLimits.note}
               readOnly={readOnly}
+              invalid={invalidField === 'tomorrowNote'}
               onChange={setField('tomorrowNote')}
             />
             {noticeAtSave && <Notice notice={notice} />}
