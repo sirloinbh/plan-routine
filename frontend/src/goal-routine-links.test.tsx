@@ -27,7 +27,14 @@ const reply = (status: number, body: unknown) =>
 
 const saved = [{ id: 1, name: 'Wake at 6' }];
 
-function api(options: { list?: typeof routines; failList?: boolean; failSave?: boolean } = {}) {
+function api(
+  options: {
+    list?: typeof routines;
+    failList?: boolean;
+    failSave?: boolean;
+    savedRoutines?: { id: number; name: string }[];
+  } = {},
+) {
   const writes: { path: string; body: unknown }[] = [];
   vi.stubGlobal(
     'fetch',
@@ -39,7 +46,7 @@ function api(options: { list?: typeof routines; failList?: boolean; failSave?: b
       writes.push({ path: url, body: JSON.parse(String(init?.body)) });
       return options.failSave
         ? reply(400, { error: 'Some routines cannot be linked' })
-        : reply(200, { routines: saved });
+        : reply(200, { routines: options.savedRoutines ?? saved });
     }),
   );
   return writes;
@@ -107,7 +114,11 @@ test('offers daily and weekly routines only, with what is linked ticked and focu
 });
 
 test('saving sends what is ticked and returns focus to the button', async () => {
-  const writes = api();
+  const both = [
+    { id: 1, name: 'Wake at 6' },
+    { id: 2, name: 'Deep clean' },
+  ];
+  const writes = api({ savedRoutines: both });
   const { onSaved } = show();
   await openPanel();
   fireEvent.click(within(panel()).getByRole('checkbox', { name: 'Deep clean' }));
@@ -116,20 +127,50 @@ test('saving sends what is ticked and returns focus to the button', async () => 
   fireEvent.click(save);
   await flush();
   expect(writes).toEqual([{ path: '/api/goals/9/routines', body: { routineIds: [1, 2] } }]);
-  expect(onSaved).toHaveBeenCalledWith("Linked 2 routines to the goal 'Read a book'", saved);
+  expect(onSaved).toHaveBeenCalledWith("Linked 2 routines to the goal 'Read a book'", both);
   expect(screen.queryByRole('form')).not.toBeInTheDocument();
   expect(opener()).toHaveFocus();
 });
 
+const extra = { id: 5, name: 'Stretch', cadence: 'daily', category: null, sortOrder: 1 };
+
+test('the notice counts the routines the server linked, not the ones ticked', async () => {
+  const two = [
+    { id: 1, name: 'Wake at 6' },
+    { id: 2, name: 'Deep clean' },
+  ];
+  const writes = api({ list: [...routines, extra], savedRoutines: two });
+  const { onSaved } = show();
+  await openPanel();
+  fireEvent.click(within(panel()).getByRole('checkbox', { name: 'Deep clean' }));
+  fireEvent.click(within(panel()).getByRole('checkbox', { name: 'Stretch' }));
+  fireEvent.click(within(panel()).getByRole('button', { name: 'Save links' }));
+  await flush();
+  expect(writes[0].body).toEqual({ routineIds: [1, 2, 5] });
+  expect(onSaved).toHaveBeenCalledWith("Linked 2 routines to the goal 'Read a book'", two);
+});
+
+test('a single linked routine gets the singular notice', async () => {
+  api({ savedRoutines: [{ id: 2, name: 'Deep clean' }] });
+  const { onSaved } = show({ routines: [] });
+  await openPanel();
+  fireEvent.click(within(panel()).getByRole('checkbox', { name: 'Deep clean' }));
+  fireEvent.click(within(panel()).getByRole('button', { name: 'Save links' }));
+  await flush();
+  expect(onSaved).toHaveBeenCalledWith("Linked 1 routine to the goal 'Read a book'", [
+    { id: 2, name: 'Deep clean' },
+  ]);
+});
+
 test('unticking everything clears the links and says so', async () => {
-  const writes = api();
+  const writes = api({ savedRoutines: [] });
   const { onSaved } = show();
   await openPanel();
   fireEvent.click(within(panel()).getByRole('checkbox', { name: 'Wake at 6' }));
   fireEvent.click(within(panel()).getByRole('button', { name: 'Save links' }));
   await flush();
   expect(writes[0].body).toEqual({ routineIds: [] });
-  expect(onSaved).toHaveBeenCalledWith("Unlinked all routines from the goal 'Read a book'", saved);
+  expect(onSaved).toHaveBeenCalledWith("Unlinked all routines from the goal 'Read a book'", []);
 });
 
 test('a failed save keeps the panel and what was ticked, with focus on saving again', async () => {
