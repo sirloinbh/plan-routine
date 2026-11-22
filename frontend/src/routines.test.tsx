@@ -87,6 +87,14 @@ test('groups routines by category in the backend order and by sort order inside 
   expect(groups[1].routines.map((r) => r.name)).toEqual(['Push-ups', 'Stretch']);
 });
 
+test('a routine with an unknown category shows in an Other group without an add form', async () => {
+  routineApi([{ id: 7, name: 'Mystery habit', category: 'sleep' }]);
+  render(<DailyRoutines />);
+  const other = await screen.findByRole('region', { name: 'Other routines' });
+  expect(within(other).getByText('Mystery habit')).toBeVisible();
+  expect(within(other).queryByRole('form')).not.toBeInTheDocument();
+});
+
 test('the daily routine page lists all seven categories with empty states', async () => {
   routineApi();
   render(<DailyRoutines />);
