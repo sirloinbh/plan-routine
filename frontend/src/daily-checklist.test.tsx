@@ -4,6 +4,7 @@ import { expect, test, vi } from 'vitest';
 import { DailyChecklist } from './daily-checklist';
 import { formatDate } from './format-date';
 import { findLive, getLive, queryLive } from './test/live';
+import { unexpectedRequest } from './test/unexpected-request';
 
 type Seed = { id: number; name: string; category: string; sortOrder?: number };
 
@@ -38,6 +39,13 @@ function checklistApi(seed: Seed[] = [], options: { failWrites?: string } = {}) 
     'fetch',
     vi.fn((url: string, init?: RequestInit) => {
       const method = init?.method ?? 'GET';
+      const { pathname } = new URL(url, 'http://localhost');
+      const check = /^\/api\/routines\/(\d+)\/checks\/(\d{4}-\d{2}-\d{2})$/.exec(pathname);
+      const known =
+        method === 'GET'
+          ? pathname === '/api/checklist'
+          : check && (method === 'PUT' || method === 'DELETE');
+      if (!known) unexpectedRequest(method, url);
       if (method === 'GET') {
         if (failNextLoad) {
           failNextLoad = false;
@@ -62,8 +70,8 @@ function checklistApi(seed: Seed[] = [], options: { failWrites?: string } = {}) 
       }
       writes.push({ method, path: url });
       if (options.failWrites) return reply(500, { error: options.failWrites });
-      const [, , , rawId, , date] = url.split('/');
-      const id = Number(rawId);
+      const id = Number(check?.[1]);
+      const date = check?.[2];
       if (!routines.some((r) => r.id === id)) return reply(404, { error: 'Routine not found' });
       const commit = () => {
         if (method === 'PUT') checks.add(`${id}/${date}`);

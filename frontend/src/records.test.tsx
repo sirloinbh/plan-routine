@@ -4,6 +4,7 @@ import { expect, test, vi } from 'vitest';
 import { formatDate } from './format-date';
 import { Records } from './records';
 import { findLive, getLive, queryLive } from './test/live';
+import { takeUnexpected, unexpectedRequest } from './test/unexpected-request';
 
 const today = '2026-10-22';
 
@@ -53,7 +54,8 @@ function recordsApi() {
   };
   const calls: { method: string; url: string }[] = [];
   let serverToday = today;
-  const held = new Map<string, () => void>();
+  // key -> the release of a request that has arrived, or null while it is only expected.
+  const held = new Map<string, (() => void) | null>();
   let failMonth = false;
   let failDay = false;
   const reply = (status: number, body: unknown) =>
@@ -62,7 +64,10 @@ function recordsApi() {
   const holding = (key: string, response: unknown) =>
     held.has(key)
       ? new Promise((resolve) => {
-          held.set(key, () => resolve(response));
+          held.set(key, () => {
+            held.delete(key);
+            resolve(response);
+          });
         })
       : response;
   const serverError = () => reply(500, { error: 'A server error occurred' });
@@ -71,6 +76,9 @@ function recordsApi() {
     vi.fn((url: string, init?: RequestInit) => {
       calls.push({ method: init?.method ?? 'GET', url });
       const path = new URL(url, 'http://localhost');
+      const known = /^\/api\/records(\/\d{4}-\d{2}-\d{2})?$/.test(path.pathname);
+      if ((init?.method ?? 'GET') !== 'GET' || !known)
+        return unexpectedRequest(init?.method ?? 'GET', url);
       if (path.pathname === '/api/records') {
         if (failMonth) {
           failMonth = false;
@@ -117,8 +125,18 @@ function recordsApi() {
     failMonth: () => (failMonth = true),
     failDay: () => (failDay = true),
     setToday: (date: string) => (serverToday = date),
-    hold: (key: string) => held.set(key, () => {}),
-    release: (key: string) => held.get(key)?.(),
+    hold: (key: string) => held.set(key, null),
+    release: (key: string) => {
+      const release = held.get(key);
+      if (!release) {
+        throw new Error(
+          held.has(key)
+            ? `release('${key}'): the held request has not arrived yet; flush before releasing`
+            : `release('${key}'): nothing is held for it; call hold('${key}') first`,
+        );
+      }
+      release();
+    },
   };
 }
 
@@ -392,4 +410,18 @@ test('a page shown again loads the records once more', async () => {
     await new Promise((resolve) => setTimeout(resolve));
   });
   expect(api.calls.length).toBe(before + 2);
+});
+
+test('the fake fails with a clear message when release() has nothing to release', () => {
+  const api = recordsApi();
+  expect(() => api.release('2026-10-20')).toThrow('nothing is held');
+  api.hold('2026-10-20');
+  expect(() => api.release('2026-10-20')).toThrow('has not arrived yet');
+});
+
+test('a request the fake does not know fails the test with a clear message', () => {
+  recordsApi();
+  expect(() => fetch('/api/unknown')).toThrow('Unexpected request: GET /api/unknown');
+  // It is also remembered, so a screen that swallows the error still fails its test afterwards.
+  expect(takeUnexpected()).toEqual(['GET /api/unknown']);
 });
