@@ -1,7 +1,8 @@
-import { act, configure, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, configure, fireEvent, screen, within } from '@testing-library/react';
 import { describe, expect, test, vi } from 'vitest';
 
 import { getLive, queryLive } from './test/live';
+import { render } from './test/render';
 import { TwelveWeek } from './twelve-week';
 
 // Effects and state updates must survive React running them twice.
@@ -159,7 +160,13 @@ function goalsApi(seed: { current?: Goal[]; last?: Goal[]; older?: Goal[] } = {}
   };
 }
 
-const flush = () => act(() => new Promise((resolve) => setTimeout(resolve)));
+// The query layer tells the screen about a result one timer tick after the answer arrives.
+const tick = () => new Promise((resolve) => setTimeout(resolve));
+const flush = () =>
+  act(async () => {
+    await tick();
+    await tick();
+  });
 
 const goalsCard = () => screen.getByRole('region', { name: 'Goals for these 12 weeks' });
 
