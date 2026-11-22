@@ -1,10 +1,11 @@
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, test, vi } from 'vitest';
 
 import { Diary } from './diary';
 import { draftKey as storedDraftKey } from './diary-draft';
 import { formatDate } from './format-date';
 import { findLive, getLive, queryLive } from './test/live';
+import { render } from './test/render';
 
 type Entry = {
   date: string;
@@ -114,7 +115,13 @@ function diaryApi(seed: Entry[] = []) {
   };
 }
 
-const flush = () => act(() => new Promise((resolve) => setTimeout(resolve)));
+// The query layer tells the screen about a result one timer tick after the answer arrives.
+const tick = () => new Promise((resolve) => setTimeout(resolve));
+const flush = () =>
+  act(async () => {
+    await tick();
+    await tick();
+  });
 
 const field = (label: string) => screen.findByRole('textbox', { name: label });
 
@@ -354,6 +361,18 @@ describe('showing and saving an entry', () => {
 });
 
 describe('moving between days', () => {
+  test('the page being shown again does not overwrite what is being typed', async () => {
+    diaryApi([{ ...saved, date: today }]);
+    render(<Diary />);
+    await type('Looking back on the day', 'Typed since loading');
+    await act(async () => {
+      document.dispatchEvent(new Event('visibilitychange'));
+      await tick();
+      await tick();
+    });
+    expect(await field('Looking back on the day')).toHaveValue('Typed since loading');
+  });
+
   test('a past day can be opened and written, and each day keeps its own entry', async () => {
     const api = diaryApi([saved]);
     render(<Diary />);

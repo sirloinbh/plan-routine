@@ -17,7 +17,8 @@ import { diaryLimits } from './diary-limits';
 import { isFocusFree, useDateHeading } from './focus-moves';
 import { dateHeading, formatDate } from './format-date';
 import { LabeledTextarea } from './labeled-textarea';
-import { RequestError, requestJson } from './lib/api';
+import { RequestError } from './lib/api';
+import { apiKey, useApiMutation, useApiQuery } from './lib/query';
 import { useNotice } from './lib/use-notice';
 import { LoadingRegion } from './loading-region';
 import { RetryButton } from './retry-button';
@@ -57,7 +58,6 @@ const formFrom = (entry: DiaryEntry | null): DiaryForm => ({
 export function Diary() {
   // null follows the server's today. A draft reopens its own day, which may be an earlier one.
   const [date, setDate] = useState<string | null>(() => readDraft()?.date ?? null);
-  const [version, setVersion] = useState(0);
   const [data, setData] = useState<DiaryData | null>(null);
   const [form, setForm] = useState<DiaryForm>(formFrom(null));
   const [savedForm, setSavedForm] = useState<DiaryForm>(formFrom(null));
@@ -66,6 +66,9 @@ export function Diary() {
   // A notice appears beside what it is about: the save button or the date buttons.
   const [noticeAtSave, setNoticeAtSave] = useState(false);
   const openedForDraft = useRef(date !== null);
+  // When the load being waited for began. Only an answer from then on is the one to show, not a
+  // cached or older one.
+  const loadStartedAt = useRef(Date.now());
   // The field the server refused in the last save, named in its 400 answer.
   const [invalidField, setInvalidField] = useState<keyof DiaryForm | null>(null);
   const [confirmingDiscard, setConfirmingDiscard] = useState(false);
@@ -81,59 +84,73 @@ export function Diary() {
     savedForm,
   });
 
+  // The working copy of the form is seeded from a load, never from a later background refresh,
+  // which would overwrite what is being typed. Always asked for fresh when a day opens.
+  const diaryQuery = useApiQuery<DiaryData>(
+    apiKey('/api/diary', date ?? 'today'),
+    `/api/diary${date ? `?date=${date}` : ''}`,
+    { staleTime: 0 },
+  );
+  const { data: loaded, dataUpdatedAt, error: loadError, errorUpdatedAt } = diaryQuery;
+  const settled = !diaryQuery.isFetching;
+
   useEffect(() => {
-    // A newer load supersedes this one, so a slow older response cannot overwrite it.
-    let ignore = false;
-    requestJson<DiaryData>(`/api/diary${date ? `?date=${date}` : ''}`)
-      .then((loaded) => {
-        if (ignore) return;
-        const server = formFrom(loaded.entry);
-        const stored = readDraft();
-        const draft =
-          stored?.date === loaded.date && !sameText(stored.form, server) ? stored : null;
-        // The day was opened for a draft with nothing left to restore, so today is what was wanted.
-        const nothingToRestore = openedForDraft.current && !draft && date !== null;
-        openedForDraft.current = false;
-        if (nothingToRestore) {
-          clearDraft(date);
-          setDate(null);
-          return;
-        }
-        // A draft saying what is already saved has nothing left to keep.
-        if (stored?.date === loaded.date && !draft) clearDraft(loaded.date);
-        adopt(draft);
-        setData(loaded);
-        setForm(draft?.form ?? server);
-        setSavedForm(server);
-        setLoading(false);
-        if (draft)
-          status(
-            sameForm(draft.base, server)
-              ? 'Restored an unsaved draft. Save it to keep it in your records'
-              : 'Restored an unsaved draft. The saved entry changed in the meantime, so check it before saving',
-          );
-      })
-      .catch((cause: unknown) => {
-        if (ignore) return;
-        // A day the server refuses can never open, so its draft must not keep sending the user there.
-        if (
-          cause instanceof RequestError &&
-          cause.status === 400 &&
-          date &&
-          readDraft()?.date === date
-        ) {
-          clearDraft(date);
-          setDate(null);
-          error(`${formatDate(date)} cannot be opened, so its draft was discarded`);
-          return;
-        }
-        setLoading(false);
-        error(cause);
-      });
-    return () => {
-      ignore = true;
-    };
-  }, [date, version, error, status, adopt]);
+    if (!loading || !settled) return;
+    if (loadError && errorUpdatedAt >= loadStartedAt.current) {
+      // A day the server refuses can never open, so its draft must not keep sending the user there.
+      if (loadError.status === 400 && date && readDraft()?.date === date) {
+        clearDraft(date);
+        loadStartedAt.current = Date.now();
+        setDate(null);
+        error(`${formatDate(date)} cannot be opened, so its draft was discarded`);
+        return;
+      }
+      setLoading(false);
+      error(loadError);
+      return;
+    }
+    if (!loaded || dataUpdatedAt < loadStartedAt.current) return;
+    const server = formFrom(loaded.entry);
+    const stored = readDraft();
+    const draft = stored?.date === loaded.date && !sameText(stored.form, server) ? stored : null;
+    // The day was opened for a draft with nothing left to restore, so today is what was wanted.
+    const nothingToRestore = openedForDraft.current && !draft && date !== null;
+    openedForDraft.current = false;
+    if (nothingToRestore) {
+      clearDraft(date);
+      loadStartedAt.current = Date.now();
+      setDate(null);
+      return;
+    }
+    // A draft saying what is already saved has nothing left to keep.
+    if (stored?.date === loaded.date && !draft) clearDraft(loaded.date);
+    adopt(draft);
+    setData(loaded);
+    setForm(draft?.form ?? server);
+    setSavedForm(server);
+    setLoading(false);
+    if (draft)
+      status(
+        sameForm(draft.base, server)
+          ? 'Restored an unsaved draft. Save it to keep it in your records'
+          : 'Restored an unsaved draft. The saved entry changed in the meantime, so check it before saving',
+      );
+  }, [
+    loading,
+    settled,
+    loaded,
+    dataUpdatedAt,
+    loadError,
+    errorUpdatedAt,
+    date,
+    error,
+    status,
+    adopt,
+  ]);
+
+  const write = useApiMutation<{ entry: DiaryEntry }, { target: string; body: DiaryForm }>(
+    ({ target, body }) => ({ path: `/api/diary/${target}`, method: 'PUT', body }),
+  );
 
   const dirty = !sameForm(form, savedForm);
 
@@ -143,7 +160,7 @@ export function Diary() {
     setForm((current) => ({ ...current, [field]: value }));
   };
 
-  // Also bumps the version so pressing the same button again retries a failed load.
+  // Pressing the same date button again loads that day again, which retries a failed load.
   const moveTo = (target: string | null) => {
     if (saving) return;
     setNoticeAtSave(false);
@@ -154,9 +171,10 @@ export function Diary() {
     clear();
     setInvalidField(null);
     expectMove();
+    loadStartedAt.current = Date.now();
     setLoading(true);
     setDate(target);
-    setVersion((value) => value + 1);
+    if (target === date) void diaryQuery.refetch();
   };
 
   const save = async (target: string) => {
@@ -168,10 +186,7 @@ export function Diary() {
     setNoticeAtSave(true);
     clear();
     try {
-      const { entry } = await requestJson<{ entry: DiaryEntry }>(`/api/diary/${target}`, {
-        method: 'PUT',
-        body: form,
-      });
+      const { entry } = await write.mutateAsync({ target, body: form });
       // Here as well as in the effect: the user may have left the page while this was saving.
       clearDraft(target, form);
       setForm(formFrom(entry));
