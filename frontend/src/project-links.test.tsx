@@ -1,9 +1,11 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, screen, within } from '@testing-library/react';
 import { expect, test, vi } from 'vitest';
 
 import { Checklist } from './checklist';
+import { apiKey, useApiQuery } from './lib/query';
 import { ProjectLinks } from './project-links';
 import { getLive, queryLive } from './test/live';
+import { render } from './test/render';
 
 type Project = { id: number; name: string; url: string };
 
@@ -39,7 +41,13 @@ function api(seed: Project[] = []) {
   return writes;
 }
 
-const flush = () => act(() => new Promise((resolve) => setTimeout(resolve)));
+// The query layer tells the screen about a result one timer tick after the answer arrives.
+const tick = () => new Promise((resolve) => setTimeout(resolve));
+const flush = () =>
+  act(async () => {
+    await tick();
+    await tick();
+  });
 const button = (name: string) => screen.getByRole('button', { name });
 const field = (name: string) => screen.getByRole('textbox', { name });
 const type = (name: string, value: string) => fireEvent.change(field(name), { target: { value } });
@@ -78,6 +86,38 @@ test('adding sends the form, clears it, and returns focus to the name field', as
   expect(field('Project URL')).toHaveValue('');
   expect(field('Project name')).toHaveFocus();
   expect(screen.getByText('https://books.example')).toBeInTheDocument();
+});
+
+// What a routine list holds: the same projects, loaded under the shared key.
+function SharedCopy() {
+  const { data } = useApiQuery<{ projects: Project[] }>(
+    apiKey('/api/project-links'),
+    '/api/project-links',
+  );
+  return (
+    <p data-testid="shared-copy">{data?.projects.map((project) => project.name).join(', ')}</p>
+  );
+}
+
+test('an add or a delete refreshes the copy another screen holds under the shared key', async () => {
+  api([books]);
+  render(
+    <>
+      <ProjectLinks />
+      <SharedCopy />
+    </>,
+  );
+  await flush();
+  expect(screen.getByTestId('shared-copy')).toHaveTextContent('Reading log');
+  type('Project name', 'Budget');
+  type('Project URL', 'https://money.example');
+  fireEvent.click(button('Add'));
+  await flush();
+  expect(screen.getByTestId('shared-copy')).toHaveTextContent('Reading log, Budget');
+  fireEvent.click(button('Delete Reading log'));
+  fireEvent.click(button('Confirm deleting Reading log'));
+  await flush();
+  expect(screen.getByTestId('shared-copy')).toHaveTextContent(/^Budget$/);
 });
 
 test('a refused address shows the English error and keeps what was typed', async () => {
