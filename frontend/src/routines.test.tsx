@@ -557,4 +557,10 @@ test('moving a routine spins nothing, and an archive spins only its own row', as
   ).toBeInTheDocument();
   expect(screen.getAllByRole('status', { name: /ing/ })).toHaveLength(1);
   again();
+  // The archive and the reload that follows finish inside the test.
+  await waitFor(() => expect(screen.queryByText('Wake at 6')).not.toBeInTheDocument());
+  await waitFor(() =>
+    expect(screen.queryByRole('status', { name: /ing/ })).not.toBeInTheDocument(),
+  );
+  expect(screen.getByText('Drink water')).toBeVisible();
 });
