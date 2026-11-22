@@ -1,9 +1,10 @@
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { expect, test, vi } from 'vitest';
 
 import { formatDate } from './format-date';
 import { Records } from './records';
 import { findLive, getLive, queryLive } from './test/live';
+import { render } from './test/render';
 import { takeUnexpected, unexpectedRequest } from './test/unexpected-request';
 
 const today = '2026-10-22';
@@ -141,7 +142,13 @@ function recordsApi() {
   };
 }
 
-const flush = () => act(() => new Promise((resolve) => setTimeout(resolve)));
+// The query layer tells the screen about a result one timer tick after the answer arrives, and the first day
+// loads only after the month has told the screen which day is today.
+const tick = () => new Promise((resolve) => setTimeout(resolve));
+const flush = () =>
+  act(async () => {
+    for (let i = 0; i < 4; i += 1) await tick();
+  });
 const dayButton = (date: string) =>
   screen.getByRole('button', { name: new RegExp(`^${formatDate(date, 'weekday')}: `) });
 const press = (name: string) => fireEvent.click(screen.getByRole('button', { name }));
@@ -295,7 +302,8 @@ const nextDay = (api: ReturnType<typeof recordsApi>) =>
     vi.setSystemTime(new Date('2026-10-23T03:00:00Z'));
     api.setToday('2026-10-23');
     vi.advanceTimersByTime(60_000);
-    await new Promise((resolve) => setTimeout(resolve));
+    await tick();
+    await tick();
   });
 
 test('a window left open moves on to the new day unless a day was picked', async () => {
@@ -414,7 +422,8 @@ test('a page shown again loads the records once more', async () => {
   });
   await act(async () => {
     document.dispatchEvent(new Event('visibilitychange'));
-    await new Promise((resolve) => setTimeout(resolve));
+    await tick();
+    await tick();
   });
   expect(await screen.findByText('Daily routines 1/1 done')).toBeInTheDocument();
   expect(screen.queryByText('Daily routines 0/1 done')).not.toBeInTheDocument();

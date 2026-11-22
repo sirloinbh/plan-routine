@@ -1,4 +1,3 @@
-import type { UseQueryResult } from '@tanstack/react-query';
 import { type RefObject, useCallback, useEffect, useRef } from 'react';
 
 import { RequestError } from './lib/api';
@@ -42,7 +41,7 @@ export function useReloadOnDateChange(requestedOn: RefObject<string>, reload: ()
  * the page is shown again. `serverToday` is the `today` of the loaded data.
  */
 export function useReloadWhenCurrent(
-  query: Pick<UseQueryResult<unknown, unknown>, 'isFetching' | 'error' | 'refetch'>,
+  query: { isFetching: boolean; error: unknown; refetch: () => unknown },
   serverToday: string | undefined,
 ) {
   const { isFetching, error, refetch } = query;
