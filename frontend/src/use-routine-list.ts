@@ -118,7 +118,7 @@ export function useRoutineList(cadence: string) {
     }
   };
 
-  const add = async (draftKey: string, label: string, category?: string) => {
+  const add = async (draftKey: string, addedTo: string, category?: string) => {
     const name = (drafts[draftKey] ?? '').trim();
     if (!name) {
       setNotice({ kind: 'alert', text: 'Enter a routine name' });
@@ -130,7 +130,7 @@ export function useRoutineList(cadence: string) {
           method: 'POST',
           body: { name, cadence, category },
         }),
-      `Added the routine '${name}' to ${label}`,
+      `Added the routine '${name}' to ${addedTo}`,
       `add:${draftKey}`,
     );
     requestFocus([focusKeys.add(draftKey)]);
