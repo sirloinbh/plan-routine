@@ -103,7 +103,7 @@ test('bad, future and too old months are English 400s before any query', async (
         ['2026-13', 'Month must be in YYYY-MM format'],
         ['2026-1', 'Month must be in YYYY-MM format'],
         ['2026-11', 'Records for a future month cannot be viewed'],
-        ['1999-12', 'Records can only be viewed from the year 2000 on'],
+        ['1999-12', 'Records can only be viewed from 2000-01-01 on'],
       ] as const) {
         const { status, data } = await call(`/api/records?month=${month}`);
         assert.equal(status, 400);
@@ -157,7 +157,7 @@ test('future, too old and impossible days are English 400s before any query', as
     async (call) => {
       for (const [date, message] of [
         ['2026-10-23', 'Records for a future date cannot be viewed'],
-        ['1999-12-31', 'Records can only be viewed from the year 2000 on'],
+        ['1999-12-31', 'Records can only be viewed from 2000-01-01 on'],
         ['2026-02-30', 'Date must be a real date in YYYY-MM-DD format'],
       ] as const) {
         const { status, data } = await call(`/api/records/${date}`);

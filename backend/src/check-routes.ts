@@ -23,7 +23,7 @@ const checkParams = z.object({ id: routineId, date: calendarDate });
 function dateRangeError(date: string, today: string) {
   if (date > today) return 'Future dates cannot be checked';
   if (date < addDays(today, -editableDays))
-    return `You can only check the last ${editableDays} days`;
+    return `You can only check today and the ${editableDays} days before it`;
   return null;
 }
 
