@@ -1,10 +1,18 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
-import { expect, test, vi } from 'vitest';
+import { beforeEach, expect, test, vi } from 'vitest';
 
 import { FourWeekRoutines, WeeklyRoutines } from './period-routines';
 import { queryLive } from './test/live';
 
 type Seed = { id: number; name: string };
+
+// A fixed device clock for every test: the last second of 2026-10-22 in Seoul, the date the fake
+// server calls today, so a run near midnight cannot hit the "date changed" branch. Only the clock
+// and the interval are faked; flush() still uses a real timer. fakeClock() below moves it.
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] });
+  vi.setSystemTime(new Date('2026-10-22T14:59:59Z'));
+});
 
 // Sunday of the date's week, as backend/src/periods.ts counts it.
 function weekStart(date: string) {
