@@ -172,10 +172,9 @@ test('a check records first use and is stored under the start of its period', as
     },
     { today },
   );
-  assert.deepEqual(issued(queries, 'app_settings')[0].params, [
-    'routine_anchor_date',
-    '2026-10-22',
-  ]);
+  // The stored date is read with a SELECT, so nothing is offered or written (#153).
+  assert.deepEqual(issued(queries, 'app_settings')[0].params, ['routine_anchor_date']);
+  assert.equal(issued(queries, 'INSERT INTO app_settings').length, 0);
   assert.deepEqual(issued(queries, 'INSERT INTO routine_checks')[0].params, [1, '2026-10-18']);
 });
 
@@ -207,6 +206,7 @@ test('a missing or archived routine is an English 404 and writes no check', asyn
     { today },
   );
   assert.equal(issued(queries, 'routine_checks').length, 0);
+  assert.equal(issued(queries, 'app_settings').length, 0);
   assert.equal(issued(queries, 'ROLLBACK').length, 1);
   assert.equal(issued(queries, 'COMMIT').length, 0);
 });

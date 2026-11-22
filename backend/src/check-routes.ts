@@ -76,13 +76,14 @@ export function checkRoutes(pool: Pool, today: () => string) {
     const rangeError = dateRangeError(date, current);
     if (rangeError) throw new HttpError(400, rangeError);
     const reply = await inTransaction(pool, async (client) => {
-      const anchorDate = await routineAnchorDate(client, current);
       // FOR SHARE makes a concurrent archive wait, so an archived routine cannot gain a check.
       const target = await client.query<{ cadence: Cadence }>(
         'SELECT cadence FROM routines WHERE id = $1 AND archived_at IS NULL FOR SHARE',
         [id],
       );
       if (!target.rows[0]) throw new HttpError(404, routineNotFound);
+      // After the existence check, so a 404 does not store the first-use date (#153).
+      const anchorDate = await routineAnchorDate(client, current);
       const period = periodFor(target.rows[0].cadence, date, anchorDate);
       await client.query(
         checked
