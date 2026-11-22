@@ -4,6 +4,7 @@ import { expect, test, vi } from 'vitest';
 import { groupByCategory } from './routine-groups';
 import { DailyRoutines, type Routine } from './routines';
 import { findLive, getLive } from './test/live';
+import { unexpectedRequest } from './test/unexpected-request';
 
 // Focus follows a reload, which on a busy machine can outlast the default one second.
 configure({ asyncUtilTimeout: 10_000 });
@@ -23,8 +24,16 @@ function routineApi(seed: Seed[] = []) {
     'fetch',
     vi.fn((url: string, init?: RequestInit) => {
       const method = init?.method ?? 'GET';
-      const path = url.split('?')[0];
-      if (method === 'GET') return reply(200, { routines });
+      const path = new URL(url, 'http://localhost').pathname;
+      if (method === 'GET') {
+        if (path === '/api/routines') return reply(200, { routines });
+        if (path === '/api/project-links') return reply(200, { projects: [] });
+        return unexpectedRequest(method, url);
+      }
+      const knownWrite =
+        (method === 'POST' && /^\/api\/routines(\/\d+\/(move|archive))?$/.test(path)) ||
+        (method === 'PATCH' && /^\/api\/routines\/\d+$/.test(path));
+      if (!knownWrite) return unexpectedRequest(method, url);
       const body = init?.body ? JSON.parse(String(init.body)) : undefined;
       writes.push({ method, path, body });
       const id = Number(path.split('/')[3]);
