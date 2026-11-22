@@ -125,6 +125,7 @@ function recordsApi() {
     failMonth: () => (failMonth = true),
     failDay: () => (failDay = true),
     setToday: (date: string) => (serverToday = date),
+    setDay: (date: string, value: unknown) => (days[date] = value),
     hold: (key: string) => held.set(key, null),
     release: (key: string) => {
       const release = held.get(key);
@@ -404,12 +405,19 @@ test('a page shown again loads the records once more', async () => {
   const api = recordsApi();
   render(<Records />);
   await flush();
-  const before = api.calls.length;
+  expect(screen.getByText('Daily routines 0/1 done')).toBeInTheDocument();
+  // The server's answer changes while the page is hidden; showing the page again must bring the new data in.
+  api.setDay(today, {
+    progress: { checked: 1, total: 1 },
+    routines: [routine('1', 'Wake at 6', 'wake', true)],
+    diary: null,
+  });
   await act(async () => {
     document.dispatchEvent(new Event('visibilitychange'));
     await new Promise((resolve) => setTimeout(resolve));
   });
-  expect(api.calls.length).toBe(before + 2);
+  expect(await screen.findByText('Daily routines 1/1 done')).toBeInTheDocument();
+  expect(screen.queryByText('Daily routines 0/1 done')).not.toBeInTheDocument();
 });
 
 test('the fake fails with a clear message when release() has nothing to release', () => {
