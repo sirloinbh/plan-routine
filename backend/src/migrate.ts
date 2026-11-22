@@ -1,13 +1,6 @@
 // The migration CLI is managed in standard/migrate.ts. This entry keeps 'node dist/migrate.js' (deploy) and
-// 'npm run db:migrate' working, and adds what the managed file does not do (#159): an unknown option exits 1 with a
-// usage line before anything is imported, and a failure while connecting prints one line instead of a stack trace.
-const usage = 'Usage: db:migrate [--status]';
-const unknown = process.argv.slice(2).filter((flag) => flag !== '--status');
-if (unknown.length) {
-  console.error(`Unknown option: ${unknown.join(' ')}. ${usage}`);
-  process.exit(1);
-}
-
+// 'npm run db:migrate' working, and adds what the managed file does not do (#159): a failure while connecting prints
+// one line instead of a stack trace. Unknown options are rejected by the managed CLI itself (exit 2).
 /** One line: the message, then the cause or error code (pg wraps a refused connection in an AggregateError). */
 export function describeError(error: unknown): string {
   const parts: string[] = [];
