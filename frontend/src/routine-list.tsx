@@ -172,28 +172,32 @@ export function RoutineItems({
 export function RoutineAddForm({
   list,
   draftKey,
-  label,
+  addLabel,
+  addedTo,
   category,
   placeholder = 'New routine name',
 }: {
   list: RoutineList;
   draftKey: string;
-  label: string;
+  /** The full phrase for the form, such as "Add an exercise routine". */
+  addLabel: string;
+  /** Where the new routine went, for the confirmation, such as "Exercise". */
+  addedTo: string;
   category?: string;
   placeholder?: string;
 }) {
   return (
     <form
       className="flex gap-2"
-      aria-label={`Add a ${label} routine`}
+      aria-label={addLabel}
       onSubmit={(event) => {
         event.preventDefault();
-        void list.add(draftKey, label, category);
+        void list.add(draftKey, addedTo, category);
       }}
     >
       <Input
         className="min-w-0 flex-1"
-        aria-label={`New ${label} routine name`}
+        aria-label={addLabel.replace(/^Add (an?) /, 'New ') + ' name'}
         data-focus-key={`add-${draftKey}`}
         placeholder={placeholder}
         value={list.drafts[draftKey] ?? ''}

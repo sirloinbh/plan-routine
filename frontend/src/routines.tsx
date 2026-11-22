@@ -40,7 +40,8 @@ export function DailyRoutines() {
               <RoutineAddForm
                 list={list}
                 draftKey={group.key}
-                label={group.label}
+                addLabel={group.addLabel}
+                addedTo={group.label}
                 category={group.key}
               />
             </CardContent>

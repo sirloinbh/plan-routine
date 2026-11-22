@@ -4,9 +4,10 @@ const formats = {
   long: { year: 'numeric', month: 'long', day: 'numeric' },
   weekday: { weekday: 'short', month: 'short', day: 'numeric' },
   short: { month: 'short', day: 'numeric' },
+  month: { year: 'numeric', month: 'long' },
 } as const;
 
-/** `formatDate('2026-10-22')` is "October 22, 2026"; `'weekday'` gives "Thu, Oct 22" and `'short'` "Oct 22". */
+/** `formatDate('2026-10-22')` is "October 22, 2026"; `'weekday'` gives "Thu, Oct 22" and `'short'` "Oct 22", and `'month'` "October 2026" (for a day in that month). */
 export function formatDate(date: string, style: keyof typeof formats = 'long'): string {
   const parsed = new Date(`${date}T00:00:00Z`);
   if (Number.isNaN(parsed.getTime())) return date;
