@@ -18,6 +18,8 @@ function untouchedPool() {
 }
 
 const refused = 'Invalid request format';
+const notJson = 'Request body is not valid JSON';
+const cannotProcess = 'Cannot process the request';
 
 test('broken JSON gets an English 400 whichever route it is sent to', async () => {
   await withApi(untouchedPool(), async (call) => {
@@ -29,13 +31,13 @@ test('broken JSON gets an English 400 whichever route it is sent to', async () =
     ]) {
       const { status, data } = await call(path, { method, raw: '{"name":' });
       assert.equal(status, 400, path);
-      assert.equal(data.error, refused, path);
+      assert.equal(data.error, notJson, path);
     }
     // The JSON parser takes only objects and arrays, so these are refused the same way.
     for (const raw of ['5', 'true', '"text"']) {
       const { status, data } = await call('/api/routines', { method: 'POST', raw });
       assert.equal(status, 400, raw);
-      assert.equal(data.error, refused, raw);
+      assert.equal(data.error, notJson, raw);
     }
   });
 });
@@ -47,7 +49,7 @@ test('a body over the limit gets an English 413', async () => {
       raw: JSON.stringify({ name: 'x'.repeat(300 * 1024) }),
     });
     assert.equal(status, 413);
-    assert.equal(data.error, 'The request is too large');
+    assert.equal(data.error, 'Request body is too large');
   });
 });
 
@@ -59,7 +61,7 @@ test('a character set the server cannot read gets an English 415', async () => {
       contentType: 'application/json; charset=latin1',
     });
     assert.equal(status, 415);
-    assert.equal(data.error, 'Unsupported request format');
+    assert.equal(data.error, cannotProcess);
   });
 });
 
@@ -67,7 +69,7 @@ test('an address that cannot be decoded gets an English 400', async () => {
   await withApi(untouchedPool(), async (call) => {
     const { status, data } = await call('/api/routines/%E0%A4%A', { method: 'PATCH', body: {} });
     assert.equal(status, 400);
-    assert.equal(data.error, refused);
+    assert.equal(data.error, cannotProcess);
   });
 });
 
@@ -116,7 +118,7 @@ test('an unexpected error stays a 500 unless it carries a 4xx status', async () 
       await withApi(pool, async (call) => {
         const response = await call('/api/health');
         assert.equal(response.status, 500);
-        assert.equal(response.data.error, 'A server error occurred');
+        assert.equal(response.data.error, 'Server error');
       });
     }
   } finally {
@@ -133,7 +135,7 @@ test('a request with many errors gets at most ten messages and a count of the re
     assert.equal(status, 400);
     const parts = String(data.error).split(', ');
     assert.equal(parts.length, 11);
-    assert.equal(parts.at(-1), '5 more');
+    assert.equal(parts.at(-1), 'and 5 more');
   });
 });
 
@@ -164,7 +166,7 @@ test('every route that reads a body answers broken JSON and bare values with the
       for (const raw of ['{', 'null', '1', '"x"', 'true']) {
         const { status, data } = await call(path, { method, raw });
         assert.equal(status, 400, `${path} ${raw}`);
-        assert.equal(data.error, refused, `${path} ${raw}`);
+        assert.equal(data.error, notJson, `${path} ${raw}`);
       }
     }
   });

@@ -2,7 +2,7 @@ import { meHandler } from '@sirloinbh/auth-client';
 import express from 'express';
 import type { Pool } from 'pg';
 import { types } from 'pg';
-import { z, ZodError } from 'zod/v4';
+import { z } from 'zod/v4';
 
 import { tools } from './ai-tools.js';
 import { checkRoutes } from './check-routes.js';
@@ -11,11 +11,10 @@ import { goalRoutes } from './goal-routes.js';
 import { calendarDate, periodsFor } from './periods.js';
 import { projectLinkRoutes } from './project-link-routes.js';
 import { recordRoutes } from './record-routes.js';
-import { requestFailure } from './request-input.js';
 import { routineRoutes } from './routine-routes.js';
 import { routineAnchorDate } from './routines.js';
 import { setInt8Parser } from './standard/db.js';
-import { MAX_ISSUES, requestLog } from './standard/http.js';
+import { errorHandler, notFound, requestLog } from './standard/http.js';
 import { apiRateLimit } from './standard/rate-limit.js';
 import { registerToolRoutes } from './standard/tools.js';
 import { statsRoutes } from './stats-routes.js';
@@ -79,36 +78,8 @@ export function createApp(
     publicKey: options.toolsPublicKey,
     requireBinding: true,
   });
-  app.use('/api', (_req, res) => {
-    res.status(404).json({ error: 'API not found' });
-  });
-  app.use(
-    (err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-      if (err instanceof ZodError) {
-        // A large invalid array can raise one issue per element; the first few are enough to fix it.
-        const shown = err.issues.slice(0, MAX_ISSUES).map((issue) => issue.message);
-        if (err.issues.length > MAX_ISSUES) shown.push(`${err.issues.length - MAX_ISSUES} more`);
-        res.status(400).json({ error: shown.join(', ') });
-        return;
-      }
-      const failure = requestFailure(err);
-      if (failure) {
-        res.status(failure.status).json({ error: failure.error });
-        return;
-      }
-      const error = typeof err === 'object' && err !== null ? (err as { code?: unknown }) : {};
-      if (error.code === '23505') {
-        res.status(409).json({ error: 'This item is already registered' });
-        return;
-      }
-      console.error(
-        JSON.stringify({
-          event: 'request_error',
-          message: err instanceof Error ? err.message : String(err),
-        }),
-      );
-      res.status(500).json({ error: 'A server error occurred' });
-    },
-  );
+  // Standard handlers (#145): the 404 and every error answer share one shape, and the error log carries the request ID.
+  app.use('/api', notFound);
+  app.use(errorHandler);
   return app;
 }
