@@ -15,7 +15,7 @@ An idle pool connection that drops must not crash the API, a local run must not 
 
 ## Verification
 
-See the PR. DB integration tests run in CI only (no local `plan_test`).
+`npm run check` passed locally (backend 159 pass, 21 skipped DB tests). DB integration tests run in CI only (no local `plan_test`).
 
 ## Limits
 
