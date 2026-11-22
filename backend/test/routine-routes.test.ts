@@ -124,3 +124,19 @@ test('the list can be filtered by cadence', async () => {
   });
   assert.deepEqual(queries[0].params, ['daily']);
 });
+
+test('a project deleted while the link is saved answers 404, not 500', async () => {
+  const pool = {
+    query: async () => {
+      throw Object.assign(new Error('violates foreign key constraint'), { code: '23503' });
+    },
+  } as unknown as Pool;
+  await withApi(pool, async (call) => {
+    const { status, data } = await call('/api/routines/1/project-link', {
+      method: 'PUT',
+      body: { projectLinkId: 5 },
+    });
+    assert.equal(status, 404);
+    assert.equal(data.error, 'Routine or project not found');
+  });
+});

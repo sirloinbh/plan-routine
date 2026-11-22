@@ -3,9 +3,10 @@ import type { Pool } from 'pg';
 import { z } from 'zod/v4';
 
 import { pathId } from './ids.js';
-import { badRequest, noNul, nulMessage, requestBody } from './request-input.js';
+import { badRequest, hasPgCode, noNul, nulMessage, requestBody } from './request-input.js';
 import { HttpError } from './standard/http.js';
 
+const duplicateName = 'A project with this name already exists (names ignore case)';
 const projectNotFound = 'Project not found';
 const columns = 'id, name, url';
 const urlMessage = 'The URL must be https:// or a private access address';
@@ -86,10 +87,16 @@ export function projectLinkRoutes(pool: Pool) {
 
   router.post('/', async (req, res) => {
     const { name, url } = projectInput.parse(requestBody(req.body));
-    const { rows } = await pool.query(
-      `INSERT INTO project_links (name, url) VALUES ($1, $2) RETURNING ${columns}`,
-      [name, url],
-    );
+    const { rows } = await pool
+      .query(`INSERT INTO project_links (name, url) VALUES ($1, $2) RETURNING ${columns}`, [
+        name,
+        url,
+      ])
+      .catch((error: unknown) => {
+        // The unique index on lower(name) is the only unique rule on this table (#152).
+        if (hasPgCode(error, '23505')) throw new HttpError(409, duplicateName);
+        throw error;
+      });
     res.status(201).json({ project: rows[0] });
   });
 

@@ -11,3 +11,8 @@ export const nulMessage = 'Contains characters that are not allowed';
 
 // Express leaves req.body undefined without a JSON body; parse {} so field messages stay English.
 export const requestBody = (value: unknown) => value ?? {};
+
+/** True for a PostgreSQL error with this SQLSTATE, such as '23505' (unique) or '23503' (foreign key). */
+export function hasPgCode(error: unknown, code: string) {
+  return typeof error === 'object' && error !== null && (error as { code?: unknown }).code === code;
+}

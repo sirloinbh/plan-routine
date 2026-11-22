@@ -1499,6 +1499,10 @@ test(
               body: { name: 'Link test', url: 'https://other.example' },
             });
             assert.equal(same.status, 409);
+            assert.equal(
+              same.data.error,
+              'A project with this name already exists (names ignore case)',
+            );
 
             const item = async () => {
               const { data } = await call('/api/checklist?cadence=weekly&date=2026-10-22');
