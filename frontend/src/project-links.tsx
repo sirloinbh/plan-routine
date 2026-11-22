@@ -74,6 +74,10 @@ export function ProjectLinks() {
   };
 
   const add = async () => {
+    if (!name.trim() || !url.trim()) {
+      requestFocus([name.trim() ? keys.url : keys.name]);
+      return;
+    }
     const ok = await run(
       () => requestJson('/api/project-links', { method: 'POST', body: { name, url } }),
       `Added the project '${name.trim()}'`,
@@ -87,12 +91,17 @@ export function ProjectLinks() {
     requestFocus(ok ? [keys.name] : [keys.url]);
   };
 
+  const cancelRemove = (project: ProjectLink) => {
+    setConfirming(null);
+    requestFocus([keys.remove(project.id)]);
+  };
+
   const remove = async (project: ProjectLink) => {
     const list = projects ?? [];
     const index = list.indexOf(project);
     const ok = await run(
       () => requestJson(`/api/project-links/${project.id}`, { method: 'DELETE' }),
-      `Deleted the project '${project.name}'. The routines linked to it are unchanged`,
+      `Deleted the project '${project.name}'. Routines that were linked to it keep working without the link`,
       `remove:${project.id}`,
     );
     setConfirming(null);
@@ -141,17 +150,35 @@ export function ProjectLinks() {
                   </span>
                 </span>
                 {confirming === project.id ? (
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="sm"
-                    aria-label={`Confirm deleting ${project.name}`}
-                    disabled={busy}
-                    onClick={() => void remove(project)}
-                  >
-                    {pending === `remove:${project.id}` && <Spinner size="sm" label="Working" />}
-                    Confirm delete
-                  </Button>
+                  <>
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="sm"
+                      aria-label={`Confirm deleting ${project.name}`}
+                      disabled={busy}
+                      onClick={() => void remove(project)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Escape') cancelRemove(project);
+                      }}
+                    >
+                      {pending === `remove:${project.id}` && <Spinner size="sm" label="Working" />}
+                      Confirm delete
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      aria-label={`Cancel deleting ${project.name}`}
+                      disabled={busy}
+                      onClick={() => cancelRemove(project)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Escape') cancelRemove(project);
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                  </>
                 ) : (
                   <Button
                     type="button"
@@ -183,6 +210,7 @@ export function ProjectLinks() {
             data-focus-key={keys.name}
             placeholder="Budget"
             value={name}
+            required
             maxLength={100}
             onChange={(event) => setName(event.target.value)}
           />
@@ -193,6 +221,7 @@ export function ProjectLinks() {
             placeholder="https://example.com"
             inputMode="url"
             value={url}
+            required
             maxLength={2048}
             onChange={(event) => setUrl(event.target.value)}
           />

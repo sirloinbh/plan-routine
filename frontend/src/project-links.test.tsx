@@ -113,6 +113,48 @@ test('removing asks first, then moves focus to the next project', async () => {
   expect(field('Project name')).toHaveFocus();
 });
 
+test('cancelling a delete, by button or Escape, brings back Delete with focus', async () => {
+  const writes = api([books]);
+  render(<ProjectLinks />);
+  await flush();
+  fireEvent.click(button('Delete Reading log'));
+  fireEvent.click(button('Cancel deleting Reading log'));
+  await flush();
+  expect(button('Delete Reading log')).toHaveFocus();
+
+  fireEvent.click(button('Delete Reading log'));
+  fireEvent.keyDown(button('Confirm deleting Reading log'), { key: 'Escape' });
+  await flush();
+  expect(button('Delete Reading log')).toHaveFocus();
+  expect(writes).toEqual([]);
+});
+
+test('the delete notice says linked routines keep working without the link', async () => {
+  api([books]);
+  render(<ProjectLinks />);
+  await flush();
+  fireEvent.click(button('Delete Reading log'));
+  fireEvent.click(button('Confirm deleting Reading log'));
+  await flush();
+  expect(getLive('status')).toHaveTextContent(
+    "Deleted the project 'Reading log'. Routines that were linked to it keep working without the link",
+  );
+});
+
+test('adding with an empty name or address sends nothing', async () => {
+  const writes = api();
+  render(<ProjectLinks />);
+  await flush();
+  expect(field('Project name')).toBeRequired();
+  expect(field('Project URL')).toBeRequired();
+  type('Project name', '  ');
+  type('Project URL', 'https://x.example/');
+  fireEvent.submit(screen.getByRole('form', { name: 'Add a project' }));
+  await flush();
+  expect(writes).toEqual([]);
+  expect(field('Project name')).toHaveFocus();
+});
+
 test('a removal that fails stays on its own row', async () => {
   api([{ ...books, id: 500 }]);
   render(<ProjectLinks />);
