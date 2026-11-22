@@ -1,6 +1,7 @@
 import { Pool } from 'pg';
 
 import { createApp } from './app.js';
+import { closeOnSignals } from './shutdown.js';
 import { listenHost, sharedAuth } from './standard/auth.js';
 import { createPool } from './standard/db.js';
 
@@ -14,8 +15,4 @@ const server = createApp(pool, { auth, toolsPublicKey: process.env.AI_TOOLS_PUBL
   listenHost(auth !== undefined),
   () => console.log(`API http://localhost:${port}`),
 );
-process.on('SIGTERM', () =>
-  server.close(() => {
-    void pool.end();
-  }),
-);
+closeOnSignals(server, pool);
