@@ -1,8 +1,9 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, screen, within } from '@testing-library/react';
 import { expect, test, vi } from 'vitest';
 
 import { Stats } from './stats';
 import { getLive, queryLive } from './test/live';
+import { render } from './test/render';
 
 const tally = (start: string, end: string, checked: number, total: number) => ({
   start,
@@ -81,12 +82,19 @@ function statsApi(body: unknown = full) {
   };
 }
 
-const flush = () => act(() => new Promise((resolve) => setTimeout(resolve)));
+// The query layer tells the screen about a result one timer tick after the answer arrives.
+const tick = () => new Promise((resolve) => setTimeout(resolve));
+const flush = () =>
+  act(async () => {
+    await tick();
+    await tick();
+  });
 const rates = (title: string) => screen.getByRole('region', { name: `${title} completion rates` });
 const showPageAgain = () =>
   act(async () => {
     document.dispatchEvent(new Event('visibilitychange'));
-    await new Promise((resolve) => setTimeout(resolve));
+    await tick();
+    await tick();
   });
 
 test('each cadence shows its rate with the counts behind it', async () => {
