@@ -264,7 +264,6 @@ test('the real page is an area a retry button can hand focus to', async () => {
       if (url === '/api/health')
         return Promise.resolve(new Response(JSON.stringify({ today: '2026-10-26' })));
       if (url.startsWith('/api/diary') && failing) {
-        failing = false;
         return Promise.resolve(
           new Response(JSON.stringify({ error: 'A server error occurred' }), { status: 500 }),
         );
@@ -274,7 +273,9 @@ test('the real page is an area a retry button can hand focus to', async () => {
   );
   window.history.replaceState(null, '', '/diary');
   render(<App />);
-  const retry = await screen.findByRole('button', { name: 'Try again' });
+  // The app's query client tries a failed load once more, after a second, before giving up.
+  const retry = await screen.findByRole('button', { name: 'Try again' }, { timeout: 4000 });
+  failing = false;
   retry.focus();
   fireEvent.click(retry);
   await screen.findByRole('textbox', { name: 'Looking back on the day' });
