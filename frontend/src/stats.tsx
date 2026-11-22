@@ -1,18 +1,15 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-
 import { Badge } from './components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
 import { EmptyState } from './components/ui/empty-state';
 import { Notice } from './components/ui/notice';
 import { formatDate } from './format-date';
-import { requestJson } from './lib/api';
-import { useNotice } from './lib/use-notice';
+import { apiKey, useApiQuery } from './lib/query';
+import { errorText } from './lib/use-notice';
 import { cn } from './lib/utils';
 import { LoadingRegion } from './loading-region';
 import { RetryButton } from './retry-button';
 import { groupByCategory } from './routine-groups';
-import { serviceDate } from './service-date';
-import { isPassingFailure, useReloadOnDateChange } from './use-date-change';
+import { useReloadWhenCurrent } from './use-date-change';
 
 type Tally = { checked: number; total: number };
 type PeriodTally = Tally & { start: string; end: string };
@@ -172,48 +169,12 @@ function ItemRow({ item }: { item: Item }) {
 }
 
 export function Stats() {
-  const [version, setVersion] = useState(0);
-  const [data, setData] = useState<StatsData | null>(null);
-  const [loadFailed, setLoadFailed] = useState(false);
-  const { notice, error, clear } = useNotice();
-  const requestedOn = useRef('');
-
-  useEffect(() => {
-    // A newer load supersedes this one, so a slow older response cannot overwrite it.
-    let ignore = false;
-    const startedOn = serviceDate();
-    requestedOn.current = startedOn;
-    requestJson<StatsData>('/api/stats')
-      .then((loaded) => {
-        if (ignore) return;
-        setData(loaded);
-        setLoadFailed(false);
-        clear();
-        // The server is not on this device's date yet (a fast clock), so ask again at the next check.
-        if (loaded.today !== startedOn) requestedOn.current = '';
-      })
-      .catch((cause: unknown) => {
-        if (ignore) return;
-        setLoadFailed(true);
-        error(cause);
-        if (isPassingFailure(cause)) requestedOn.current = '';
-      });
-    return () => {
-      ignore = true;
-    };
-  }, [version, error, clear]);
-
-  const reload = useCallback(() => setVersion((value) => value + 1), []);
-  useReloadOnDateChange(requestedOn, reload);
-
-  // Checks made on other pages or devices show up when the page is shown again.
-  useEffect(() => {
-    const reloadWhenShown = () => {
-      if (document.visibilityState === 'visible') reload();
-    };
-    document.addEventListener('visibilitychange', reloadWhenShown);
-    return () => document.removeEventListener('visibilitychange', reloadWhenShown);
-  }, [reload]);
+  const stats = useApiQuery<StatsData>(apiKey('/api/stats'), '/api/stats', { staleTime: 0 });
+  const data = stats.data ?? null;
+  const loadFailed = stats.isError;
+  const notice = stats.error ? { kind: 'error' as const, text: errorText(stats.error) } : undefined;
+  useReloadWhenCurrent(stats, data?.today);
+  const reload = () => void stats.refetch();
 
   const failure = (
     <>
