@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 
 import { Badge } from './components/ui/badge';
 import { Button } from './components/ui/button';
@@ -6,15 +6,14 @@ import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
 import { EmptyState } from './components/ui/empty-state';
 import { Notice } from './components/ui/notice';
 import { dateHeading, formatDate } from './format-date';
-import { requestJson } from './lib/api';
-import { useNotice } from './lib/use-notice';
+import { apiKey, useApiQuery } from './lib/query';
+import { errorText } from './lib/use-notice';
 import { cn } from './lib/utils';
 import { LoadingRegion } from './loading-region';
 import { RetryButton } from './retry-button';
 import { groupByCategory } from './routine-groups';
 import type { Routine } from './routines';
-import { serviceDate } from './service-date';
-import { isPassingFailure, useReloadOnDateChange } from './use-date-change';
+import { useReloadWhenCurrent } from './use-date-change';
 
 type DaySummary = { date: string; checked: number; total: number; hasDiary: boolean };
 type MonthData = {
@@ -209,109 +208,69 @@ function DayDetail({ day }: { day: DayData }) {
 export function Records() {
   // null follows the server's current month.
   const [month, setMonth] = useState<string | null>(null);
-  // The month and the day reload on their own, so one never refetches the other.
-  const [monthVersion, setMonthVersion] = useState(0);
-  const [dayVersion, setDayVersion] = useState(0);
-  const [data, setData] = useState<MonthData | null>(null);
   // null follows the server's today, until a day is picked.
   const [chosen, setChosen] = useState<string | null>(null);
-  const [day, setDay] = useState<DayData | null>(null);
-  const [monthFailed, setMonthFailed] = useState(false);
-  const [dayFailed, setDayFailed] = useState(false);
-  const monthNotice = useNotice();
-  const dayNotice = useNotice();
-  const { error: monthError, clear: clearMonth } = monthNotice;
-  const { error: dayError, clear: clearDay } = dayNotice;
-  const requestedOn = useRef('');
 
-  useEffect(() => {
-    // A newer load supersedes this one, so a slow older response cannot overwrite it.
-    let ignore = false;
-    const startedOn = serviceDate();
-    requestedOn.current = startedOn;
-    requestJson<MonthData>(`/api/records${month ? `?month=${month}` : ''}`)
-      .then((loaded) => {
-        if (ignore) return;
-        setData(loaded);
-        setMonthFailed(false);
-        clearMonth();
-        // The server is not on this device's date yet (a fast clock), so ask again at the next check.
-        if (loaded.today !== startedOn) requestedOn.current = '';
-      })
-      .catch((cause: unknown) => {
-        if (ignore) return;
-        setMonthFailed(true);
-        monthError(cause);
-        if (isPassingFailure(cause)) requestedOn.current = '';
-      });
-    return () => {
-      ignore = true;
-    };
-  }, [month, monthVersion, monthError, clearMonth]);
+  // Each month and each day is its own query, so loading one never refetches the other.
+  const monthQuery = useApiQuery<MonthData>(
+    apiKey('/api/records', month),
+    `/api/records${month ? `?month=${month}` : ''}`,
+    { staleTime: 0 },
+  );
+  // The calendar stays on screen while the next month loads or fails to load.
+  const lastMonth = useRef<MonthData | null>(null);
+  if (monthQuery.data) lastMonth.current = monthQuery.data;
+  const data = monthQuery.data ?? lastMonth.current;
+  const monthFailed = monthQuery.isError;
+  const monthNotice = monthQuery.error
+    ? { kind: 'error' as const, text: errorText(monthQuery.error) }
+    : undefined;
 
   // Today stands in only while its month is on screen; a day from another month is never shown.
   const shownMonth = month ?? data?.month;
   const selected =
     chosen ?? (data && shownMonth && data.today.startsWith(`${shownMonth}-`) ? data.today : null);
 
-  useEffect(() => {
-    if (!selected) return undefined;
-    let ignore = false;
-    requestJson<DayData>(`/api/records/${selected}`)
-      .then((loaded) => {
-        if (ignore) return;
-        setDay(loaded);
-        setDayFailed(false);
-        clearDay();
-      })
-      .catch((cause: unknown) => {
-        if (ignore) return;
-        setDayFailed(true);
-        dayError(cause);
-      });
-    return () => {
-      ignore = true;
-    };
-  }, [selected, dayVersion, dayError, clearDay]);
+  const dayQuery = useApiQuery<DayData>(
+    apiKey('/api/records', 'day', selected),
+    `/api/records/${selected}`,
+    { enabled: selected !== null, staleTime: 0 },
+  );
+  const day = dayQuery.data ?? null;
+  const dayFailed = selected !== null && dayQuery.isError;
+  const dayNotice = dayFailed
+    ? { kind: 'error' as const, text: errorText(dayQuery.error) }
+    : undefined;
 
-  const reloadMonth = useCallback(() => setMonthVersion((value) => value + 1), []);
-  const reloadDay = useCallback(() => setDayVersion((value) => value + 1), []);
-  const reload = useCallback(() => {
-    reloadMonth();
-    reloadDay();
-  }, [reloadMonth, reloadDay]);
-  useReloadOnDateChange(requestedOn, reload);
-
-  // Records written elsewhere show up when the page is shown again.
-  useEffect(() => {
-    const reloadWhenShown = () => {
-      if (document.visibilityState === 'visible') reload();
-    };
-    document.addEventListener('visibilitychange', reloadWhenShown);
-    return () => document.removeEventListener('visibilitychange', reloadWhenShown);
-  }, [reload]);
+  const { refetch: refetchMonth } = monthQuery;
+  const { refetch: refetchDay } = dayQuery;
+  const reloadMonth = useCallback(() => void refetchMonth(), [refetchMonth]);
+  const reloadDay = useCallback(() => void refetchDay(), [refetchDay]);
+  // The month and the chosen day both load again when the date changes or the page is shown again.
+  const refetchBoth = useCallback(async () => {
+    await Promise.all([refetchMonth(), selected === null ? null : refetchDay()]);
+  }, [refetchMonth, refetchDay, selected]);
+  useReloadWhenCurrent(
+    { isFetching: monthQuery.isFetching, error: monthQuery.error, refetch: refetchBoth },
+    monthQuery.data?.today,
+  );
 
   const selectDay = (date: string) => {
-    clearDay();
-    setDayFailed(false);
     setChosen(date);
     // The same day changes nothing the load depends on, so ask for it again.
     if (date === selected) reloadDay();
   };
 
+  // No day is chosen in the new month yet; the month's own load follows from the change.
   const moveMonth = (target: string) => {
-    clearMonth();
     setMonth(target);
-    // No day is chosen in the new month yet; the month's own load follows from the change above.
     setChosen(null);
-    setDayFailed(false);
-    clearDay();
   };
 
   if (!data)
     return monthFailed ? (
       <div className="flex flex-col items-start gap-3">
-        <Notice notice={monthNotice.notice} />
+        <Notice notice={monthNotice} />
         <RetryButton onClick={reloadMonth}>Try again</RetryButton>
       </div>
     ) : (
@@ -345,7 +304,7 @@ export function Records() {
           </div>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
-          <Notice notice={monthNotice.notice} />
+          <Notice notice={monthNotice} />
           {monthFailed && (
             <RetryButton className="self-start" onClick={reloadMonth}>
               Try again
@@ -354,7 +313,7 @@ export function Records() {
           <Calendar data={data} selected={selected} onSelect={selectDay} />
         </CardContent>
       </Card>
-      <Notice notice={dayNotice.notice} />
+      <Notice notice={dayNotice} />
       {dayFailed && (
         <RetryButton className="self-start" onClick={reloadDay}>
           Reload this day's records
