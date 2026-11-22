@@ -111,6 +111,26 @@ test(
     }),
 );
 
+test('a later anchor-date call does not write the row', { skip: !url, timeout: 30_000 }, () =>
+  withClient(async (client) => {
+    await client.query('BEGIN');
+    try {
+      await client.query('DELETE FROM app_settings WHERE key = $1', [anchorSettingKey]);
+      const db = client as unknown as Pool;
+      await routineAnchorDate(db, '2026-10-22');
+      const xmin = () =>
+        client.query<{ xmin: string }>('SELECT xmin::text FROM app_settings WHERE key = $1', [
+          anchorSettingKey,
+        ]);
+      const before = (await xmin()).rows[0].xmin;
+      await routineAnchorDate(db, '2026-11-20');
+      assert.equal((await xmin()).rows[0].xmin, before);
+    } finally {
+      await client.query('ROLLBACK');
+    }
+  }),
+);
+
 test('simultaneous first calls agree on one first-use date', { skip: !url, timeout: 30_000 }, () =>
   withClient(async (client, pool) => {
     // Separate connections cannot share a rolled-back transaction, so restore the original row.

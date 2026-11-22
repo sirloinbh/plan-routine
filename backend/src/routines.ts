@@ -66,15 +66,28 @@ export const routineInput = z
 
 export const anchorSettingKey = 'routine_anchor_date';
 
-// The first call stores today as the first-use date; later calls return the stored date.
-// The no-op DO UPDATE always returns the row, even when a concurrent first call wins the insert
-// (DO NOTHING plus a SELECT would miss that row under READ COMMITTED).
+const dateValue = /^\d{4}-\d{2}-\d{2}$/;
+
+function storedDate(value: string) {
+  if (!dateValue.test(value))
+    throw new Error(`The stored ${anchorSettingKey} is not a YYYY-MM-DD date: ${value}`);
+  return value;
+}
+
+// Reads the stored first-use date with a plain SELECT, so a GET takes no write lock (#153). Only when no row exists
+// does the first call store today. The no-op DO UPDATE always returns the row, even when a concurrent first call wins
+// the insert (DO NOTHING plus a SELECT would miss that row under READ COMMITTED).
 export async function routineAnchorDate(db: Pool | PoolClient, today: string) {
+  const existing = await db.query<{ value: string }>(
+    'SELECT value FROM app_settings WHERE key = $1',
+    [anchorSettingKey],
+  );
+  if (existing.rows[0]) return storedDate(existing.rows[0].value);
   const { rows } = await db.query<{ value: string }>(
     `INSERT INTO app_settings (key, value) VALUES ($1, $2)
      ON CONFLICT (key) DO UPDATE SET value = app_settings.value
      RETURNING value`,
     [anchorSettingKey, today],
   );
-  return rows[0].value;
+  return storedDate(rows[0].value);
 }

@@ -3,7 +3,7 @@ import { test } from 'node:test';
 
 import type { Pool } from 'pg';
 
-import { routineInput } from '../src/routines.js';
+import { routineAnchorDate, routineInput } from '../src/routines.js';
 import { withApi } from './helpers.js';
 
 // Fake pool that answers the anchor query with a stored first-use date and records the call.
@@ -36,8 +36,8 @@ test('periods use the stored first-use date and default to the service date', as
     },
     { today: () => '2026-11-20' },
   );
-  // Today is offered as the first-use date; the DB keeps the earlier one if already set.
-  assert.deepEqual(calls, [['routine_anchor_date', '2026-11-20']]);
+  // A stored date is only read: no first-use date is offered or written (#153).
+  assert.deepEqual(calls, [['routine_anchor_date']]);
 });
 
 test('periods for a requested date', async () => {
@@ -126,4 +126,36 @@ test('a routine name that is not text answers with one message, even if it has a
   assert.deepEqual(messages(Array.from({ length: 101 }, () => 'a')), [
     'The routine name must be text',
   ]);
+});
+
+test('routineAnchorDate reads the stored date with a SELECT and issues no write', async () => {
+  const sqls: string[] = [];
+  const db = {
+    query: async (sql: string) => {
+      sqls.push(sql);
+      return { rows: [{ value: '2026-10-22' }] };
+    },
+  } as unknown as Pool;
+  assert.equal(await routineAnchorDate(db, '2026-11-20'), '2026-10-22');
+  assert.equal(await routineAnchorDate(db, '2026-11-21'), '2026-10-22');
+  assert.equal(sqls.length, 2);
+  assert.ok(sqls.every((sql) => /^SELECT /.test(sql)));
+});
+
+test('routineAnchorDate stores today only when no row exists', async () => {
+  const sqls: string[] = [];
+  const db = {
+    query: async (sql: string, params: unknown[]) => {
+      sqls.push(sql);
+      return { rows: /^SELECT /.test(sql) ? [] : [{ value: params[1] }] };
+    },
+  } as unknown as Pool;
+  assert.equal(await routineAnchorDate(db, '2026-11-20'), '2026-11-20');
+  assert.equal(sqls.length, 2);
+  assert.match(sqls[1], /^INSERT INTO app_settings/);
+});
+
+test('routineAnchorDate rejects a stored value that is not a date', async () => {
+  const db = { query: async () => ({ rows: [{ value: 'yesterday' }] }) } as unknown as Pool;
+  await assert.rejects(routineAnchorDate(db, '2026-11-20'), /not a YYYY-MM-DD date/);
 });
