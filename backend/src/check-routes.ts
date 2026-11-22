@@ -3,13 +3,14 @@ import type { Pool } from 'pg';
 import { z } from 'zod/v4';
 
 import { addDays, type Cadence, calendarDate, daysBetween, periodFor } from './periods.js';
-import { notFound, routineColumns, routineId } from './routine-routes.js';
+import { routineColumns, routineId, routineNotFound } from './routine-routes.js';
 import { routineAnchorDate, routineCadence } from './routines.js';
 
 // Checks can change for today and the seven days before it (confirmed on issue #5).
 const editableDays = 7;
 // A period's last 7 days, when unfinished four-week routines join the daily page (issue #7).
 const endingDays = 7;
+import { HttpError } from './standard/http.js';
 import { inTransaction } from './transaction.js';
 
 export const checklistQuery = z.object({
@@ -34,10 +35,7 @@ export function checkRoutes(pool: Pool, today: () => string) {
     const current = today();
     const target = date ?? current;
     const rangeError = dateRangeError(target, current);
-    if (rangeError) {
-      res.status(400).json({ error: rangeError });
-      return;
-    }
+    if (rangeError) throw new HttpError(400, rangeError);
     const anchorDate = await routineAnchorDate(pool, current);
     const period = periodFor(cadence, target, anchorDate);
     // Active routines only; an archived routine keeps its checks but leaves the checklist.
@@ -76,10 +74,7 @@ export function checkRoutes(pool: Pool, today: () => string) {
     const { id, date } = checkParams.parse(req.params);
     const current = today();
     const rangeError = dateRangeError(date, current);
-    if (rangeError) {
-      res.status(400).json({ error: rangeError });
-      return;
-    }
+    if (rangeError) throw new HttpError(400, rangeError);
     const reply = await inTransaction(pool, async (client) => {
       const anchorDate = await routineAnchorDate(client, current);
       // FOR SHARE makes a concurrent archive wait, so an archived routine cannot gain a check.
@@ -87,9 +82,7 @@ export function checkRoutes(pool: Pool, today: () => string) {
         'SELECT cadence FROM routines WHERE id = $1 AND archived_at IS NULL FOR SHARE',
         [id],
       );
-      if (!target.rows[0]) {
-        return { status: 404, body: notFound };
-      }
+      if (!target.rows[0]) throw new HttpError(404, routineNotFound);
       const period = periodFor(target.rows[0].cadence, date, anchorDate);
       await client.query(
         checked

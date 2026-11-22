@@ -5,11 +5,12 @@ import { z } from 'zod/v4';
 import { bodyId, pathId } from './ids.js';
 import { badRequest, requestBody } from './request-input.js';
 import { anchorSettingKey, routineCadence, routineInput, routineName } from './routines.js';
+import { HttpError } from './standard/http.js';
 import { inTransaction } from './transaction.js';
 
 export const routineColumns =
   'id, name, cadence, category, sort_order AS "sortOrder", project_link_id AS "projectLinkId"';
-export const notFound = { error: 'Routine not found' };
+export const routineNotFound = 'Routine not found';
 
 export const listQuery = z.object({ cadence: routineCadence.optional() });
 export const routineId = pathId('Invalid routine ID');
@@ -77,10 +78,7 @@ export function routineRoutes(pool: Pool, today: () => string) {
        WHERE id = $2 AND archived_at IS NULL RETURNING ${routineColumns}`,
       [name, id],
     );
-    if (!rows[0]) {
-      res.status(404).json(notFound);
-      return;
-    }
+    if (!rows[0]) throw new HttpError(404, routineNotFound);
     res.json({ routine: rows[0] });
   });
 
@@ -93,9 +91,7 @@ export function routineRoutes(pool: Pool, today: () => string) {
         'SELECT cadence, category FROM routines WHERE id = $1 AND archived_at IS NULL',
         [id],
       );
-      if (!target.rows[0]) {
-        return { status: 404, body: notFound };
-      }
+      if (!target.rows[0]) throw new HttpError(404, routineNotFound);
       // Lock the whole group in id order so concurrent moves queue instead of deadlocking.
       await client.query(
         `SELECT id FROM routines
@@ -113,7 +109,7 @@ export function routineRoutes(pool: Pool, today: () => string) {
       const index = ids.indexOf(id);
       if (index < 0) {
         // Archived by another request between the two reads.
-        return { status: 404, body: notFound };
+        throw new HttpError(404, routineNotFound);
       }
       const swapWith = direction === 'up' ? index - 1 : index + 1;
       if (swapWith >= 0 && swapWith < ids.length)
@@ -144,10 +140,7 @@ export function routineRoutes(pool: Pool, today: () => string) {
        RETURNING ${routineColumns}`,
       [projectLinkId, id],
     );
-    if (!rows[0]) {
-      res.status(404).json({ error: 'Routine or project not found' });
-      return;
-    }
+    if (!rows[0]) throw new HttpError(404, 'Routine or project not found');
     res.json({ routine: rows[0] });
   });
 
@@ -159,10 +152,7 @@ export function routineRoutes(pool: Pool, today: () => string) {
        WHERE id = $1 AND archived_at IS NULL RETURNING ${routineColumns}`,
       [id],
     );
-    if (!rows[0]) {
-      res.status(404).json(notFound);
-      return;
-    }
+    if (!rows[0]) throw new HttpError(404, routineNotFound);
     res.json({ routine: rows[0] });
   });
 

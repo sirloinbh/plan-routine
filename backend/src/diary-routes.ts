@@ -5,6 +5,7 @@ import { z } from 'zod/v4';
 import { dailyRoutineOn } from './day-records.js';
 import { addDays, calendarDate } from './periods.js';
 import { badRequest, noNul, nulMessage, requestBody } from './request-input.js';
+import { HttpError } from './standard/http.js';
 
 // Past days have no limit (confirmed on issue #9), but PostgreSQL has no year 0000, so the range
 // needs a floor. A floor this early is out of the way of any real diary.
@@ -60,10 +61,7 @@ export function diaryRoutes(pool: Pool, today: () => string) {
     const current = today();
     const target = date ?? current;
     const rangeError = dateRangeError(target, current);
-    if (rangeError) {
-      res.status(400).json({ error: rangeError });
-      return;
-    }
+    if (rangeError) throw new HttpError(400, rangeError);
     const entry = await pool.query(
       `SELECT ${entryColumns} FROM diary_entries WHERE entry_date = $1`,
       [target],
@@ -96,10 +94,7 @@ export function diaryRoutes(pool: Pool, today: () => string) {
   router.put('/:date', async (req, res) => {
     const { date } = diaryParams.parse(req.params);
     const rangeError = dateRangeError(date, today());
-    if (rangeError) {
-      res.status(400).json({ error: rangeError });
-      return;
-    }
+    if (rangeError) throw new HttpError(400, rangeError);
     const input = diaryInput.parse(requestBody(req.body));
     const { rows } = await pool.query(
       `INSERT INTO diary_entries (entry_date, body, good_note, regret_note, tomorrow_note)

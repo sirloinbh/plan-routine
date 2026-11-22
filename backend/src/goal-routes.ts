@@ -6,12 +6,13 @@ import { bodyId, pathId } from './ids.js';
 import { daysBetween, periodFor } from './periods.js';
 import { badRequest, noNul, nulMessage, requestBody } from './request-input.js';
 import { routineAnchorDate } from './routines.js';
+import { HttpError } from './standard/http.js';
 import { inTransaction } from './transaction.js';
 
 const goalColumns = `id, period_start AS "periodStart", title, achieved,
   review_note AS "reviewNote", reviewed_at AS "reviewedAt"`;
-const notFound = { error: 'Goal not found' };
-const pastGoal = { error: 'Goals of past periods cannot be edited' };
+const goalNotFound = 'Goal not found';
+const pastGoal = 'Goals of past periods cannot be edited';
 
 const goalIdMessage = 'Invalid goal ID';
 const idParam = z.object({ id: pathId(goalIdMessage) });
@@ -157,10 +158,10 @@ export function goalRoutes(pool: Pool, today: () => string) {
     res.status(reply.status).json(reply.body);
   });
 
-  // Answers why a goal outside the current period could not be changed.
-  const refuseUnchanged = async (id: number, db: Pool | PoolClient = pool) => {
+  // Throws why a goal outside the current period could not be changed: 400 for a past period, 404 for no goal.
+  const refuseUnchanged = async (id: number, db: Pool | PoolClient = pool): Promise<never> => {
     const { rows } = await db.query('SELECT 1 FROM twelve_week_goals WHERE id = $1', [id]);
-    return rows[0] ? pastGoal : notFound;
+    throw rows[0] ? new HttpError(400, pastGoal) : new HttpError(404, goalNotFound);
   };
 
   router.patch('/:id', async (req, res) => {
@@ -172,11 +173,7 @@ export function goalRoutes(pool: Pool, today: () => string) {
        WHERE id = $2 AND period_start = $3 RETURNING ${goalColumns}`,
       [title, id, period.start],
     );
-    if (!rows[0]) {
-      const refusal = await refuseUnchanged(id);
-      res.status(refusal === notFound ? 404 : 400).json(refusal);
-      return;
-    }
+    if (!rows[0]) return refuseUnchanged(id);
     res.json({ goal: rows[0] });
   });
 
@@ -192,8 +189,7 @@ export function goalRoutes(pool: Pool, today: () => string) {
       );
       if (!target.rows[0]) {
         // On this connection: waiting for another while holding it could stall every request.
-        const refusal = await refuseUnchanged(id, client);
-        return { status: refusal === notFound ? 404 : 400, body: refusal };
+        return refuseUnchanged(id, client);
       }
       // FOR SHARE makes a concurrent archive wait, so an archived routine cannot gain a link.
       const allowed = await client.query(
@@ -203,10 +199,7 @@ export function goalRoutes(pool: Pool, today: () => string) {
         [routineIds],
       );
       if (allowed.rows.length !== routineIds.length) {
-        return {
-          status: 400,
-          body: { error: 'Some routines cannot be linked. Please check again' },
-        };
+        throw new HttpError(400, 'Some routines cannot be linked. Please check again');
       }
       await client.query('DELETE FROM twelve_week_goal_routines WHERE goal_id = $1', [id]);
       await client.query(
@@ -233,11 +226,7 @@ export function goalRoutes(pool: Pool, today: () => string) {
       'DELETE FROM twelve_week_goals WHERE id = $1 AND period_start = $2 RETURNING id',
       [id, period.start],
     );
-    if (!rows[0]) {
-      const refusal = await refuseUnchanged(id);
-      res.status(refusal === notFound ? 404 : 400).json(refusal);
-      return;
-    }
+    if (!rows[0]) return refuseUnchanged(id);
     res.json({ id });
   });
 
@@ -252,14 +241,9 @@ export function goalRoutes(pool: Pool, today: () => string) {
          WHERE id = ANY($1::bigint[]) ORDER BY id FOR UPDATE`,
         [ids],
       );
-      if (found.rows.length !== ids.length) {
-        return { status: 404, body: notFound };
-      }
+      if (found.rows.length !== ids.length) throw new HttpError(404, goalNotFound);
       if (found.rows.some((row) => row.periodStart >= period.start)) {
-        return {
-          status: 400,
-          body: { error: 'Goals of a period that has not ended cannot be reviewed' },
-        };
+        throw new HttpError(400, 'Goals of a period that has not ended cannot be reviewed');
       }
       for (const { id, achieved, note } of reviews)
         // Clearing both answers takes the goal back to "not reviewed yet".
