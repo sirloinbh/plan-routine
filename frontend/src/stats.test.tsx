@@ -157,14 +157,24 @@ test('with no routines at all it says there is no history yet', async () => {
   expect(screen.getByText('No history yet')).toBeInTheDocument();
 });
 
-test('the bar length matches the rate', async () => {
+test('the bar length matches the rate, row by row', async () => {
   statsApi();
   const { container } = render(<Stats />);
   await flush();
-  const widths = [...container.querySelectorAll<HTMLElement>('span.bg-primary')].map(
-    (bar) => bar.style.width,
-  );
-  expect(widths).toEqual(expect.arrayContaining(['67%', '100%', '0%', '25%']));
+  // Every rate row: its label and its bar width, or the words shown when there is nothing to count.
+  // An array in page order, because two sections can share a label (a daily week and a weekly period).
+  const rows = [...container.querySelectorAll<HTMLElement>('li.grid')].map((row) => [
+    row.firstElementChild?.textContent,
+    row.querySelector<HTMLElement>('span.bg-primary')?.style.width ?? 'No records',
+  ]);
+  expect(rows).toEqual([
+    ['Oct 18 – Oct 24', '67%'],
+    ['Oct 11 – Oct 17', 'No records'],
+    ['October 2026', '100%'],
+    ['Oct 18 – Oct 24', '0%'],
+    ['Oct 18 – Nov 14', 'No records'],
+    ['Oct 18 – Jan 9', '25%'],
+  ]);
 });
 
 test('rounding never claims all or nothing while neither is true', async () => {

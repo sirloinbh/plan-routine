@@ -134,7 +134,16 @@ test('a day before any routine existed shows no routine progress', async () => {
   api.setProgress({ checked: 0, total: 0 });
   render(<Diary />);
   await field('Looking back on the day');
-  expect(screen.queryByText(/Daily routines .* Done/)).not.toBeInTheDocument();
+  // The screen renders "Daily routines 0/0 done"; the match is case-insensitive so it can really fail.
+  expect(screen.queryByText(/Daily routines/i)).not.toBeInTheDocument();
+});
+
+test('a day with routines shows its progress', async () => {
+  const api = diaryApi();
+  api.setProgress({ checked: 1, total: 3 });
+  render(<Diary />);
+  await field('Looking back on the day');
+  expect(screen.getByText(/Daily routines/i)).toHaveTextContent('Daily routines 1/3 done');
 });
 
 test('saving sends every field and keeps the text after a reload', async () => {
