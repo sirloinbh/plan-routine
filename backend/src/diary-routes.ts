@@ -4,7 +4,7 @@ import { z } from 'zod/v4';
 
 import { dailyRoutineOn } from './day-records.js';
 import { addDays, calendarDate } from './periods.js';
-import { badRequest, noNul, nulMessage, requestBody } from './request-input.js';
+import { badRequest, fromEarliestDate, noNul, nulMessage, requestBody } from './request-input.js';
 import { HttpError } from './standard/http.js';
 
 // Past days have no limit (confirmed on issue #9), but PostgreSQL has no year 0000, so the range
@@ -49,7 +49,7 @@ export const diaryInput = z.object(
 // ISO dates compare correctly as strings.
 function dateRangeError(date: string, today: string) {
   if (date > today) return 'A diary entry cannot be written for a future date';
-  if (date < earliestDate) return 'Diary entries can only be written for dates after the year 2000';
+  if (date < earliestDate) return `Diary entries can only be written ${fromEarliestDate}`;
   return null;
 }
 

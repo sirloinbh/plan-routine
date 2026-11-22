@@ -132,7 +132,7 @@ test('dates outside the editable range are English 400s before any query', async
       ]) {
         const old = await call(request.path, { method: request.method });
         assert.equal(old.status, 400);
-        assert.equal(old.data.error, 'You can only check the last 7 days');
+        assert.equal(old.data.error, 'You can only check today and the 7 days before it');
       }
     },
     { today },

@@ -5,6 +5,7 @@ import { z } from 'zod/v4';
 import { dailyRoutineOn } from './day-records.js';
 import { entryColumns } from './diary-routes.js';
 import { addDays, calendarDate, shiftMonth } from './periods.js';
+import { fromEarliestDate } from './request-input.js';
 import { HttpError } from './standard/http.js';
 
 // Same floor as the diary: PostgreSQL has no year 0000.
@@ -18,7 +19,7 @@ export const monthQuery = z.object({
 });
 const dateParam = z.object({ date: calendarDate });
 
-const earlyRecords = 'Records can only be viewed from the year 2000 on';
+const earlyRecords = `Records can only be viewed ${fromEarliestDate}`;
 
 export function recordRoutes(pool: Pool, today: () => string) {
   const router = Router();
