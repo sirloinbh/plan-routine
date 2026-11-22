@@ -173,7 +173,7 @@ export function Stats() {
   const data = stats.data ?? null;
   const loadFailed = stats.isError;
   const notice = stats.error ? { kind: 'error' as const, text: errorText(stats.error) } : undefined;
-  useReloadWhenCurrent(stats, data?.today);
+  useReloadWhenCurrent(stats, '/api/stats');
   const reload = () => void stats.refetch();
 
   const failure = (

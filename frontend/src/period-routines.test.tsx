@@ -1,8 +1,9 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, screen, within } from '@testing-library/react';
 import { beforeEach, expect, test, vi } from 'vitest';
 
 import { FourWeekRoutines, WeeklyRoutines } from './period-routines';
 import { queryLive } from './test/live';
+import { render } from './test/render';
 
 type Seed = { id: number; name: string };
 
@@ -122,7 +123,13 @@ function weeklyApi(seed: Seed[] = []) {
   };
 }
 
-const flush = () => act(() => new Promise((resolve) => setTimeout(resolve)));
+// The query layer tells the screen about a result one timer tick after the answer arrives.
+const tick = () => new Promise((resolve) => setTimeout(resolve));
+const flush = () =>
+  act(async () => {
+    await tick();
+    await tick();
+  });
 const box = (name: string) => screen.findByRole('checkbox', { name });
 const thisWeek = () => screen.getByRole('region', { name: 'This week checklist' });
 const seed = [
@@ -262,7 +269,8 @@ test('a device clock ahead of the server still reaches the new week', async () =
   const nextCheck = () =>
     act(async () => {
       vi.advanceTimersByTime(60_000);
-      await new Promise((resolve) => setTimeout(resolve));
+      await tick();
+      await tick();
     });
 
   // The device reaches Sunday first; the server still answers with last week.
