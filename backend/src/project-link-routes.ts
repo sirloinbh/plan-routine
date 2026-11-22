@@ -4,8 +4,9 @@ import { z } from 'zod/v4';
 
 import { pathId } from './ids.js';
 import { badRequest, noNul, nulMessage, requestBody } from './request-input.js';
+import { HttpError } from './standard/http.js';
 
-const notFound = { error: 'Project not found' };
+const projectNotFound = 'Project not found';
 const columns = 'id, name, url';
 const urlMessage = 'The URL must be https:// or a private access address';
 
@@ -96,10 +97,7 @@ export function projectLinkRoutes(pool: Pool) {
   router.delete('/:id', async (req, res) => {
     const { id } = idParam.parse(req.params);
     const { rows } = await pool.query('DELETE FROM project_links WHERE id = $1 RETURNING id', [id]);
-    if (!rows[0]) {
-      res.status(404).json(notFound);
-      return;
-    }
+    if (!rows[0]) throw new HttpError(404, projectNotFound);
     res.json({ id });
   });
 

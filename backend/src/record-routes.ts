@@ -5,6 +5,7 @@ import { z } from 'zod/v4';
 import { dailyRoutineOn } from './day-records.js';
 import { entryColumns } from './diary-routes.js';
 import { addDays, calendarDate, shiftMonth } from './periods.js';
+import { HttpError } from './standard/http.js';
 
 // Same floor as the diary: PostgreSQL has no year 0000.
 const earliestDate = '2000-01-01';
@@ -17,6 +18,8 @@ export const monthQuery = z.object({
 });
 const dateParam = z.object({ date: calendarDate });
 
+const earlyRecords = 'Records can only be viewed from the year 2000 on';
+
 export function recordRoutes(pool: Pool, today: () => string) {
   const router = Router();
 
@@ -26,15 +29,9 @@ export function recordRoutes(pool: Pool, today: () => string) {
     const current = today();
     const thisMonth = current.slice(0, 7);
     const month = requested ?? thisMonth;
-    if (month > thisMonth) {
-      res.status(400).json({ error: 'Records for a future month cannot be viewed' });
-      return;
-    }
+    if (month > thisMonth) throw new HttpError(400, 'Records for a future month cannot be viewed');
     const firstDay = `${month}-01`;
-    if (firstDay < earliestDate) {
-      res.status(400).json({ error: 'Records can only be viewed from the year 2000 on' });
-      return;
-    }
+    if (firstDay < earliestDate) throw new HttpError(400, earlyRecords);
     const lastDay = addDays(`${shiftMonth(month, 1)}-01`, -1);
     const { rows } = await pool.query(
       `SELECT days.date,
@@ -63,14 +60,8 @@ export function recordRoutes(pool: Pool, today: () => string) {
   router.get('/:date', async (req, res) => {
     const { date } = dateParam.parse(req.params);
     const current = today();
-    if (date > current) {
-      res.status(400).json({ error: 'Records for a future date cannot be viewed' });
-      return;
-    }
-    if (date < earliestDate) {
-      res.status(400).json({ error: 'Records can only be viewed from the year 2000 on' });
-      return;
-    }
+    if (date > current) throw new HttpError(400, 'Records for a future date cannot be viewed');
+    if (date < earliestDate) throw new HttpError(400, earlyRecords);
     const routines = await pool.query<{ checked: boolean }>(
       `SELECT routines.id, routines.name, routines.cadence, routines.category,
          routines.sort_order AS "sortOrder",
