@@ -203,8 +203,14 @@ test('reviews of past goals save in one transaction, with blank notes as none', 
     { today },
   );
   const updates = issued(queries, 'SET achieved');
-  assert.deepEqual(updates[0].params, [2, true, 'Done it']);
-  assert.deepEqual(updates[1].params, [4, null, null]);
+  assert.equal(updates.length, 1);
+  assert.deepEqual(updates[0].params, [
+    [2, 4],
+    [true, null],
+    ['Done it', null],
+  ]);
+  assert.match(updates[0].sql, /FROM unnest\(\$1::bigint\[\], \$2::boolean\[\], \$3::text\[\]\)/);
+  assert.match(updates[0].sql, /IS DISTINCT FROM/);
   assert.equal(queries.at(-1)?.sql, 'COMMIT');
 });
 

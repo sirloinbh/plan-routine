@@ -1,6 +1,6 @@
 import { Pool, type PoolClient } from 'pg';
 
-import { type Migration, migrate as runMigrate } from '../src/standard/migrations.js';
+import { migrate as runMigrate, type Migration } from '../src/standard/migrations.js';
 
 // Shared setup for the *.integration.test.ts files. They need a dedicated test DB with database/migrations
 // applied; without TEST_DATABASE_URL each test is skipped (not passed).

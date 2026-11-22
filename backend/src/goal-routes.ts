@@ -245,16 +245,18 @@ export function goalRoutes(pool: Pool, today: () => string) {
       if (found.rows.some((row) => row.periodStart >= period.start)) {
         throw new HttpError(400, 'Goals of a period that has not ended cannot be reviewed');
       }
-      for (const { id, achieved, note } of reviews)
-        // Clearing both answers takes the goal back to "not reviewed yet".
-        await client.query(
-          `UPDATE twelve_week_goals
-           SET achieved = $2, review_note = $3,
-               reviewed_at = CASE WHEN $2::boolean IS NULL AND $3::text IS NULL THEN NULL ELSE now() END,
-               updated_at = now()
-           WHERE id = $1`,
-          [id, achieved, note],
-        );
+      // One statement for all reviews (#154). A review whose answers did not change is left untouched, so re-saving
+      // does not move reviewed_at. Clearing both answers takes the goal back to "not reviewed yet".
+      await client.query(
+        `UPDATE twelve_week_goals AS goal
+         SET achieved = review.achieved, review_note = review.note,
+             reviewed_at = CASE WHEN review.achieved IS NULL AND review.note IS NULL THEN NULL ELSE now() END,
+             updated_at = now()
+         FROM unnest($1::bigint[], $2::boolean[], $3::text[]) AS review(id, achieved, note)
+         WHERE goal.id = review.id
+           AND (goal.achieved IS DISTINCT FROM review.achieved OR goal.review_note IS DISTINCT FROM review.note)`,
+        [ids, reviews.map((review) => review.achieved), reviews.map((review) => review.note)],
+      );
       const { rows } = await client.query(
         `SELECT ${goalColumns} FROM twelve_week_goals WHERE id = ANY($1::bigint[])
          ORDER BY sort_order, twelve_week_goals.id`,

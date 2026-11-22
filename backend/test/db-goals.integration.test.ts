@@ -184,6 +184,25 @@ test(
               ],
             );
 
+            // Saving the same answers again leaves reviewed_at and updated_at alone; a changed note moves them.
+            const stamps = () =>
+              client.query<{ reviewed_at: Date; updated_at: Date }>(
+                'SELECT reviewed_at, updated_at FROM twelve_week_goals WHERE id = $1',
+                [first],
+              );
+            const beforeResave = (await stamps()).rows[0];
+            const resaved = await call('/api/goals/reviews', {
+              method: 'PUT',
+              body: { reviews: [{ id: first, achieved: true, note: 'Read 10 books' }] },
+            });
+            assert.equal(resaved.status, 200);
+            assert.deepEqual((await stamps()).rows[0], beforeResave);
+            await call('/api/goals/reviews', {
+              method: 'PUT',
+              body: { reviews: [{ id: first, achieved: true, note: 'Read 11 books' }] },
+            });
+            assert.ok((await stamps()).rows[0].reviewed_at > beforeResave.reviewed_at);
+
             // Clearing both answers takes a goal back to "not reviewed yet".
             const cleared = await call('/api/goals/reviews', {
               method: 'PUT',
