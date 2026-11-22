@@ -188,3 +188,21 @@ test('a routine link is set or cleared, and refused for something missing', asyn
   });
   assert.equal(missing.queries.length, 1);
 });
+
+test('a project name that clashes ignoring case gets a 409 that says so', async () => {
+  const pool = {
+    query: async () => {
+      throw Object.assign(new Error('duplicate key value violates unique constraint'), {
+        code: '23505',
+      });
+    },
+  } as unknown as Pool;
+  await withApi(pool, async (call) => {
+    const { status, data } = await call('/api/project-links', {
+      method: 'POST',
+      body: { name: 'foo', url: 'https://a.example' },
+    });
+    assert.equal(status, 409);
+    assert.equal(data.error, 'A project with this name already exists (names ignore case)');
+  });
+});

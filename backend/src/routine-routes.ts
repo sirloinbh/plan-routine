@@ -3,7 +3,7 @@ import type { Pool } from 'pg';
 import { z } from 'zod/v4';
 
 import { bodyId, pathId } from './ids.js';
-import { badRequest, requestBody } from './request-input.js';
+import { badRequest, hasPgCode, requestBody } from './request-input.js';
 import { anchorSettingKey, routineCadence, routineInput, routineName } from './routines.js';
 import { HttpError } from './standard/http.js';
 import { inTransaction } from './transaction.js';
@@ -11,6 +11,7 @@ import { inTransaction } from './transaction.js';
 export const routineColumns =
   'id, name, cadence, category, sort_order AS "sortOrder", project_link_id AS "projectLinkId"';
 export const routineNotFound = 'Routine not found';
+const projectOrRoutineNotFound = 'Routine or project not found';
 
 export const listQuery = z.object({ cadence: routineCadence.optional() });
 export const routineId = pathId('Invalid routine ID');
@@ -133,14 +134,20 @@ export function routineRoutes(pool: Pool, today: () => string) {
   router.put('/:id/project-link', async (req, res) => {
     const { id } = idParam.parse(req.params);
     const { projectLinkId } = projectLinkInput.parse(requestBody(req.body));
-    const { rows } = await pool.query(
-      `UPDATE routines SET project_link_id = $1::bigint, updated_at = now()
-       WHERE id = $2 AND archived_at IS NULL
-         AND ($1::bigint IS NULL OR EXISTS (SELECT 1 FROM project_links WHERE id = $1::bigint))
-       RETURNING ${routineColumns}`,
-      [projectLinkId, id],
-    );
-    if (!rows[0]) throw new HttpError(404, 'Routine or project not found');
+    const { rows } = await pool
+      .query(
+        `UPDATE routines SET project_link_id = $1::bigint, updated_at = now()
+         WHERE id = $2 AND archived_at IS NULL
+           AND ($1::bigint IS NULL OR EXISTS (SELECT 1 FROM project_links WHERE id = $1::bigint))
+         RETURNING ${routineColumns}`,
+        [projectLinkId, id],
+      )
+      .catch((error: unknown) => {
+        // The project was deleted after the EXISTS check: the foreign key refuses the link (#152).
+        if (hasPgCode(error, '23503')) throw new HttpError(404, projectOrRoutineNotFound);
+        throw error;
+      });
+    if (!rows[0]) throw new HttpError(404, projectOrRoutineNotFound);
     res.json({ routine: rows[0] });
   });
 
