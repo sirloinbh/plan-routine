@@ -158,7 +158,7 @@ test('future, too old and impossible dates are English 400s before any query', a
       ]) {
         const { status, data } = await request;
         assert.equal(status, 400);
-        assert.equal(data.error, 'Diary entries can only be written for dates after the year 2000');
+        assert.equal(data.error, 'Diary entries can only be written from 2000-01-01 on');
       }
       const impossible = await call('/api/diary/2026-02-30', put({ body: 'Body' }));
       assert.equal(impossible.status, 400);

@@ -16,3 +16,6 @@ export const requestBody = (value: unknown) => value ?? {};
 export function hasPgCode(error: unknown, code: string) {
   return typeof error === 'object' && error !== null && (error as { code?: unknown }).code === code;
 }
+
+/** The shared tail of the "too early" message for diary entries and records (2000-01-01 is the earliest date). */
+export const fromEarliestDate = 'from 2000-01-01 on';
