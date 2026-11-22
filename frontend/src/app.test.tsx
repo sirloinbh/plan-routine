@@ -79,10 +79,23 @@ const health = (body: object, status = 200) =>
     ),
   );
 
-test('shows the server date from /api/health on the overview', async () => {
+test('opening the app lands on the Today checklist', async () => {
   health({ today: '2026-10-26' });
   render(<App />);
-  expect(screen.getByRole('heading', { level: 1, name: 'Dashboard' })).toBeInTheDocument();
+  expect(await screen.findByRole('heading', { level: 1, name: 'Today' })).toBeInTheDocument();
+  expect(window.location.pathname).toBe('/today');
+  expect(await screen.findByText('No routines to check')).toBeInTheDocument();
+  expect(screen.queryByText(/GitHub issue/)).not.toBeInTheDocument();
+  expect(
+    within(screen.getByRole('navigation', { name: 'Main menu' })).queryByRole('link', {
+      name: 'Dashboard',
+    }),
+  ).not.toBeInTheDocument();
+});
+
+test('shows the server date from /api/health', async () => {
+  health({ today: '2026-10-26' });
+  render(<App />);
   expect(await screen.findByText('Server connected · 2026-10-26')).toBeInTheDocument();
 });
 
@@ -235,12 +248,12 @@ test('the main menu opens the stats page', async () => {
   window.history.replaceState(null, '', '/');
 });
 
-test('an unknown address falls back to the overview', async () => {
+test('an unknown address falls back to Today', async () => {
   health({ today: '2026-10-26' });
   window.history.replaceState(null, '', '/no-such-page');
   render(<App />);
-  expect(await screen.findByRole('heading', { level: 1, name: 'Dashboard' })).toBeInTheDocument();
-  expect(window.location.pathname).toBe('/');
+  expect(await screen.findByRole('heading', { level: 1, name: 'Today' })).toBeInTheDocument();
+  expect(window.location.pathname).toBe('/today');
 });
 
 test('the real page is an area a retry button can hand focus to', async () => {

@@ -4,7 +4,6 @@ import {
   CalendarRange,
   ChartNoAxesColumn,
   History,
-  LayoutDashboard,
   ListChecks,
   NotebookPen,
   Settings2,
@@ -15,7 +14,6 @@ import { BrowserRouter, Link, Navigate, Route, Routes } from 'react-router';
 
 import { AppShell, type NavItem } from './components/layout/app-shell';
 import { Button } from './components/ui/button';
-import { EmptyState } from './components/ui/empty-state';
 import { Toaster } from './components/ui/sonner';
 import { DailyChecklist } from './daily-checklist';
 import { Diary } from './diary';
@@ -31,7 +29,7 @@ import { TwelveWeek } from './twelve-week';
 
 // Every page URL lives here (central docs/directory-rules.md).
 const pages = {
-  overview: '/',
+  home: '/',
   today: '/today',
   diary: '/diary',
   routines: '/routines',
@@ -45,7 +43,6 @@ const pages = {
 
 // Main menu (LNB) items, in display order.
 const nav: NavItem[] = [
-  { to: pages.overview, label: 'Dashboard', icon: LayoutDashboard },
   { to: pages.today, label: 'Today', icon: CalendarCheck },
   { to: pages.diary, label: 'Diary', icon: NotebookPen },
   { to: pages.routines, label: 'Daily routines', icon: ListChecks },
@@ -83,7 +80,7 @@ function Page({
   title: string;
   description: string;
   health: Health;
-  children?: ReactNode;
+  children: ReactNode;
 }) {
   return (
     <section aria-labelledby="page-title" className="flex flex-col gap-6">
@@ -100,12 +97,7 @@ function Page({
           </p>
         )}
       </header>
-      {children ?? (
-        <EmptyState
-          title="No features yet"
-          description="Features are registered as GitHub issue cards, then added one at a time."
-        />
-      )}
+      {children}
     </section>
   );
 }
@@ -121,16 +113,8 @@ export function App() {
           actions={<AccountActions />}
         >
           <Routes>
-            <Route
-              path={pages.overview}
-              element={
-                <Page
-                  title="Dashboard"
-                  description="A personal service to make plans, record practice and routines, and improve with feedback"
-                  health={health}
-                />
-              }
-            />
+            {/* Today is the first screen: opening the app lands on the checklist. */}
+            <Route path={pages.home} element={<Navigate to={pages.today} replace />} />
             <Route
               path={pages.today}
               element={
@@ -236,14 +220,14 @@ export function App() {
               element={
                 <Page
                   title="Settings"
-                  description="App environment and data management"
+                  description="Manage the other apps your routines can open"
                   health={health}
                 >
                   <ProjectLinks />
                 </Page>
               }
             />
-            <Route path="*" element={<Navigate to={pages.overview} replace />} />
+            <Route path="*" element={<Navigate to={pages.today} replace />} />
           </Routes>
         </AppShell>
         <Toaster />
