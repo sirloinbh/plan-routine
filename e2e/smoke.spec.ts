@@ -14,7 +14,9 @@ test('the first screen loads, the API is healthy, and nothing breaks in the brow
   expect(health.ok()).toBe(true);
 
   await page.goto('/');
-  await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();
+  // The app opens on the Today checklist.
+  await expect(page.getByRole('heading', { level: 1, name: 'Today' })).toBeVisible();
+  await expect(page).toHaveURL(/\/today$/);
   await page.waitForLoadState('networkidle');
   expect(errors).toEqual([]);
 
