@@ -120,7 +120,7 @@ export function App() {
               element={
                 <Page
                   title="Today"
-                  description="Check off today's daily routines. You can edit up to the last 7 days"
+                  description="Check off today's daily routines. You can edit today and the 7 days before it"
                   health={health}
                 >
                   <DailyChecklist />
