@@ -1,8 +1,8 @@
 # Next steps
 
-Last updated: **2026-11-16 (Asia/Seoul)**.
+Last updated: **2026-11-23 (Asia/Seoul)**.
 
-The first list of cards for the basic features is in roadmap [#14](https://github.com/sirloinbh/plan-routine/issues/14). Read the current state from this document and the issue list. Finished feature cards: #3, #4, #5, #6, #7, #8, #9, #10, #11, #12, #19, #34, #41, #42, #44, #45, #47, #52, #60, #64, #66, #70, #73, #75, #76, #79, #87.
+The first list of cards for the basic features is in roadmap [#14](https://github.com/sirloinbh/plan-routine/issues/14). Read the current state from this document and the issue list. Finished feature cards: #3, #4, #5, #6, #7, #8, #9, #10, #11, #12, #19, #34, #41, #42, #44, #45, #47, #52, #60, #64, #66, #70, #73, #75, #76, #79, #87, #145, #151 to #159, #162 to #174, #178, #222, #233. #160 and #161 were closed as not planned: #178 moved the screens onto the shared query layer instead (see the [2026-11-23 summary](../daily/2026-11-23.md)).
 
 ## What to do next
 
@@ -14,14 +14,21 @@ Cleanup done (2026-11-03): the temporary branch `tmp/42-no-lock` was deleted. Th
 
 #79 was closed on 2026-11-16: with CPU virtualization on, the local `docker compose up` check passed ([record](../changes/79-compose-deploy.md)).
 
-The open cards are [#126](https://github.com/sirloinbh/plan-routine/issues/126) (server check above) and [#101](https://github.com/sirloinbh/plan-routine/issues/101) (remove `overrides`, low priority). #101 is still blocked (checked 2026-11-16): `eslint` 10.15.0 and `@eslint/config-array` 0.23.6 accept `minimatch ^11.0.5`, but `@typescript-eslint/typescript-estree` 8.72.2 (under `typescript-eslint`) still needs `^10.2.2` and `eslint-plugin-jsx-a11y-x` 0.2.0 needs `^10.2.5`. Those versions are also pinned through the central standards. The central repository has [project-standards#392](https://github.com/sirloinbh/project-standards/issues/392).
+The open cards are [#126](https://github.com/sirloinbh/plan-routine/issues/126) (server check above), [#101](https://github.com/sirloinbh/plan-routine/issues/101) (remove `overrides`, low priority) and the epics [#179](https://github.com/sirloinbh/plan-routine/issues/179) and [#103](https://github.com/sirloinbh/plan-routine/issues/103). #101 is still blocked (checked 2026-11-16): `eslint` 10.15.0 and `@eslint/config-array` 0.23.6 accept `minimatch ^11.0.5`, but `@typescript-eslint/typescript-estree` 8.72.2 (under `typescript-eslint`) still needs `^10.2.2` and `eslint-plugin-jsx-a11y-x` 0.2.0 needs `^10.2.5`. Those versions are also pinned through the central standards. The central repository has [project-standards#392](https://github.com/sirloinbh/project-standards/issues/392).
+
+The epics #147, #148, #149 and #150 were closed on 2026-11-22 after a four-lane run; the summary is in [docs/daily/2026-11-23.md](../daily/2026-11-23.md).
 
 ## Open PRs
 
-None.
+- [#135](https://github.com/sirloinbh/plan-routine/pull/135) Dependabot: `basic-ftp` 5.3.1 to 6.2.6 (major, security group), checks green. Merge or close is the user's decision.
 
 ## Things to know
 
+- **`/` redirects to `/today`** (#167); there is no dashboard page.
+- **Backend integration tests are per-feature files** (`backend/test/db-*.integration.test.ts`) and `npm test -w backend` runs with `--test-concurrency=1` because they share one test database (#158).
+- **`scripts/gh-project.ps1` fails on macOS** (it needs `USERPROFILE` and `~/.config/gh-personal`). Plain `gh --repo sirloinbh/plan-routine` with the active account `sirloinbh` was used instead; do not switch accounts.
+- **The screens load data through the shared query layer** (`@tanstack/react-query`, #178). The diary has no background reload on purpose: its form is a working copy of the load, and a refresh must not replace what the user typed.
+- **Never run `npm ci` or `npm install` in a worktree whose `node_modules` is a symlink** to another checkout; every lane shares it.
 - **Clear `TEST_DATABASE_URL` before local tests.** This variable in the shell points to another project's DB (`study_test`). On 2026-10-31 a test created 2 empty tables in that DB, and they were deleted with the user's approval. This project's test DB is `plan_test`.
 - **If a local frontend test fails with a timeout, add `--testTimeout=60000`.** In late 2026-11-01, `npm run check` passed with the default limit, but a timeout can happen when the PC is busy.
 - **The progress for past dates can differ between "Today's check" and "Records".** Today's check shows every routine that exists now, so a routine created later can still be checked on a past date, while Records counts the routines that existed on that day (#10).
