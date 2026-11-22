@@ -58,6 +58,15 @@ test('without a session every /api path but /api/health is 401', async () => {
   });
 });
 
+test('/api/health stays public with auth on: 200 with no session and no auth-service call', async () => {
+  await withApi(async (base, checks) => {
+    const response = await fetch(`${base}/health`);
+    assert.equal(response.status, 200);
+    assert.equal(((await response.json()) as { ok: boolean }).ok, true);
+    assert.equal(checks(), 0);
+  });
+});
+
 test('with a session the API answers and /api/me returns the user', async () => {
   await withApi(async (base) => {
     const me = await fetch(`${base}/me`, signedIn);

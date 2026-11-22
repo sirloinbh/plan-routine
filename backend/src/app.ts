@@ -14,7 +14,7 @@ import { recordRoutes } from './record-routes.js';
 import { routineRoutes } from './routine-routes.js';
 import { routineAnchorDate } from './routines.js';
 import { setInt8Parser } from './standard/db.js';
-import { errorHandler, notFound, requestLog } from './standard/http.js';
+import { errorHandler, notFound, requestLog, serviceDate } from './standard/http.js';
 import { apiRateLimit } from './standard/rate-limit.js';
 import { registerToolRoutes } from './standard/tools.js';
 import { statsRoutes } from './stats-routes.js';
@@ -23,18 +23,6 @@ import { statsRoutes } from './stats-routes.js';
 types.setTypeParser(1082, (value) => value);
 // BIGINT ids come back as numbers, and a value above 2^53 throws instead of rounding (ADR-0025).
 setInt8Parser(types);
-
-const serviceTimeZone = 'Asia/Seoul';
-
-// "Today" follows the service time zone, not the server clock's zone.
-export function serviceDate(now = new Date()) {
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone: serviceTimeZone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(now);
-}
 
 export const periodsQuery = z.object({ date: calendarDate.optional() });
 

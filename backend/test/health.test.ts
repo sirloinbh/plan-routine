@@ -3,7 +3,7 @@ import { test } from 'node:test';
 
 import type { Pool } from 'pg';
 
-import { serviceDate } from '../src/app.js';
+import { serviceDate } from '../src/standard/http.js';
 import { withApi } from './helpers.js';
 
 const pool = (query: () => Promise<unknown>) => ({ query }) as unknown as Pool;
