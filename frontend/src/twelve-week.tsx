@@ -491,7 +491,7 @@ export function TwelveWeek() {
   const reviewNotice = useNotice();
   const [movedCard, setMovedCard] = useState<string | null>(null);
   const { beginChange, requestFocus } = useFocusRequest(() => true);
-  useReloadWhenCurrent(goalsQuery, data?.today);
+  useReloadWhenCurrent(goalsQuery, goalsPath);
   const reload = () => void goalsQuery.refetch();
   const patchData = (change: (current: GoalsData) => GoalsData) =>
     queryClient.setQueryData<GoalsData>(apiKey(goalsPath), (current) => current && change(current));

@@ -1,9 +1,10 @@
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { expect, test, vi } from 'vitest';
 
 import { DailyChecklist } from './daily-checklist';
 import { formatDate } from './format-date';
 import { findLive, getLive, queryLive } from './test/live';
+import { render } from './test/render';
 import { unexpectedRequest } from './test/unexpected-request';
 
 type Seed = { id: number; name: string; category: string; sortOrder?: number };
@@ -101,7 +102,13 @@ function checklistApi(seed: Seed[] = [], options: { failWrites?: string } = {}) 
 }
 
 // Lets a running save finish; a box ignores clicks until then.
-const flush = () => act(() => new Promise((resolve) => setTimeout(resolve)));
+// The query layer tells the screen about a result one timer tick after the answer arrives.
+const tick = () => new Promise((resolve) => setTimeout(resolve));
+const flush = () =>
+  act(async () => {
+    await tick();
+    await tick();
+  });
 const box = (name: string) => screen.findByRole('checkbox', { name });
 const region = (label: string) => screen.getByRole('region', { name: `${label} checklist` });
 
@@ -223,7 +230,8 @@ test('another day keeps its own checks and the date buttons stop at the range en
 const showPageAgain = () =>
   act(async () => {
     document.dispatchEvent(new Event('visibilitychange'));
-    await new Promise((resolve) => setTimeout(resolve));
+    await tick();
+    await tick();
   });
 
 test('a page shown again after midnight moves to the new day and saves there', async () => {
@@ -373,7 +381,8 @@ test('an open window moves to the new day by itself, without requests before tha
   api.setToday('2026-10-22');
   await act(async () => {
     vi.advanceTimersByTime(60_000);
-    await new Promise((resolve) => setTimeout(resolve));
+    await tick();
+    await tick();
   });
   expect(screen.getByRole('heading', { level: 2, name: 'Today (October 22, 2026)' })).toBeVisible();
 });
@@ -389,7 +398,8 @@ test('focusing the window moves to the new day', async () => {
   api.setToday('2026-10-22');
   await act(async () => {
     window.dispatchEvent(new Event('focus'));
-    await new Promise((resolve) => setTimeout(resolve));
+    await tick();
+    await tick();
   });
   expect(screen.getByRole('heading', { level: 2, name: 'Today (October 22, 2026)' })).toBeVisible();
 });
@@ -397,7 +407,8 @@ test('focusing the window moves to the new day', async () => {
 const nextCheck = () =>
   act(async () => {
     vi.advanceTimersByTime(60_000);
-    await new Promise((resolve) => setTimeout(resolve));
+    await tick();
+    await tick();
   });
 
 test('a failed reload after midnight is tried again at the next check', async () => {

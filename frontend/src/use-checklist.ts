@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import type { ChecklistItem } from './checklist';
 import { requestJson } from './lib/api';
-import { useNotice } from './lib/use-notice';
+import { apiKey, useApiQuery } from './lib/query';
+import { errorText, useNotice } from './lib/use-notice';
 import { serviceDate } from './service-date';
-import { isPassingFailure, useReloadOnDateChange } from './use-date-change';
+import { useReloadWhenCurrent } from './use-date-change';
 
 export type ChecklistData<T> = {
   date: string;
@@ -24,79 +26,84 @@ export function useChecklist<T extends ChecklistItem>(
   reloadKey = 0,
   onSaveFailed?: () => void,
 ) {
+  const client = useQueryClient();
   // null follows the server's today: the next load after midnight shows the new day.
   const [date, setDate] = useState<string | null>(null);
-  const [version, setVersion] = useState(0);
-  const [data, setData] = useState<ChecklistData<T> | null>(null);
-  const [loadFailed, setLoadFailed] = useState(false);
-  const { notice, status, error, clear } = useNotice();
+  const { notice: savedNotice, status, error, clear } = useNotice();
   // Ignoring repeat clicks (instead of disabling the box) keeps keyboard focus on the box.
   const saving = useRef(new Set<string>());
-  // Counts every save's start and end, so a load overlapping either one can be recognised.
-  const saveEvents = useRef(0);
-  const loadErrorShown = useRef(false);
   const reloadAfterSaves = useRef(false);
-  // The device's date when the latest load started, and when what is on screen was loaded. Comparing
-  // with these rather than with the server's today keeps a wrong device clock from causing trouble.
-  const requestedOn = useRef('');
-  const shownOn = useRef('');
 
+  const listKey = apiKey('/api/checklist', cadence);
+  const query = useApiQuery<ChecklistData<T>>(
+    apiKey('/api/checklist', cadence, date),
+    `/api/checklist?cadence=${cadence}${date ? `&date=${date}` : ''}`,
+    { staleTime: 0 },
+  );
+  const { refetch, isFetching } = query;
+  // Saves in flight show their box as saved over whatever a load says, so a load that read the server
+  // before a save committed cannot undo the box on screen.
+  const [pending, setPending] = useState<Record<string, boolean>>({});
+  // The day on screen stays while the next one loads or fails to load.
+  const lastData = useRef<ChecklistData<T> | null>(null);
+  if (query.data) lastData.current = query.data;
+  const loaded = query.data ?? lastData.current;
+  const data = useMemo(
+    () =>
+      loaded && Object.keys(pending).length > 0
+        ? {
+            ...loaded,
+            items: loaded.items.map((item) => {
+              const key = `${loaded.date}/${item.id}`;
+              return key in pending ? { ...item, checked: pending[key] } : item;
+            }),
+          }
+        : loaded,
+    [loaded, pending],
+  );
+  const loadFailed = query.isError;
+
+  // The day when what is on screen was loaded. Comparing with this rather than with the server's today
+  // keeps a wrong device clock from causing trouble.
+  const shownOn = useRef('');
   useEffect(() => {
-    // A newer load supersedes this one, so a slow older response cannot overwrite it.
-    let ignore = false;
-    const eventsAtStart = saveEvents.current;
-    const startedOn = serviceDate();
-    requestedOn.current = startedOn;
-    requestJson<ChecklistData<T>>(`/api/checklist?cadence=${cadence}${date ? `&date=${date}` : ''}`)
-      .then((loaded) => {
-        if (ignore) return;
-        // This response may predate a save, so showing it could undo a checked box on screen.
-        if (saving.current.size > 0) {
-          reloadAfterSaves.current = true;
-          return;
-        }
-        if (saveEvents.current !== eventsAtStart) {
-          setVersion((value) => value + 1);
-          return;
-        }
-        setData(loaded);
-        shownOn.current = startedOn;
-        // The server is not on this device's date yet (a fast clock), so ask again at the next check.
-        if (loaded.today !== startedOn) requestedOn.current = '';
-        setLoadFailed(false);
-        // Only a load's own error: a failed save's message must survive the reload after it.
-        if (loadErrorShown.current) clear();
-        loadErrorShown.current = false;
-      })
-      .catch((cause: unknown) => {
-        if (ignore) return;
-        setLoadFailed(true);
-        loadErrorShown.current = true;
-        // Try again at the next check: the network may just not be back yet after sleep. A 4xx (say,
-        // a chosen day that has left the editable range) would only fail the same way again.
-        if (isPassingFailure(cause)) requestedOn.current = '';
-        error(cause);
-      });
-    return () => {
-      ignore = true;
-    };
-  }, [cadence, date, version, reloadKey, error, clear]);
+    if (query.data) shownOn.current = serviceDate();
+  }, [query.data]);
+
+  // A load that read the server around a save may not show it. Counts every save's start and end, so a
+  // load overlapping either one is loaded again once the saves are done.
+  const saveEvents = useRef(0);
+  const eventsAtLoadStart = useRef(0);
+  const wasFetching = useRef(false);
+  useEffect(() => {
+    if (isFetching && !wasFetching.current) eventsAtLoadStart.current = saveEvents.current;
+    if (!isFetching && wasFetching.current) {
+      if (saving.current.size > 0) reloadAfterSaves.current = true;
+      else if (saveEvents.current !== eventsAtLoadStart.current) void refetch();
+    }
+    wasFetching.current = isFetching;
+  }, [isFetching, refetch]);
 
   // A page left open (an installed app, a phone tab) must not keep saving to an earlier period.
-  useEffect(() => {
-    const reloadWhenShown = () => {
-      if (document.visibilityState === 'visible') setVersion((value) => value + 1);
-    };
-    document.addEventListener('visibilitychange', reloadWhenShown);
-    return () => document.removeEventListener('visibilitychange', reloadWhenShown);
-  }, []);
+  useReloadWhenCurrent(query, '/api/checklist');
 
-  const reloadNow = useCallback(() => setVersion((value) => value + 1), []);
-  useReloadOnDateChange(requestedOn, reloadNow);
+  // Pages that change the routines themselves load the checklist again.
+  const firstKey = useRef(reloadKey);
+  useEffect(() => {
+    if (reloadKey !== firstKey.current) {
+      firstKey.current = reloadKey;
+      void refetch();
+    }
+  }, [reloadKey, refetch]);
+
+  // Show the load's own failure unless a save or a date message is on screen.
+  const notice =
+    savedNotice ??
+    (query.error ? { kind: 'error' as const, text: errorText(query.error) } : undefined);
 
   const setChecked = (itemDate: string, id: number, checked: boolean) =>
     // The user may have moved to another day while this request was running.
-    setData((current) =>
+    client.setQueriesData<ChecklistData<T>>({ queryKey: listKey }, (current) =>
       current?.date === itemDate
         ? {
             ...current,
@@ -109,52 +116,46 @@ export function useChecklist<T extends ChecklistItem>(
     // Following today on a screen from an earlier period: this check would land in that period.
     const current = serviceDate();
     if (date === null && data && current !== shownOn.current && current > data.period.end) {
-      loadErrorShown.current = false;
       status('The date changed and a new period was loaded. Please check again');
-      setVersion((value) => value + 1);
+      void refetch();
       return;
     }
     const saveKey = `${itemDate}/${item.id}`;
     if (saving.current.has(saveKey)) return;
     saving.current.add(saveKey);
     saveEvents.current += 1;
-    loadErrorShown.current = false;
     clear();
     const checked = !item.checked;
-    setChecked(itemDate, item.id, checked);
+    setPending((now) => ({ ...now, [saveKey]: checked }));
     try {
       await requestJson(`/api/routines/${item.id}/checks/${itemDate}`, {
         method: checked ? 'PUT' : 'DELETE',
       });
+      setChecked(itemDate, item.id, checked);
     } catch (cause) {
-      setChecked(itemDate, item.id, item.checked);
       error(cause);
       // A 404 usually means the list is stale (the routine was archived elsewhere).
-      setVersion((value) => value + 1);
+      void refetch();
       onSaveFailed?.();
     } finally {
       saving.current.delete(saveKey);
       saveEvents.current += 1;
-      // A load that failed during this save must not make the next load clear its message.
-      loadErrorShown.current = false;
+      setPending(({ [saveKey]: _done, ...rest }) => rest);
       if (saving.current.size === 0 && reloadAfterSaves.current) {
         reloadAfterSaves.current = false;
-        setVersion((value) => value + 1);
+        void refetch();
       }
     }
   };
 
-  // Also bumps the version so pressing the same button again retries a failed load.
+  // Moving to the same day again retries a failed load.
   const moveTo = (target: string | null) => {
     clear();
     setDate(target);
-    setVersion((value) => value + 1);
+    if (target === date) void refetch();
   };
 
-  const retry = () => {
-    setLoadFailed(false);
-    moveTo(date);
-  };
+  const retry = () => moveTo(date);
 
   return { data, loadFailed, notice, toggle, moveTo, retry };
 }

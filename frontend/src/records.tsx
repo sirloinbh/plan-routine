@@ -250,10 +250,7 @@ export function Records() {
   const refetchBoth = useCallback(async () => {
     await Promise.all([refetchMonth(), selected === null ? null : refetchDay()]);
   }, [refetchMonth, refetchDay, selected]);
-  useReloadWhenCurrent(
-    { isFetching: monthQuery.isFetching, error: monthQuery.error, refetch: refetchBoth },
-    monthQuery.data?.today,
-  );
+  useReloadWhenCurrent({ refetch: refetchBoth }, '/api/records');
 
   const selectDay = (date: string) => {
     setChosen(date);

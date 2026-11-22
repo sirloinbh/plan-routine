@@ -1,8 +1,9 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, screen } from '@testing-library/react';
 import { expect, test, vi } from 'vitest';
 
 import { FourWeekDue } from './four-week-due';
 import { findLive, getLive, queryLive } from './test/live';
+import { render } from './test/render';
 
 type Seed = { id: number; name: string; checked?: boolean };
 
@@ -56,11 +57,18 @@ function dueApi(seed: Seed[], options: { endsSoon?: boolean; remainingDays?: num
   };
 }
 
-const flush = () => act(() => new Promise((resolve) => setTimeout(resolve)));
+// The query layer tells the screen about a result one timer tick after the answer arrives.
+const tick = () => new Promise((resolve) => setTimeout(resolve));
+const flush = () =>
+  act(async () => {
+    await tick();
+    await tick();
+  });
 const showPageAgain = () =>
   act(async () => {
     document.dispatchEvent(new Event('visibilitychange'));
-    await new Promise((resolve) => setTimeout(resolve));
+    await tick();
+    await tick();
   });
 const seed = [
   { id: 1, name: 'Wash bedding' },

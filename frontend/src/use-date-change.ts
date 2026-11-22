@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { type RefObject, useCallback, useEffect, useRef } from 'react';
 
 import { RequestError } from './lib/api';
@@ -37,28 +38,31 @@ export function useReloadOnDateChange(requestedOn: RefObject<string>, reload: ()
 
 /**
  * Keeps a query on screen current: it loads again when the service date changes while the page is open, when the last
- * load failed for a passing reason (at the next check), when the server is on another date than this device, and when
- * the page is shown again. `serverToday` is the `today` of the loaded data.
+ * load failed for a passing reason (at the next check), when the server is on another date than this device (its
+ * answer has a `today`), and when the page is shown again. `path` is the first part of the query key
+ * (`apiKey(path, ...)`), so the device's date is noted when a load of this screen starts and ends.
  */
-export function useReloadWhenCurrent(
-  query: { isFetching: boolean; error: unknown; refetch: () => unknown },
-  serverToday: string | undefined,
-) {
-  const { isFetching, error, refetch } = query;
+export function useReloadWhenCurrent(query: { refetch: () => unknown }, path: string) {
+  const client = useQueryClient();
+  const { refetch } = query;
   // The device's date when the latest load started; emptied to ask again at the next check.
-  const requestedOn = useRef('');
-  useEffect(() => {
-    if (isFetching) requestedOn.current = serviceDate();
-  }, [isFetching]);
-  useEffect(() => {
-    if (isFetching) return;
-    if (error) {
-      if (isPassingFailure(error)) requestedOn.current = '';
-    } else if (serverToday && serverToday !== requestedOn.current) {
-      // The server is not on this device's date yet (a fast clock), so ask again at the next check.
-      requestedOn.current = '';
-    }
-  }, [isFetching, error, serverToday]);
+  const requestedOn = useRef(serviceDate());
+  useEffect(
+    () =>
+      client.getQueryCache().subscribe((event) => {
+        if (event.type !== 'updated' || event.query.queryKey[0] !== path) return;
+        const { action } = event;
+        if (action.type === 'fetch') requestedOn.current = serviceDate();
+        else if (action.type === 'error' && isPassingFailure(action.error))
+          requestedOn.current = '';
+        else if (action.type === 'success' && !action.manual) {
+          const today = (event.query.state.data as { today?: string } | undefined)?.today;
+          // The server is not on this device's date yet (a fast clock), so ask again at the next check.
+          if (today && today !== requestedOn.current) requestedOn.current = '';
+        }
+      }),
+    [client, path],
+  );
 
   const reload = useCallback(() => void refetch(), [refetch]);
   useReloadOnDateChange(requestedOn, reload);
