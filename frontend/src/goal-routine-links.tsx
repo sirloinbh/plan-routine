@@ -95,9 +95,11 @@ export function GoalRoutineLinks({
           body: { routineIds: selected },
         },
       );
+      // Count what the server linked: a routine archived since loading is dropped from the result.
+      const count = saved.routines.length;
       onSaved(
-        selected.length > 0
-          ? `Linked ${selected.length} ${selected.length === 1 ? 'routine' : 'routines'} to the goal '${goal.title}'`
+        count > 0
+          ? `Linked ${count} ${count === 1 ? 'routine' : 'routines'} to the goal '${goal.title}'`
           : `Unlinked all routines from the goal '${goal.title}'`,
         saved.routines,
       );
