@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
 
 import { Button } from './components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
@@ -6,12 +7,15 @@ import { Input } from './components/ui/input';
 import { Notice } from './components/ui/notice';
 import { Spinner } from './components/ui/spinner';
 import { useFocusRequest } from './focus-moves';
-import { requestJson } from './lib/api';
-import { useNotice } from './lib/use-notice';
+import { apiKey, type ApiRequest, useApiMutation, useApiQuery } from './lib/query';
+import { errorText, useNotice } from './lib/use-notice';
 import { LoadingRegion } from './loading-region';
 import { RetryButton } from './retry-button';
 
 export type ProjectLink = { id: number; name: string; url: string };
+
+// The key the routine lists share (use-routine-list.ts), so a change here refreshes their copy too.
+const projectsKey = apiKey('/api/project-links');
 
 const keys = {
   name: 'add-project-name',
@@ -21,38 +25,34 @@ const keys = {
 
 // The other personal web apps a routine can link to, managed on the settings page.
 export function ProjectLinks() {
-  const [projects, setProjects] = useState<ProjectLink[] | null>(null);
-  const [version, setVersion] = useState(0);
+  const projectsQuery = useApiQuery<{ projects: ProjectLink[] }>(
+    projectsKey,
+    '/api/project-links',
+    {
+      staleTime: 0,
+    },
+  );
+  const projects = projectsQuery.data?.projects ?? null;
+  const loadFailed = projectsQuery.isError;
   const [name, setName] = useState('');
   const [url, setUrl] = useState('');
   const [confirming, setConfirming] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   // Which button started the change: busy disables them all, only this one shows it is working.
   const [pending, setPending] = useState<string | null>(null);
-  const [loadFailed, setLoadFailed] = useState(false);
-  const { notice, status, error, clear } = useNotice();
+  const { notice: changeNotice, status, error, clear } = useNotice();
+  // A failed load is said before a change message, which it may have replaced.
+  const notice = projectsQuery.error
+    ? { kind: 'error' as const, text: errorText(projectsQuery.error) }
+    : changeNotice;
   const { beginChange, requestFocus } = useFocusRequest(() => !busy);
-
-  useEffect(() => {
-    // A newer load supersedes this one, so a slow older response cannot overwrite it.
-    let ignore = false;
-    requestJson<{ projects: ProjectLink[] }>('/api/project-links')
-      .then((data) => {
-        if (ignore) return;
-        setProjects(data.projects);
-        setLoadFailed(false);
-      })
-      .catch((cause: unknown) => {
-        if (ignore) return;
-        setLoadFailed(true);
-        error(cause);
-      });
-    return () => {
-      ignore = true;
-    };
-  }, [version, error]);
-
-  const reload = useCallback(() => setVersion((value) => value + 1), []);
+  const queryClient = useQueryClient();
+  // A change that succeeds loads the list again before it ends; one that fails loads it again here,
+  // since a refused change usually means the list moved on.
+  const write = useApiMutation<unknown, ApiRequest>((request) => request, {
+    invalidate: [projectsKey],
+  });
+  const reload = () => void queryClient.invalidateQueries({ queryKey: projectsKey });
 
   const run = async (action: () => Promise<unknown>, done: string, started: string) => {
     setBusy(true);
@@ -65,11 +65,11 @@ export function ProjectLinks() {
       return true;
     } catch (cause) {
       error(cause);
+      reload();
       return false;
     } finally {
       setBusy(false);
       setPending(null);
-      reload();
     }
   };
 
@@ -79,7 +79,7 @@ export function ProjectLinks() {
       return;
     }
     const ok = await run(
-      () => requestJson('/api/project-links', { method: 'POST', body: { name, url } }),
+      () => write.mutateAsync({ path: '/api/project-links', method: 'POST', body: { name, url } }),
       `Added the project '${name.trim()}'`,
       'add',
     );
@@ -100,7 +100,7 @@ export function ProjectLinks() {
     const list = projects ?? [];
     const index = list.indexOf(project);
     const ok = await run(
-      () => requestJson(`/api/project-links/${project.id}`, { method: 'DELETE' }),
+      () => write.mutateAsync({ path: `/api/project-links/${project.id}`, method: 'DELETE' }),
       `Deleted the project '${project.name}'. Routines that were linked to it keep working without the link`,
       `remove:${project.id}`,
     );
@@ -128,8 +128,7 @@ export function ProjectLinks() {
             className="self-start"
             onClick={() => {
               clear();
-              setLoadFailed(false);
-              reload();
+              void projectsQuery.refetch();
             }}
           >
             Reload projects
