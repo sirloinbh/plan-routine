@@ -37,13 +37,15 @@ export function DailyRoutines() {
               ) : (
                 <RoutineItems list={list} routines={group.routines} draftKey={group.key} />
               )}
-              <RoutineAddForm
-                list={list}
-                draftKey={group.key}
-                addLabel={group.addLabel}
-                addedTo={group.label}
-                category={group.key}
-              />
+              {group.known && (
+                <RoutineAddForm
+                  list={list}
+                  draftKey={group.key}
+                  addLabel={group.addLabel}
+                  addedTo={group.label}
+                  category={group.key}
+                />
+              )}
             </CardContent>
           </Card>
         ))}
