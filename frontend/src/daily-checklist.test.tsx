@@ -431,14 +431,15 @@ test('a day that left the editable range is not asked for again every minute', a
       ? Promise.resolve({
           ok: false,
           status: 400,
-          json: () => Promise.resolve({ error: 'You can only check the last 7 days' }),
+          json: () =>
+            Promise.resolve({ error: 'You can only check today and the 7 days before it' }),
         })
       : working(url, init),
   );
   vi.stubGlobal('fetch', rejected);
   setClock('2026-10-23');
   await nextCheck();
-  expect(getLive('alert')).toHaveTextContent('You can only check the last 7 days');
+  expect(getLive('alert')).toHaveTextContent('You can only check today and the 7 days before it');
   expect(rejected).toHaveBeenCalledTimes(1);
   await nextCheck();
   await nextCheck();
