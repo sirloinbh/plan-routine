@@ -43,7 +43,7 @@ function diaryApi(seed: Entry[] = []) {
         const date = new URL(url, 'http://localhost').searchParams.get('date') ?? today;
         if (date < '2000-01-01')
           return reply(400, {
-            error: 'Diary entries can only be written for dates after the year 2000',
+            error: 'Diary entries can only be written from 2000-01-01 on',
           });
         const response = reply(200, {
           date,
