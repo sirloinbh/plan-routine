@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useEffectEvent, useRef, useState } from 'react';
 
 import { Badge } from './components/ui/badge';
 import { Button } from './components/ui/button';
@@ -41,6 +41,13 @@ const answers: { value: boolean | null; label: string }[] = [
   { value: false, label: 'Not achieved' },
   { value: null, label: 'Undecided' },
 ];
+
+// A review is complete once a goal is marked Achieved or Not achieved, or has a note.
+const reviewMessages = {
+  saved: 'Saved the review',
+  incomplete:
+    'Saved. The review is complete once you choose Achieved or Not achieved, or add a note',
+};
 
 const needsReview = ({ goals }: GoalPeriod) => goals.some((goal) => !goal.reviewedAt);
 
@@ -92,11 +99,7 @@ function PastPeriod({
       });
       setDrafts({});
       const answered = reviews.some(({ achieved, note }) => achieved !== null || note.trim());
-      status(
-        answered
-          ? 'Saved the review'
-          : 'Saved. The review is complete once you mark the goal achieved or add a note',
-      );
+      status(answered ? reviewMessages.saved : reviewMessages.incomplete);
       // The saved answers show at once, even if the reload that follows fails.
       onSaved(goals);
     } catch (cause) {
@@ -196,11 +199,9 @@ function CurrentGoals({
   // Link panels left open, whose ticks go with the goal if it disappears.
   const openPanels = useRef(new Map<number, string>());
 
-  // One notice holds one message, so what was lost with a vanished goal is said together.
-  const lostEdit = useRef<string | null>(null);
-
-  // The period moved on, or the goal was removed elsewhere: say what became of the ticks.
-  useEffect(() => {
+  // Reports what became of a goal's edit or link ticks when the goal is gone. Its own change of
+  // identity must not re-run the effect, so the effect depends on the data it reacts to only.
+  const reportVanished = useEffectEvent((lostEdit: string | null) => {
     const gone: string[] = [];
     for (const [id, title] of openPanels.current) {
       const found = goals.find((goal) => goal.id === id);
@@ -211,23 +212,27 @@ function CurrentGoals({
       openPanels.current.delete(id);
       gone.push(`'${title}'`);
     }
+    // One notice holds one message, so what was lost is said together.
     const messages = [
-      lostEdit.current,
+      lostEdit,
       gone.length > 0
         ? `Could not save routine links because ${gone.join(', ')} ${gone.length === 1 ? 'is' : 'are'} no longer in this period's goals`
         : null,
     ].filter((message) => message !== null);
-    lostEdit.current = null;
     if (messages.length > 0) error(messages.join('. '));
-    if (gone.length > 0) requestFocus([focusKeys.add]);
+    if (lostEdit !== null || gone.length > 0) requestFocus([focusKeys.add]);
   });
 
-  // The goal being edited has gone: the period moved on, or it was removed elsewhere.
-  if (editing && !goals.some((goal) => goal.id === editing.id)) {
-    setEditing(null);
-    requestFocus([focusKeys.add]);
-    lostEdit.current = `Could not save the edit to '${editing.title}'. It is not a goal of this period`;
-  }
+  // The period moved on, or a goal was removed elsewhere: say what became of its edit and ticks.
+  useEffect(() => {
+    const lost = editing && !goals.some((goal) => goal.id === editing.id);
+    if (lost) setEditing(null);
+    reportVanished(
+      lost
+        ? `Could not save the edit to '${editing.title}'. It is not a goal of this period`
+        : null,
+    );
+  }, [goals, editing]);
 
   // Reloads after failures too: a 404 usually means the list changed elsewhere, and a past-goal
   // refusal means the period has moved on.
@@ -525,11 +530,7 @@ export function TwelveWeek() {
     // A card that changes lists mounts anew: its message and keyboard focus go with it from here.
     const stillOpen = saved.some((goal) => !goal.reviewedAt);
     if (needsReview(past) !== stillOpen) {
-      reviewNotice.status(
-        stillOpen
-          ? 'Saved. The review is complete once you mark the goal achieved or add a note'
-          : 'Saved the review',
-      );
+      reviewNotice.status(stillOpen ? reviewMessages.incomplete : reviewMessages.saved);
       setMovedCard(past.period.start);
       requestFocus([focusKeys.period(past.period.start)]);
     }

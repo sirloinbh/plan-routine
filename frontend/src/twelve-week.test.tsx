@@ -1,8 +1,11 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, configure, fireEvent, render, screen, within } from '@testing-library/react';
 import { expect, test, vi } from 'vitest';
 
 import { getLive, queryLive } from './test/live';
 import { TwelveWeek } from './twelve-week';
+
+// Effects and state updates must survive React running them twice.
+configure({ reactStrictMode: true });
 
 type Goal = {
   id: number;
@@ -35,7 +38,8 @@ function goalsApi(seed: { current?: Goal[]; last?: Goal[]; older?: Goal[] } = {}
   let holdNextReview = false;
   const older = seed.older ?? [];
   let nextId = 100;
-  let failNextLoad = false;
+  // Fails every load until `recoverLoads`: StrictMode mounts twice, so the first request is not the only one.
+  let failLoads = false;
   let failNextReview = false;
   let failNextWrite = false;
   const writes: { method: string; path: string; body?: unknown }[] = [];
@@ -73,8 +77,7 @@ function goalsApi(seed: { current?: Goal[]; last?: Goal[]; older?: Goal[] } = {}
         });
       if (method === 'GET') {
         goalLoads += 1;
-        if (failNextLoad) {
-          failNextLoad = false;
+        if (failLoads) {
           return reply(500, { error: 'A server error occurred' });
         }
         return reply(200, {
@@ -137,7 +140,8 @@ function goalsApi(seed: { current?: Goal[]; last?: Goal[]; older?: Goal[] } = {}
   );
   return {
     writes,
-    failNextLoad: () => (failNextLoad = true),
+    failLoads: () => (failLoads = true),
+    recoverLoads: () => (failLoads = false),
     failNextReview: () => (failNextReview = true),
     failNextWrite: () => (failNextWrite = true),
     removeElsewhere: (id: number) => (current = current.filter((g) => g.id !== id)),
@@ -354,7 +358,7 @@ test('saved answers stay on screen even if the reload after saving fails', async
   render(<TwelveWeek />);
   await flush();
   typeMemo('Read a book', 'Read 10 books');
-  api.failNextLoad();
+  api.failLoads();
   saveLastReview();
   await flush();
   expect(memo('Read a book')).toHaveValue('Read 10 books');
@@ -385,7 +389,7 @@ test('a review with nothing filled in says it is not finished', async () => {
   saveLastReview();
   await flush();
   expect(getLive('status', lastReview())).toHaveTextContent(
-    'The review is complete once you mark the goal achieved or add a note',
+    'The review is complete once you choose Achieved or Not achieved, or add a note',
   );
   expect(screen.getByText('Review needed')).toBeInTheDocument();
 });
@@ -402,6 +406,22 @@ test('saving a reviewed period again clears the earlier message and shows it in 
   expect(screen.getAllByText('Saved the review')).toHaveLength(1);
 });
 
+test('choosing Not achieved completes the review, so it is not called unfinished', async () => {
+  goalsApi({ last: [pending(1, 'Read a book')] });
+  render(<TwelveWeek />);
+  await flush();
+  fireEvent.click(
+    within(screen.getByRole('group', { name: 'Read a book' })).getByRole('radio', {
+      name: 'Not achieved',
+    }),
+  );
+  saveLastReview();
+  await flush();
+  expect(screen.getAllByText('Saved the review')).toHaveLength(1);
+  expect(screen.queryByText(/The review is complete once/)).not.toBeInTheDocument();
+  expect(screen.queryByText('Review needed')).not.toBeInTheDocument();
+});
+
 test('taking a finished review back moves its card up and still says so', async () => {
   const reviewed: Goal = { ...pending(1, 'Read a book'), achieved: true, reviewedAt: 'then' };
   goalsApi({ last: [reviewed] });
@@ -416,7 +436,9 @@ test('taking a finished review back moves its card up and still says so', async 
   await flush();
   expect(screen.getByText('Review needed')).toBeInTheDocument();
   expect(
-    screen.getByText(/The review is complete once you mark the goal achieved or add a note/),
+    screen.getByText(
+      /The review is complete once you choose Achieved or Not achieved, or add a note/,
+    ),
   ).toBeInTheDocument();
 });
 
@@ -462,10 +484,11 @@ test('an open window moves to the next period by itself and shows goals to revie
 
 test('a failed load offers a retry', async () => {
   const api = goalsApi();
-  api.failNextLoad();
+  api.failLoads();
   render(<TwelveWeek />);
   await flush();
   expect(screen.getByText('A server error occurred')).toBeInTheDocument();
+  api.recoverLoads();
   press('Reload goals');
   await flush();
   expect(within(goalsCard()).getByText('No goals yet')).toBeInTheDocument();
@@ -674,7 +697,7 @@ test('linked routines show at once, even if the reload after saving fails', asyn
   press('Link routines to Read a book');
   await flush();
   fireEvent.click(within(goalsCard()).getByRole('checkbox', { name: 'Wake at 6' }));
-  api.failNextLoad();
+  api.failLoads();
   fireEvent.submit(screen.getByRole('form', { name: 'Link routines to Read a book' }));
   await flush();
   expect(within(goalsCard()).getByText('Linked routines: Wake at 6')).toBeInTheDocument();
@@ -682,7 +705,7 @@ test('linked routines show at once, even if the reload after saving fails', asyn
 
 test('after a retry succeeds, focus is on the page rather than lost', async () => {
   const api = goalsApi();
-  api.failNextLoad();
+  api.failLoads();
   render(
     <section aria-labelledby="page">
       <h1 id="page">12-week routines</h1>
@@ -690,6 +713,7 @@ test('after a retry succeeds, focus is on the page rather than lost', async () =
     </section>,
   );
   await flush();
+  api.recoverLoads();
   const retry = button('Reload goals');
   retry.focus();
   fireEvent.click(retry);
