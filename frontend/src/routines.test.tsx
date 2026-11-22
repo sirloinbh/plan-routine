@@ -105,11 +105,19 @@ test('the daily routine page lists all seven categories with empty states', asyn
   }
 });
 
+test('add forms read as whole English phrases', async () => {
+  routineApi();
+  render(<DailyRoutines />);
+  expect(await screen.findByRole('form', { name: 'Add an exercise routine' })).toBeVisible();
+  expect(screen.getByRole('form', { name: 'Add a wake-up routine' })).toBeVisible();
+  expect(screen.getByRole('textbox', { name: 'New exercise routine name' })).toBeVisible();
+});
+
 test('adding a routine posts it to its category and shows it in the list', async () => {
   const api = routineApi();
   render(<DailyRoutines />);
   const reading = await screen.findByRole('region', { name: 'Reading routines' });
-  fireEvent.change(within(reading).getByRole('textbox', { name: 'New Reading routine name' }), {
+  fireEvent.change(within(reading).getByRole('textbox', { name: 'New reading routine name' }), {
     target: { value: 'Read 10 pages' },
   });
   fireEvent.click(within(reading).getByRole('button', { name: 'Add' }));
@@ -125,7 +133,7 @@ test('adding a routine posts it to its category and shows it in the list', async
   ]);
   await waitFor(() => expect(names('Reading')).toEqual(['Read 10 pages']));
   expect(
-    within(region('Reading')).getByRole('textbox', { name: 'New Reading routine name' }),
+    within(region('Reading')).getByRole('textbox', { name: 'New reading routine name' }),
   ).toHaveValue('');
 });
 
@@ -137,14 +145,14 @@ test('an empty name or a server error shows an English alert and keeps the draft
   expect(await findLive('alert')).toHaveTextContent('Enter a routine name');
   expect(api.writes).toEqual([]);
 
-  const input = within(wake).getByRole('textbox', { name: 'New Wake-up routine name' });
+  const input = within(wake).getByRole('textbox', { name: 'New wake-up routine name' });
   fireEvent.change(input, { target: { value: 'Duplicate' } });
   fireEvent.click(within(wake).getByRole('button', { name: 'Add' }));
   await waitFor(() =>
     expect(getLive('alert')).toHaveTextContent('This item is already registered'),
   );
   expect(
-    within(region('Wake-up')).getByRole('textbox', { name: 'New Wake-up routine name' }),
+    within(region('Wake-up')).getByRole('textbox', { name: 'New wake-up routine name' }),
   ).toHaveValue('Duplicate');
 });
 
@@ -261,7 +269,7 @@ test('renaming a routine that has gone moves focus to the add field', async () =
     ).not.toBeInTheDocument(),
   );
   await waitFor(() =>
-    expect(screen.getByRole('textbox', { name: 'New Wake-up routine name' })).toHaveFocus(),
+    expect(screen.getByRole('textbox', { name: 'New wake-up routine name' })).toHaveFocus(),
   );
 });
 
@@ -273,7 +281,7 @@ test('moving a routine that has gone moves focus to the add field', async () => 
   fireEvent.click(button('Move Drink water up'));
   await findLive('alert');
   await waitFor(() =>
-    expect(screen.getByRole('textbox', { name: 'New Wake-up routine name' })).toHaveFocus(),
+    expect(screen.getByRole('textbox', { name: 'New wake-up routine name' })).toHaveFocus(),
   );
 });
 
@@ -328,7 +336,7 @@ test('archiving the last routine of a group moves focus to the add field', async
   fireEvent.click(button('Archive Wake at 6'));
   fireEvent.click(button('Confirm archiving Wake at 6'));
   await waitFor(() =>
-    expect(screen.getByRole('textbox', { name: 'New Wake-up routine name' })).toHaveFocus(),
+    expect(screen.getByRole('textbox', { name: 'New wake-up routine name' })).toHaveFocus(),
   );
 });
 
@@ -336,13 +344,13 @@ test('adding a routine returns focus to the add field, ready for the next one', 
   routineApi();
   render(<DailyRoutines />);
   const reading = await screen.findByRole('region', { name: 'Reading routines' });
-  fireEvent.change(within(reading).getByRole('textbox', { name: 'New Reading routine name' }), {
+  fireEvent.change(within(reading).getByRole('textbox', { name: 'New reading routine name' }), {
     target: { value: 'Read 10 pages' },
   });
   fireEvent.click(within(reading).getByRole('button', { name: 'Add' }));
   await screen.findByText('Read 10 pages');
   await waitFor(() =>
-    expect(screen.getByRole('textbox', { name: 'New Reading routine name' })).toHaveFocus(),
+    expect(screen.getByRole('textbox', { name: 'New reading routine name' })).toHaveFocus(),
   );
 });
 
@@ -360,12 +368,12 @@ test('a change does not take focus back once the user has moved on', async () =>
     'fetch',
     vi.fn((url: string, init?: RequestInit) => gate.then(() => working(url, init))),
   );
-  const wake = screen.getByRole('textbox', { name: 'New Wake-up routine name' });
+  const wake = screen.getByRole('textbox', { name: 'New wake-up routine name' });
   wake.focus();
   fireEvent.change(wake, { target: { value: 'Morning stretch' } });
   fireEvent.click(within(region('Wake-up')).getByRole('button', { name: 'Add' }));
 
-  const reading = screen.getByRole('textbox', { name: 'New Reading routine name' });
+  const reading = screen.getByRole('textbox', { name: 'New reading routine name' });
   reading.focus();
   release();
   await screen.findByText('Morning stretch');
@@ -377,7 +385,7 @@ test('a reload from elsewhere does not move focus', async () => {
   routineApi(twoRoutines);
   render(<DailyRoutines />);
   await screen.findByText('Wake at 6');
-  const add = screen.getByRole('textbox', { name: 'New Exercise routine name' });
+  const add = screen.getByRole('textbox', { name: 'New exercise routine name' });
   add.focus();
   const loads = vi.mocked(fetch).mock.calls.length;
   document.dispatchEvent(new Event('visibilitychange'));
@@ -399,7 +407,7 @@ test('on a touch screen no field takes focus, so no keyboard pops up unasked', a
   fireEvent.click(button('Confirm archiving Wake at 6'));
   await waitFor(() => expect(screen.queryByText('Wake at 6')).not.toBeInTheDocument());
   await act(() => new Promise((resolve) => setTimeout(resolve)));
-  expect(screen.getByRole('textbox', { name: 'New Wake-up routine name' })).not.toHaveFocus();
+  expect(screen.getByRole('textbox', { name: 'New wake-up routine name' })).not.toHaveFocus();
 });
 
 // Projects and project links on top of a routine fake; a save follows failLink.
@@ -498,7 +506,7 @@ test('only the add button that was pressed spins', async () => {
   render(<DailyRoutines />);
   await screen.findByText('Wake at 6');
   const release = holdWrites();
-  fireEvent.change(screen.getByRole('textbox', { name: 'New Wake-up routine name' }), {
+  fireEvent.change(screen.getByRole('textbox', { name: 'New wake-up routine name' }), {
     target: { value: 'Morning stretch' },
   });
   fireEvent.click(within(region('Wake-up')).getByRole('button', { name: 'Add' }));

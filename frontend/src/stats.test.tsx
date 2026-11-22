@@ -95,6 +95,7 @@ test('each cadence shows its rate with the counts behind it', async () => {
   await flush();
   expect(within(rates('Daily routines by week')).getByText(/^67%/)).toHaveTextContent('2/3');
   expect(within(rates('Daily routines by month')).getByText(/^100%/)).toHaveTextContent('7/7');
+  expect(within(rates('Daily routines by month')).getByText('October 2026')).toBeVisible();
   expect(within(rates('Weekly routines')).getByText(/^0%/)).toHaveTextContent('0/2');
   expect(within(rates('12-week routines')).getByText(/^25%/)).toHaveTextContent('1/4');
 });

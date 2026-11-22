@@ -260,7 +260,7 @@ export function Stats() {
             title="Daily routines by month"
             rows={data.daily.months.map((month) => ({
               key: month.month,
-              label: month.month,
+              label: formatDate(`${month.month}-01`, 'month'),
               tally: month,
             }))}
           />

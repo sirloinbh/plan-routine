@@ -94,7 +94,13 @@ export function PeriodRoutines({
               <p className="text-body-sm text-muted-foreground">No routines yet</p>
             )
           )}
-          <RoutineAddForm list={list} draftKey={cadence} label={name} placeholder={examples} />
+          <RoutineAddForm
+            list={list}
+            draftKey={cadence}
+            addLabel={`Add a ${name} routine`}
+            addedTo={`the ${name} list`}
+            placeholder={examples}
+          />
         </CardContent>
       </Card>
     </div>
