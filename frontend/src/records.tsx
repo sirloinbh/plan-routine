@@ -209,7 +209,9 @@ function DayDetail({ day }: { day: DayData }) {
 export function Records() {
   // null follows the server's current month.
   const [month, setMonth] = useState<string | null>(null);
-  const [version, setVersion] = useState(0);
+  // The month and the day reload on their own, so one never refetches the other.
+  const [monthVersion, setMonthVersion] = useState(0);
+  const [dayVersion, setDayVersion] = useState(0);
   const [data, setData] = useState<MonthData | null>(null);
   // null follows the server's today, until a day is picked.
   const [chosen, setChosen] = useState<string | null>(null);
@@ -245,9 +247,12 @@ export function Records() {
     return () => {
       ignore = true;
     };
-  }, [month, version, monthError, clearMonth]);
+  }, [month, monthVersion, monthError, clearMonth]);
 
-  const selected = chosen ?? data?.today ?? null;
+  // Today stands in only while its month is on screen; a day from another month is never shown.
+  const shownMonth = month ?? data?.month;
+  const selected =
+    chosen ?? (data && shownMonth && data.today.startsWith(`${shownMonth}-`) ? data.today : null);
 
   useEffect(() => {
     if (!selected) return undefined;
@@ -267,9 +272,14 @@ export function Records() {
     return () => {
       ignore = true;
     };
-  }, [selected, version, dayError, clearDay]);
+  }, [selected, dayVersion, dayError, clearDay]);
 
-  const reload = useCallback(() => setVersion((value) => value + 1), []);
+  const reloadMonth = useCallback(() => setMonthVersion((value) => value + 1), []);
+  const reloadDay = useCallback(() => setDayVersion((value) => value + 1), []);
+  const reload = useCallback(() => {
+    reloadMonth();
+    reloadDay();
+  }, [reloadMonth, reloadDay]);
   useReloadOnDateChange(requestedOn, reload);
 
   // Records written elsewhere show up when the page is shown again.
@@ -286,20 +296,23 @@ export function Records() {
     setDayFailed(false);
     setChosen(date);
     // The same day changes nothing the load depends on, so ask for it again.
-    if (date === selected) reload();
+    if (date === selected) reloadDay();
   };
 
   const moveMonth = (target: string) => {
     clearMonth();
     setMonth(target);
-    reload();
+    // No day is chosen in the new month yet; the month's own load follows from the change above.
+    setChosen(null);
+    setDayFailed(false);
+    clearDay();
   };
 
   if (!data)
     return monthFailed ? (
       <div className="flex flex-col items-start gap-3">
         <Notice notice={monthNotice.notice} />
-        <RetryButton onClick={reload}>Try again</RetryButton>
+        <RetryButton onClick={reloadMonth}>Try again</RetryButton>
       </div>
     ) : (
       <LoadingRegion label="Loading records" shape="card" />
@@ -334,7 +347,7 @@ export function Records() {
         <CardContent className="flex flex-col gap-3">
           <Notice notice={monthNotice.notice} />
           {monthFailed && (
-            <RetryButton className="self-start" onClick={reload}>
+            <RetryButton className="self-start" onClick={reloadMonth}>
               Try again
             </RetryButton>
           )}
@@ -343,11 +356,13 @@ export function Records() {
       </Card>
       <Notice notice={dayNotice.notice} />
       {dayFailed && (
-        <RetryButton className="self-start" onClick={reload}>
+        <RetryButton className="self-start" onClick={reloadDay}>
           Reload this day's records
         </RetryButton>
       )}
-      {day?.date === selected ? (
+      {!selected ? (
+        <p className="text-body-sm text-muted-foreground">Choose a day to see its records</p>
+      ) : day?.date === selected ? (
         <DayDetail day={day} />
       ) : (
         !dayFailed && <LoadingRegion label="Loading this day's records" shape="cards" />
