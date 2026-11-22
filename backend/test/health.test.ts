@@ -49,12 +49,62 @@ test('a DB failure becomes an English 500 without leaking the error', async () =
       async (call) => {
         const { status, data } = await call('/api/health');
         assert.equal(status, 500);
-        assert.deepEqual(data, { error: 'A server error occurred' });
+        assert.deepEqual(data, { error: 'Server error' });
       },
     );
   } finally {
     console.error = original;
   }
+});
+
+test('a 500 logs request_error with the request ID that the response header carries', async () => {
+  const original = console.error;
+  const lines: string[] = [];
+  console.error = (line: string) => lines.push(line);
+  try {
+    await withApi(
+      pool(async () => {
+        throw new Error('boom');
+      }),
+      async (call) => {
+        const { headers } = await call('/api/health');
+        const logged = lines
+          .map((line) => JSON.parse(line) as Record<string, unknown>)
+          .find((line) => line.event === 'request_error');
+        assert.ok(logged);
+        assert.equal(logged.requestId, headers.get('x-request-id'));
+        assert.equal(logged.message, 'boom');
+      },
+    );
+  } finally {
+    console.error = original;
+  }
+});
+
+test('a PostgreSQL duplicate is a 409, bad input a 400 and a Zod error a 400 with the message', async () => {
+  for (const [code, status] of [
+    ['23505', 409],
+    ['22P02', 400],
+  ] as const) {
+    await withApi(
+      pool(async () => {
+        throw Object.assign(new Error('db text that must not leak'), { code });
+      }),
+      async (call) => {
+        const response = await call('/api/health');
+        assert.equal(response.status, status, code);
+        assert.doesNotMatch(String(response.data.error), /db text/);
+      },
+    );
+  }
+  await withApi(
+    pool(async () => ({ rows: [] })),
+    async (call) => {
+      const { status, data } = await call('/api/periods?date=nope');
+      assert.equal(status, 400);
+      assert.equal(typeof data.error, 'string');
+    },
+  );
 });
 
 test('unknown API paths return an English 404 JSON body', async () => {
