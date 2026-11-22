@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useEffectEvent, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useEffect, useEffectEvent, useRef, useState } from 'react';
 
 import { Badge } from './components/ui/badge';
 import { Button } from './components/ui/button';
@@ -10,13 +11,12 @@ import { useFocusRequest } from './focus-moves';
 import { formatDate } from './format-date';
 import { GoalRoutineLinks, type LinkedRoutine } from './goal-routine-links';
 import { LabeledTextarea } from './labeled-textarea';
-import { requestJson } from './lib/api';
-import { type NoticeValue, useNotice } from './lib/use-notice';
+import { apiKey, type ApiRequest, useApiMutation, useApiQuery } from './lib/query';
+import { errorText, type NoticeValue, useNotice } from './lib/use-notice';
 import { LoadingRegion } from './loading-region';
 import { PeriodRoutines } from './period-routines';
 import { RetryButton } from './retry-button';
-import { serviceDate } from './service-date';
-import { isPassingFailure, useReloadOnDateChange } from './use-date-change';
+import { useReloadWhenCurrent } from './use-date-change';
 
 type Goal = {
   id: number;
@@ -49,6 +49,12 @@ const reviewMessages = {
     'Saved. The review is complete once you choose Achieved or Not achieved, or add a note',
 };
 
+const goalsPath = '/api/goals';
+
+// One write to the goals API. The screen loads the list again itself afterwards, so nothing is
+// invalidated here.
+const useGoalsWrite = <T = unknown,>() => useApiMutation<T, ApiRequest>((request) => request);
+
 const needsReview = ({ goals }: GoalPeriod) => goals.some((goal) => !goal.reviewedAt);
 
 const focusKeys = {
@@ -74,6 +80,7 @@ function PastPeriod({
   // Only what was edited; the rest shows what the server has, so a reload loses no typing.
   const [drafts, setDrafts] = useState<Record<number, ReviewDraft>>({});
   const [saving, setSaving] = useState(false);
+  const write = useGoalsWrite<{ goals: Goal[] }>();
   const { notice, status, error, clear } = useNotice();
   const draftOf = (goal: Goal): ReviewDraft =>
     drafts[goal.id] ?? { achieved: goal.achieved, note: goal.reviewNote ?? '' };
@@ -93,7 +100,8 @@ function PastPeriod({
       return { id: goal.id, achieved, note };
     });
     try {
-      const { goals } = await requestJson<{ goals: Goal[] }>('/api/goals/reviews', {
+      const { goals } = await write.mutateAsync({
+        path: `${goalsPath}/reviews`,
         method: 'PUT',
         body: { reviews },
       });
@@ -195,6 +203,7 @@ function CurrentGoals({
   const [pending, setPending] = useState<string | null>(null);
   const { notice, status, error, clear } = useNotice();
   const { goals } = data.current;
+  const write = useGoalsWrite();
   const { beginChange, requestFocus } = useFocusRequest(() => !busy);
   // Link panels left open, whose ticks go with the goal if it disappears.
   const openPanels = useRef(new Map<number, string>());
@@ -264,7 +273,7 @@ function CurrentGoals({
       return;
     }
     const ok = await run(
-      () => requestJson('/api/goals', { method: 'POST', body: { title } }),
+      () => write.mutateAsync({ path: goalsPath, method: 'POST', body: { title } }),
       `Added the goal '${title}'`,
       'add',
     );
@@ -283,7 +292,8 @@ function CurrentGoals({
       return;
     }
     const ok = await run(
-      () => requestJson(`/api/goals/${editing.id}`, { method: 'PATCH', body: { title } }),
+      () =>
+        write.mutateAsync({ path: `${goalsPath}/${editing.id}`, method: 'PATCH', body: { title } }),
       `Changed the goal to '${title}'`,
       'rename',
     );
@@ -307,7 +317,7 @@ function CurrentGoals({
     const neighbours = [goals[index + 1], goals[index - 1]].filter(Boolean);
     const ok = await run(
       () =>
-        requestJson(`/api/goals/${goal.id}`, { method: 'DELETE' }).then(() =>
+        write.mutateAsync({ path: `${goalsPath}/${goal.id}`, method: 'DELETE' }).then(() =>
           // Removed on purpose, so its open panel is nothing to report once the list reloads.
           openPanels.current.delete(goal.id),
         ),
@@ -468,65 +478,33 @@ function CurrentGoals({
 }
 
 export function TwelveWeek() {
-  const [version, setVersion] = useState(0);
-  const [data, setData] = useState<GoalsData | null>(null);
-  const [loadFailed, setLoadFailed] = useState(false);
-  const { notice, error, clear } = useNotice();
+  const queryClient = useQueryClient();
+  // Always asked for again when the screen opens: a new period turns this period's goals into
+  // goals to review.
+  const goalsQuery = useApiQuery<GoalsData>(apiKey(goalsPath), goalsPath, { staleTime: 0 });
+  const data = goalsQuery.data ?? null;
+  const loadFailed = goalsQuery.isError;
+  const notice = goalsQuery.error
+    ? { kind: 'error' as const, text: errorText(goalsQuery.error) }
+    : undefined;
   // Kept here: a finished review's card moves down the page and mounts anew.
   const reviewNotice = useNotice();
   const [movedCard, setMovedCard] = useState<string | null>(null);
   const { beginChange, requestFocus } = useFocusRequest(() => true);
-  const requestedOn = useRef('');
-
-  useEffect(() => {
-    // A newer load supersedes this one, so a slow older response cannot overwrite it.
-    let ignore = false;
-    const startedOn = serviceDate();
-    requestedOn.current = startedOn;
-    requestJson<GoalsData>('/api/goals')
-      .then((loaded) => {
-        if (ignore) return;
-        setData(loaded);
-        setLoadFailed(false);
-        clear();
-        // The server is not on this device's date yet (a fast clock), so ask again at the next check.
-        if (loaded.today !== startedOn) requestedOn.current = '';
-      })
-      .catch((cause: unknown) => {
-        if (ignore) return;
-        setLoadFailed(true);
-        error(cause);
-        if (isPassingFailure(cause)) requestedOn.current = '';
-      });
-    return () => {
-      ignore = true;
-    };
-  }, [version, error, clear]);
-
-  // A new period turns this period's goals into goals to review.
-  useEffect(() => {
-    const reloadWhenShown = () => {
-      if (document.visibilityState === 'visible') setVersion((value) => value + 1);
-    };
-    document.addEventListener('visibilitychange', reloadWhenShown);
-    return () => document.removeEventListener('visibilitychange', reloadWhenShown);
-  }, []);
-
-  const reload = useCallback(() => setVersion((value) => value + 1), []);
-  useReloadOnDateChange(requestedOn, reload);
+  useReloadWhenCurrent(goalsQuery, data?.today);
+  const reload = () => void goalsQuery.refetch();
+  const patchData = (change: (current: GoalsData) => GoalsData) =>
+    queryClient.setQueryData<GoalsData>(apiKey(goalsPath), (current) => current && change(current));
 
   const reviewSaved = (past: GoalPeriod, saved: Goal[]) => {
     const savedById = new Map(saved.map((goal) => [goal.id, goal]));
-    setData(
-      (current) =>
-        current && {
-          ...current,
-          past: current.past.map((entry) => ({
-            ...entry,
-            goals: entry.goals.map((goal) => savedById.get(goal.id) ?? goal),
-          })),
-        },
-    );
+    patchData((current) => ({
+      ...current,
+      past: current.past.map((entry) => ({
+        ...entry,
+        goals: entry.goals.map((goal) => savedById.get(goal.id) ?? goal),
+      })),
+    }));
     // A card that changes lists mounts anew: its message and keyboard focus go with it from here.
     const stillOpen = saved.some((goal) => !goal.reviewedAt);
     if (needsReview(past) !== stillOpen) {
@@ -537,18 +515,15 @@ export function TwelveWeek() {
     reload();
   };
   const routinesLinked = (goalId: number, routines: LinkedRoutine[]) =>
-    setData(
-      (current) =>
-        current && {
-          ...current,
-          current: {
-            ...current.current,
-            goals: current.current.goals.map((goal) =>
-              goal.id === goalId ? { ...goal, routines } : goal,
-            ),
-          },
-        },
-    );
+    patchData((current) => ({
+      ...current,
+      current: {
+        ...current.current,
+        goals: current.current.goals.map((goal) =>
+          goal.id === goalId ? { ...goal, routines } : goal,
+        ),
+      },
+    }));
   const pastCard = (past: GoalPeriod) => (
     <PastPeriod
       key={past.period.start}
