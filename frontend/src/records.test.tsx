@@ -199,20 +199,40 @@ test('records cannot be changed from this page', async () => {
   expect(api.calls.every((call) => call.method === 'GET')).toBe(true);
 });
 
-test('months can be moved through while the chosen day stays', async () => {
+test('moving to another month drops a day outside it and loads only the month', async () => {
   const api = recordsApi();
   render(<Records />);
   await flush();
   fireEvent.click(dayButton('2026-10-20'));
   await flush();
+  const before = api.calls.length;
   press('Previous month');
   await flush();
   expect(screen.getByRole('region', { name: 'September 2026 calendar' })).toBeVisible();
-  expect(api.calls.map((call) => call.url)).toContain('/api/records?month=2026-09');
-  expect(screen.getByRole('region', { name: 'Records for October 20, 2026' })).toBeVisible();
+  // One month request, and no day request.
+  expect(api.calls.slice(before).map((call) => call.url)).toEqual(['/api/records?month=2026-09']);
+  expect(screen.queryByRole('region', { name: /^Records for / })).not.toBeInTheDocument();
+  expect(screen.getByText('Choose a day to see its records')).toBeVisible();
+  expect(screen.queryAllByRole('button', { pressed: true })).toHaveLength(0);
   press('Next month');
   await flush();
   expect(screen.getByRole('region', { name: 'October 2026 calendar' })).toBeVisible();
+  // Back in the current month, today's records show again.
+  expect(
+    screen.getByRole('region', { name: `Records for ${formatDate(today, 'long')}` }),
+  ).toBeVisible();
+});
+
+test('re-choosing the shown day reloads the day but not the month', async () => {
+  const api = recordsApi();
+  render(<Records />);
+  await flush();
+  fireEvent.click(dayButton('2026-10-20'));
+  await flush();
+  const before = api.calls.length;
+  fireEvent.click(dayButton('2026-10-20'));
+  await flush();
+  expect(api.calls.slice(before).map((call) => call.url)).toEqual(['/api/records/2026-10-20']);
 });
 
 test('a slow answer for an earlier day does not replace the day chosen after it', async () => {
