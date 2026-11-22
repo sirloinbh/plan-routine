@@ -67,7 +67,11 @@ export function useReloadWhenCurrent(query: { refetch: () => unknown }, path: st
   const reload = useCallback(() => void refetch(), [refetch]);
   useReloadOnDateChange(requestedOn, reload);
 
-  // Changes made on other pages or devices show up when the page is shown again.
+  useReloadWhenShown(reload);
+}
+
+/** Loads again when the page is shown again, so changes made on other pages or devices show up. */
+export function useReloadWhenShown(reload: () => void) {
   useEffect(() => {
     const reloadWhenShown = () => {
       if (document.visibilityState === 'visible') reload();

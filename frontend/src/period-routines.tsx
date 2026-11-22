@@ -31,7 +31,7 @@ export function PeriodRoutines({
   const list = useRoutineList(cadence);
   // Changing the routines below changes this period's checklist too.
   // A failed save usually means a routine changed elsewhere, so the list below reloads too.
-  const checklist = useChecklist<ChecklistItem>(cadence, list.version, list.refresh);
+  const checklist = useChecklist<ChecklistItem>(cadence, list.refresh);
   const { data } = checklist;
 
   return (
