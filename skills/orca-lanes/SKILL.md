@@ -52,7 +52,6 @@ orca terminal create --worktree name:lane-N --title lane-N --command "claude --m
 ```
 
 - The prompt must contain **no apostrophes** (it sits inside single quotes in PowerShell). Keep it short: "You are lane-N of <repo>. Coordinator: <name>. Read <path>/LANES.md first and follow it. Your issues in order: #a, #b, #c. Start now and run the full cycle without pausing."
-- Cross-session messages can prompt in two places: a receiver holds a message that crosses permission-mode groups unless `crossSessionInbound` is `accept` (user-level `~/.claude/settings.json` only), and in auto mode a classifier reviews each `SendMessage` unless an allow rule matches it (the managed settings allow `SendMessage` and `ListAgents`). Before creating lanes, check `~/.claude/settings.json` for `"crossSessionInbound": "accept"`; if it is missing, send the coordinator a user step instead of editing it (project-standards docs/tools.md, "Messages between local Claude Code sessions", #1064).
 - Do not use `orca agent launch` (fails when Orca hits its terminal limit).
 - After a minute run `ListAgents`; each lane appears as `lane-N-xx`. Note the names; send nothing until they appear.
 
