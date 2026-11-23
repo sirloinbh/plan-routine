@@ -90,10 +90,11 @@ export function checkRoutes(pool: Pool, today: () => string) {
          WHERE routine_checks.routine_id = routines.id
            AND routine_checks.period_start = CASE WHEN routines.times_per_week IS NULL THEN $2::date ELSE $3::date END
        ) AS checked,
-       (SELECT routine_checks.amount FROM routine_checks
-        WHERE routine_checks.routine_id = routines.id
-          AND routine_checks.period_start = CASE WHEN routines.times_per_week IS NULL THEN $2::date ELSE $3::date END
-       ) AS amount,
+       CASE WHEN routines.unit IS NULL THEN NULL ELSE (
+         SELECT routine_checks.amount FROM routine_checks
+         WHERE routine_checks.routine_id = routines.id
+           AND routine_checks.period_start = CASE WHEN routines.times_per_week IS NULL THEN $2::date ELSE $3::date END
+       ) END AS amount,
        CASE WHEN routines.times_per_week IS NULL THEN NULL ELSE (
          SELECT count(*)::int FROM routine_checks
          WHERE routine_checks.routine_id = routines.id

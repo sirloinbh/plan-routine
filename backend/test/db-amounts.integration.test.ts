@@ -105,3 +105,59 @@ test(
       }
     }),
 );
+
+test(
+  'the unit and target of a routine can be added, changed and removed; amounts are hidden, not deleted',
+  { skip: !url, timeout: 30_000 },
+  () =>
+    withClient(async (client, pool) => {
+      const created: number[] = [];
+      try {
+        await withApi(
+          pool,
+          async (call) => {
+            const { data } = await call('/api/routines', {
+              method: 'POST',
+              body: { name: 'Amount edit', cadence: 'daily', category: 'study' },
+            });
+            const id = (data.routine as { id: number }).id;
+            created.push(id);
+            const put = (body: unknown) =>
+              call(`/api/routines/${id}/amount`, { method: 'PUT', body });
+            assert.equal((await put({ targetAmount: 5 })).status, 400);
+            const added = await put({ unit: 'minutes', targetAmount: 60 });
+            assert.deepEqual(
+              [
+                (added.data.routine as { unit: string }).unit,
+                (added.data.routine as { targetAmount: number }).targetAmount,
+              ],
+              ['minutes', 60],
+            );
+            const cleared = await put({ unit: 'minutes' });
+            assert.equal((cleared.data.routine as { targetAmount: unknown }).targetAmount, null);
+            assert.equal((await put({ unit: 'hours' })).status, 200);
+            // Removing the unit hides the amounts on checks, adding one again shows them.
+            const day = '2026-10-21';
+            await call(`/api/routines/${id}/checks/${day}`, { method: 'PUT', body: { amount: 7 } });
+            const amountOn = async () => {
+              const { data: list } = await call(`/api/checklist?date=${day}`);
+              return (list.items as { id: number; amount: number | null }[]).find(
+                (item) => item.id === id,
+              )?.amount;
+            };
+            assert.equal(await amountOn(), 7);
+            assert.equal((await put({})).status, 200);
+            assert.equal(await amountOn(), null);
+            assert.equal((await put({ unit: 'laps' })).status, 200);
+            assert.equal(await amountOn(), 7);
+          },
+          { today: () => '2026-10-22' },
+        );
+      } finally {
+        await client.query('DELETE FROM routine_checks WHERE routine_id = ANY($1::bigint[])', [
+          created,
+        ]);
+        await client.query('DELETE FROM routines WHERE id = ANY($1::bigint[])', [created]);
+      }
+    }),
+);

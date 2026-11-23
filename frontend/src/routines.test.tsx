@@ -33,7 +33,8 @@ function routineApi(seed: Seed[] = []) {
       }
       const knownWrite =
         (method === 'POST' && /^\/api\/routines(\/\d+\/(move|archive))?$/.test(path)) ||
-        (method === 'PATCH' && /^\/api\/routines\/\d+$/.test(path));
+        (method === 'PATCH' && /^\/api\/routines\/\d+$/.test(path)) ||
+        (method === 'PUT' && /^\/api\/routines\/\d+\/amount$/.test(path));
       if (!knownWrite) return unexpectedRequest(method, url);
       const body = init?.body ? JSON.parse(String(init.body)) : undefined;
       writes.push({ method, path, body });
@@ -47,6 +48,11 @@ function routineApi(seed: Seed[] = []) {
         return reply(201, {});
       }
       if (!found) return notFound();
+      if (path.endsWith('/amount')) {
+        found.unit = body.unit;
+        found.targetAmount = body.targetAmount;
+        return reply(200, {});
+      }
       if (path.endsWith('/move')) {
         const group = routines
           .filter((r) => r.category === found.category)
@@ -649,4 +655,54 @@ test('a unit and target can be set when adding, and are shown in the list (#246)
     targetAmount: 20,
   });
   await waitFor(() => expect(within(reading).getByText('pages, target 20')).toBeInTheDocument());
+});
+
+test('a unit and target are added later and can then change (#276)', async () => {
+  const api = routineApi([{ id: 5, name: 'Read', category: 'reading' }]);
+  render(<DailyRoutines />);
+  const reading = await screen.findByRole('region', { name: 'Reading routines' });
+  fireEvent.click(within(reading).getByRole('button', { name: 'Set the amount of Read' }));
+  // The target box appears once there is a unit.
+  expect(within(reading).queryByRole('spinbutton')).toBeNull();
+  fireEvent.change(within(reading).getByRole('textbox', { name: 'Unit for Read' }), {
+    target: { value: ' pages ' },
+  });
+  fireEvent.change(within(reading).getByRole('spinbutton', { name: 'Target amount for Read' }), {
+    target: { value: '20' },
+  });
+  fireEvent.click(within(reading).getByRole('button', { name: 'Save' }));
+  expect(await screen.findByText("Saved the amount of the routine 'Read'")).toBeInTheDocument();
+  expect(api.writes[0]).toEqual({
+    method: 'PUT',
+    path: '/api/routines/5/amount',
+    body: { unit: 'pages', targetAmount: 20 },
+  });
+  await waitFor(() => expect(within(reading).getByText('pages, target 20')).toBeInTheDocument());
+
+  // The unit can change; the form says what happens to recorded amounts.
+  fireEvent.click(within(reading).getByRole('button', { name: 'Set the amount of Read' }));
+  expect(within(reading).getByText(/Removing the unit hides them/)).toBeInTheDocument();
+  expect(within(reading).getByRole('textbox', { name: 'Unit for Read' })).toHaveValue('pages');
+  fireEvent.change(within(reading).getByRole('textbox', { name: 'Unit for Read' }), {
+    target: { value: 'chapters' },
+  });
+  fireEvent.change(within(reading).getByRole('spinbutton', { name: 'Target amount for Read' }), {
+    target: { value: '' },
+  });
+  fireEvent.click(within(reading).getByRole('button', { name: 'Save' }));
+  await waitFor(() => expect(within(reading).getByText('chapters')).toBeInTheDocument());
+  expect(api.writes[1].body).toEqual({ unit: 'chapters', targetAmount: null });
+});
+
+test('saving the amount form with nothing set is allowed and cancel closes it (#276)', async () => {
+  const api = routineApi([{ id: 5, name: 'Read', category: 'reading' }]);
+  render(<DailyRoutines />);
+  const reading = await screen.findByRole('region', { name: 'Reading routines' });
+  fireEvent.click(within(reading).getByRole('button', { name: 'Set the amount of Read' }));
+  fireEvent.click(within(reading).getByRole('button', { name: 'Cancel' }));
+  expect(within(reading).queryByRole('form', { name: 'Amount of Read' })).toBeNull();
+  fireEvent.click(within(reading).getByRole('button', { name: 'Set the amount of Read' }));
+  fireEvent.click(within(reading).getByRole('button', { name: 'Save' }));
+  expect(await screen.findByText("Saved the amount of the routine 'Read'")).toBeInTheDocument();
+  expect(api.writes[0].body).toEqual({ unit: null, targetAmount: null });
 });

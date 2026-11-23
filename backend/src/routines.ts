@@ -33,6 +33,18 @@ export const checkAmount = z
   .min(0, amountMessage)
   .max(maxAmount, amountMessage);
 
+export const routineUnit = z
+  .string({ error: 'The unit must be text' })
+  .trim()
+  .refine((value) => value.length >= 1, 'Enter a unit, such as pages or minutes')
+  .refine((value) => value.length <= 20, 'The unit must be 20 characters or fewer')
+  .refine(noNul, nulMessage);
+
+export const routineTarget = z
+  .number({ error: 'The target must be a number above 0' })
+  .gt(0, 'The target must be a number above 0')
+  .max(maxAmount, 'The target must be a number above 0');
+
 const weekdayMessage = 'Weekdays must be numbers from 0 to 6';
 
 export const routineCadence = z.enum(cadences, {
@@ -69,18 +81,8 @@ export const routineInput = z
         )
         .nullish(),
       // An optional unit ("pages") and target amount; checks of the routine can then carry an amount (#246).
-      unit: z
-        .string({ error: 'The unit must be text' })
-        .trim()
-        .refine((value) => value.length >= 1, 'Enter a unit, such as pages or minutes')
-        .refine((value) => value.length <= 20, 'The unit must be 20 characters or fewer')
-        .refine(noNul, nulMessage)
-        .nullish(),
-      targetAmount: z
-        .number({ error: 'The target must be a number above 0' })
-        .gt(0, 'The target must be a number above 0')
-        .max(maxAmount, 'The target must be a number above 0')
-        .nullish(),
+      unit: routineUnit.nullish(),
+      targetAmount: routineTarget.nullish(),
       // Weekly routines only: how many days of the week it is done on (2 to 7).
       timesPerWeek: z
         .number({ error: 'Times per week must be a number from 2 to 7' })
