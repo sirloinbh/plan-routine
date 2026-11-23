@@ -3,7 +3,7 @@ import { test } from 'node:test';
 
 import type { Pool } from 'pg';
 
-import { buildStats, periodStatus, type StatsRoutine, statsStart } from '../src/routine-stats.js';
+import { buildStats, periodStatus, type StatsRoutine } from '../src/routine-stats.js';
 import { withApi } from './helpers.js';
 
 const today = '2026-10-22'; // A Thursday.
@@ -218,18 +218,7 @@ test('a routine with no record yet stays in the list with nothing to count', () 
   assert.equal(stats.items[0].periods[0].status, 'open');
 });
 
-test('the loading window reaches back as far as any list does', () => {
-  // Four twelve-week periods reach further than six months here.
-  const start = statsStart(today, anchorDate);
-  assert.equal(start, '2026-02-08');
-  const stats = buildStats({ today, anchorDate, routines: [], checks: [] });
-  for (const period of [...stats.twelveWeek, ...stats.fourWeek, ...stats.weekly])
-    assert.ok(start <= period.start, period.start);
-  for (const month of stats.daily.months) assert.ok(start <= month.start, month.start);
-  for (const week of stats.daily.weeks) assert.ok(start <= week.start, week.start);
-});
-
-test('the API loads routines with archived ones and checks from the window start', async () => {
+test('the API loads routines with archived ones and all checks and skips', async () => {
   const queries: { sql: string; params: unknown[] }[] = [];
   const pool = {
     query: async (sql: string, params: unknown[] = []) => {
@@ -255,7 +244,8 @@ test('the API loads routines with archived ones and checks from the window start
   assert.ok(routines);
   assert.doesNotMatch(routines.sql, /archived_at IS NULL/);
   const checks = queries.find((query) => query.sql.includes('FROM routine_checks'));
-  assert.deepEqual(checks?.params, [statsStart(today, anchorDate)]);
+  assert.deepEqual(checks?.params, []);
+  assert.ok(queries.some((query) => query.sql.includes('FROM routine_skips')));
 });
 
 test('a skipped period is shown as skipped and counts as neither done nor missed', () => {
@@ -284,4 +274,76 @@ test('a skipped period is shown as skipped and counts as neither done nor missed
   assert.deepEqual({ checked: item.checked, total: item.total }, { checked: 1, total: 11 });
   const week = stats.daily.weeks[0];
   assert.deepEqual({ checked: week.checked, total: week.total }, { checked: 1, total: 2 });
+});
+
+const check = (routineId: number, periodStart: string) => ({ routineId, periodStart });
+const streakOf = (
+  routines: StatsRoutine[],
+  checks: { routineId: number; periodStart: string }[],
+  skips: { routineId: number; periodStart: string }[] = [],
+) => buildStats({ today, anchorDate, routines, checks, skips }).items.map((item) => item.streak);
+
+test('daily streaks: a miss resets, skips neither break nor extend, today open does not break', () => {
+  // Created 10-10. Done 10-10..10-12, missed 10-13, done 10-14, skipped 10-15, done 10-16..10-17,
+  // missed 10-18..10-20, done 10-21; today (10-22) still open.
+  const done = ['10', '11', '12', '14', '16', '17', '21'].map((d) => check(1, `2026-10-${d}`));
+  const routines = [routine({ id: 1, createdOn: '2026-10-10' })];
+  assert.deepEqual(streakOf(routines, done, [check(1, '2026-10-15')]), [{ current: 1, best: 3 }]);
+  // Without the skip, 10-15 is a miss and 14 / 16-17 are separate runs; the best is still 3.
+  assert.deepEqual(streakOf(routines, done), [{ current: 1, best: 3 }]);
+  // The skip bridges 14 and 16: 14, (skip), 16, 17 is a run of 3.
+  const bridged = ['14', '16', '17', '18', '19', '20', '21'].map((d) => check(1, `2026-10-${d}`));
+  assert.deepEqual(streakOf(routines, bridged, [check(1, '2026-10-15')]), [
+    { current: 7, best: 7 },
+  ]);
+  // Today done adds to the run; today open and unchecked leaves it.
+  assert.deepEqual(streakOf(routines, [...done, check(1, today)], [check(1, '2026-10-15')]), [
+    { current: 2, best: 3 },
+  ]);
+});
+
+test('streaks count periods of the routine cadence and ignore times before it existed', () => {
+  const weekly = routine({ id: 2, cadence: 'weekly', category: null, createdOn: '2026-09-27' });
+  // Weeks from 09-27: done 09-27, 10-04; missed 10-11; done 10-18 (running, so it counts).
+  const checks = ['2026-09-27', '2026-10-04', '2026-10-18'].map((d) => check(2, d));
+  assert.deepEqual(streakOf([weekly], checks), [{ current: 1, best: 2 }]);
+  // Archived: later periods are not applicable, so the streak stays where it ended.
+  const archived = routine({ id: 3, createdOn: '2026-10-10', archivedOn: '2026-10-14' });
+  const kept = ['10', '11', '12', '13'].map((d) => check(3, `2026-10-${d}`));
+  assert.deepEqual(streakOf([archived], kept), [{ current: 4, best: 4 }]);
+  // A routine with nothing done has no streak.
+  assert.deepEqual(streakOf([routine({ id: 4 })], []), [{ current: 0, best: 0 }]);
+});
+
+test('the trend lists 12 weeks and 6 four-week periods, newest first, with skips left out', () => {
+  const routines = [
+    routine({ id: 1 }),
+    routine({ id: 2, cadence: 'weekly', category: null }),
+    routine({ id: 5, cadence: 'four_week', category: null }),
+  ];
+  const stats = buildStats({
+    today,
+    anchorDate,
+    routines,
+    checks: [check(1, '2026-10-19'), check(2, '2026-10-18'), check(5, '2026-10-18')],
+    skips: [check(1, '2026-10-20')],
+  });
+  assert.equal(stats.trend.weeks.length, 12);
+  assert.equal(stats.trend.fourWeeks.length, 6);
+  assert.deepEqual(stats.trend.weeks[0], {
+    start: '2026-10-18',
+    end: '2026-10-24',
+    checked: 2,
+    total: 4,
+  });
+  // 10-18 missed, 10-19 done, 10-20 skipped (not counted), 10-21 missed; weekly done; today open.
+  assert.deepEqual(
+    [stats.trend.weeks[0].start, stats.trend.weeks[1].start],
+    ['2026-10-18', '2026-10-11'],
+  );
+  const fourWeek = stats.trend.fourWeeks[0];
+  assert.equal(fourWeek.start, '2026-10-18');
+  // The 4-week routine is done; the current week's weekly is done; days as above.
+  assert.deepEqual([fourWeek.checked, fourWeek.total], [3, 5]);
+  assert.ok(stats.trend.fourWeeks[1].end < fourWeek.start);
 });

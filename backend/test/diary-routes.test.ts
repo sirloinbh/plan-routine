@@ -23,12 +23,12 @@ const dayRoutines = [
 
 // Fake pool that answers by matching the SQL and records every query. The real SQL runs in the DB
 // tests. `entry` stands for the row stored for the requested date.
-function fakePool(entry: unknown = null) {
+function fakePool(entry: unknown = null, routines: unknown[] = dayRoutines) {
   const queries: { sql: string; params: unknown[] }[] = [];
   const pool = {
     query: async (sql: string, params: unknown[] = []) => {
       queries.push({ sql, params });
-      if (sql.includes('FROM routines')) return { rows: dayRoutines };
+      if (sql.includes('FROM routines')) return { rows: routines };
       if (sql.includes('INSERT')) return { rows: [saved] };
       return { rows: entry ? [entry] : [] };
     },
@@ -256,4 +256,22 @@ test('mood and energy scores are saved as given, and left out means none', async
     ],
   );
   assert.match(queries[0].sql, /mood = EXCLUDED\.mood/);
+});
+
+test('a routine skipped that day is left out of the progress total', async () => {
+  const rows = [
+    { id: 1, name: 'Wake at 6', category: 'wake', checked: true, skipped: false },
+    { id: 2, name: 'Read', category: 'evening', checked: false, skipped: true },
+    { id: 3, name: 'Stretch', category: 'evening', checked: false, skipped: false },
+  ];
+  const { pool } = fakePool(null, rows);
+  await withApi(
+    pool,
+    async (call) => {
+      const { data } = await call('/api/diary');
+      assert.deepEqual(data.progress, { checked: 1, total: 2 });
+      assert.deepEqual(data.routines, rows);
+    },
+    { today },
+  );
 });

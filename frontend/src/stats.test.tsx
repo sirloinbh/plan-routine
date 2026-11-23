@@ -21,6 +21,7 @@ const dailyItem = {
   archived: false,
   checked: 1,
   total: 2,
+  streak: { current: 0, best: 1 },
   periods: [
     { start: '2026-10-22', end: '2026-10-22', status: 'open' },
     { start: '2026-10-21', end: '2026-10-21', status: 'missed' },
@@ -37,6 +38,7 @@ const weeklyItem = {
   archived: true,
   checked: 0,
   total: 0,
+  streak: { current: 0, best: 0 },
   periods: [{ start: '2026-10-18', end: '2026-10-24', status: 'none' }],
 };
 const full = {
@@ -48,6 +50,10 @@ const full = {
   weekly: [tally('2026-10-18', '2026-10-24', 0, 2)],
   fourWeek: [tally('2026-10-18', '2026-11-14', 0, 0)],
   twelveWeek: [tally('2026-10-18', '2027-01-09', 1, 4)],
+  trend: {
+    weeks: [tally('2026-10-18', '2026-10-24', 2, 4), tally('2026-10-11', '2026-10-17', 0, 0)],
+    fourWeeks: [tally('2026-10-18', '2026-11-14', 3, 5)],
+  },
   items: [dailyItem, weeklyItem],
 };
 
@@ -280,4 +286,47 @@ test('an open window reloads when the date changes, and not before', async () =>
     await new Promise((resolve) => setTimeout(resolve));
   });
   expect(api.calls.mock.calls.length).toBe(before + 1);
+});
+
+test('each item shows its current and best streak in its own unit', async () => {
+  statsApi({
+    ...full,
+    items: [
+      { ...dailyItem, streak: { current: 1, best: 4 } },
+      { ...weeklyItem, archived: false, streak: { current: 2, best: 2 } },
+    ],
+  });
+  render(<Stats />);
+  await flush();
+  expect(screen.getByText('Streak 1 day · best 4 days')).toBeVisible();
+  expect(screen.getByText('Streak 2 weeks · best 2 weeks')).toBeVisible();
+});
+
+test('the trend charts have a text alternative and list every value', async () => {
+  statsApi();
+  render(<Stats />);
+  await flush();
+  const weekly = screen.getByRole('region', { name: 'Weekly trend (12 weeks) trend' });
+  // The newest week is first in the data; the empty week before it is skipped in the summary.
+  expect(within(weekly).getByRole('img')).toHaveAccessibleName(
+    'Weekly trend (12 weeks): from 50% (Oct 18) to 50% (Oct 18)',
+  );
+  const values = within(weekly).getByRole('list', { name: 'Weekly trend (12 weeks) values' });
+  expect(within(values).getAllByRole('listitem')).toHaveLength(2);
+  expect(values).toHaveTextContent('50% (2/4)');
+  expect(values).toHaveTextContent('No records');
+  const fourWeek = screen.getByRole('region', { name: '4-week trend (6 periods) trend' });
+  expect(fourWeek).toHaveTextContent('60% (3/5)');
+});
+
+test('a trend with no records says so instead of drawing a line', async () => {
+  const empty = [tally('2026-10-18', '2026-10-24', 0, 0)];
+  statsApi({ ...full, trend: { weeks: empty, fourWeeks: empty } });
+  render(<Stats />);
+  await flush();
+  const weekly = screen.getByRole('region', { name: 'Weekly trend (12 weeks) trend' });
+  expect(within(weekly).getByRole('img')).toHaveAccessibleName(
+    'Weekly trend (12 weeks): no records yet',
+  );
+  expect(weekly.querySelector('polyline')).toBeNull();
 });

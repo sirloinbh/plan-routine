@@ -9,6 +9,7 @@ import { cn } from './lib/utils';
 import { LoadingRegion } from './loading-region';
 import { RetryButton } from './retry-button';
 import { groupByCategory } from './routine-groups';
+import { type Streak, StreakText, TrendCards, type TrendPoint } from './stats-trend';
 import { useReloadWhenCurrent } from './use-date-change';
 
 type Tally = { checked: number; total: number };
@@ -21,6 +22,7 @@ type Item = Tally & {
   category: string | null;
   sortOrder: number;
   archived: boolean;
+  streak: Streak;
   periods: { start: string; end: string; status: Status }[];
 };
 type StatsData = {
@@ -29,6 +31,7 @@ type StatsData = {
   weekly: PeriodTally[];
   fourWeek: PeriodTally[];
   twelveWeek: PeriodTally[];
+  trend: { weeks: TrendPoint[]; fourWeeks: TrendPoint[] };
   items: Item[];
 };
 
@@ -137,6 +140,7 @@ function ItemRow({ item }: { item: Item }) {
           )}
         </span>
       </div>
+      <StreakText streak={item.streak} cadence={item.cadence} />
       {/* Oldest on the left, so the row reads forward in time. A quick look for the eye; the
           list below says the same in words for touch screens, keyboards and screen readers. */}
       <ol className="flex flex-wrap gap-1" aria-hidden>
@@ -234,6 +238,16 @@ export function Stats() {
           <RateCard title="4-week routines" rows={periodRows(data.fourWeek)} />
           <RateCard title="12-week routines" rows={periodRows(data.twelveWeek)} />
         </div>
+      </section>
+      <section className="flex flex-col gap-4" aria-labelledby="stats-trend">
+        <h2 id="stats-trend" className="text-body font-semibold">
+          Trend
+        </h2>
+        <p className="text-body-sm text-muted-foreground">
+          All daily and weekly routines together (and 4-week routines in the 4-week trend). Skipped
+          items are not counted.
+        </p>
+        <TrendCards weeks={data.trend.weeks} fourWeeks={data.trend.fourWeeks} />
       </section>
       <section className="flex flex-col gap-4" aria-labelledby="stats-items">
         <h2 id="stats-items" className="text-body font-semibold">
