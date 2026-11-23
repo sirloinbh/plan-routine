@@ -1,4 +1,5 @@
 import { act, fireEvent, screen, within } from '@testing-library/react';
+import { MemoryRouter } from 'react-router';
 import { expect, test, vi } from 'vitest';
 
 import { Search } from './search';
@@ -43,6 +44,12 @@ function api(options: { total?: number; fail?: boolean } = {}) {
   return urls;
 }
 
+const renderSearch = () =>
+  render(
+    <MemoryRouter>
+      <Search />
+    </MemoryRouter>,
+  );
 const tick = () => new Promise((resolve) => setTimeout(resolve));
 const flush = () =>
   act(async () => {
@@ -54,7 +61,7 @@ const submit = () => fireEvent.click(screen.getByRole('button', { name: 'Search'
 
 test('nothing is searched until the form is submitted, and an empty form says what is needed', async () => {
   const urls = api();
-  render(<Search />);
+  renderSearch();
   await flush();
   expect(searchCalls(urls)).toEqual([]);
   submit();
@@ -65,7 +72,7 @@ test('nothing is searched until the form is submitted, and an empty form says wh
 
 test('a search sends the filters and lists dates, fields and snippets newest first', async () => {
   const urls = api();
-  render(<Search />);
+  renderSearch();
   await flush();
   fireEvent.change(screen.getByLabelText('Search text'), { target: { value: ' coffee ' } });
   fireEvent.change(screen.getByLabelText('From'), { target: { value: '2026-10-01' } });
@@ -87,7 +94,7 @@ test('a search sends the filters and lists dates, fields and snippets newest fir
 
 test('submitting the same search again asks the server again', async () => {
   const urls = api();
-  render(<Search />);
+  renderSearch();
   await flush();
   fireEvent.change(screen.getByLabelText('Search text'), { target: { value: 'coffee' } });
   submit();
@@ -97,9 +104,26 @@ test('submitting the same search again asks the server again', async () => {
   expect(searchCalls(urls)).toHaveLength(2);
 });
 
+test('each result date links to that day on the Records page', async () => {
+  api();
+  renderSearch();
+  await flush();
+  fireEvent.change(screen.getByLabelText('Search text'), { target: { value: 'coffee' } });
+  submit();
+  await flush();
+  expect(screen.getByRole('link', { name: 'October 20, 2026' })).toHaveAttribute(
+    'href',
+    '/records?date=2026-10-20',
+  );
+  expect(screen.getByRole('link', { name: 'October 10, 2026' })).toHaveAttribute(
+    'href',
+    '/records?date=2026-10-10',
+  );
+});
+
 test('a routine filter sends the routine and the chosen result', async () => {
   const urls = api();
-  render(<Search />);
+  renderSearch();
   await flush();
   expect(screen.getByLabelText('On days the routine was')).toBeDisabled();
   fireEvent.change(screen.getByLabelText('Daily routine'), { target: { value: '7' } });
@@ -113,7 +137,7 @@ test('a routine filter sends the routine and the chosen result', async () => {
 
 test('a start date after the end date is refused before any request', async () => {
   const urls = api();
-  render(<Search />);
+  renderSearch();
   await flush();
   fireEvent.change(screen.getByLabelText('Search text'), { target: { value: 'a' } });
   fireEvent.change(screen.getByLabelText('From'), { target: { value: '2026-10-10' } });
@@ -126,7 +150,7 @@ test('a start date after the end date is refused before any request', async () =
 
 test('no match shows an empty state', async () => {
   api({ total: 0 });
-  render(<Search />);
+  renderSearch();
   await flush();
   fireEvent.change(screen.getByLabelText('Search text'), { target: { value: 'zzz' } });
   submit();
@@ -136,7 +160,7 @@ test('no match shows an empty state', async () => {
 
 test('the next and previous buttons page through the results', async () => {
   const urls = api({ total: 45 });
-  render(<Search />);
+  renderSearch();
   await flush();
   fireEvent.change(screen.getByLabelText('Search text'), { target: { value: 'a' } });
   submit();
@@ -153,7 +177,7 @@ test('the next and previous buttons page through the results', async () => {
 
 test('opening a result loads the whole entry of that day only then', async () => {
   const urls = api();
-  render(<Search />);
+  renderSearch();
   await flush();
   fireEvent.change(screen.getByLabelText('Search text'), { target: { value: 'coffee' } });
   submit();
@@ -171,7 +195,7 @@ test('opening a result loads the whole entry of that day only then', async () =>
 
 test('a failed search shows the server message and a retry', async () => {
   api({ fail: true });
-  render(<Search />);
+  renderSearch();
   await flush();
   fireEvent.change(screen.getByLabelText('Search text'), { target: { value: 'a' } });
   submit();

@@ -13,6 +13,7 @@ import { LoadingRegion } from './loading-region';
 import { RetryButton } from './retry-button';
 import { groupByCategory } from './routine-groups';
 import type { Routine } from './routines';
+import { serviceDate } from './service-date';
 import { useReloadWhenCurrent } from './use-date-change';
 
 type DaySummary = { date: string; checked: number; total: number; hasDiary: boolean };
@@ -214,12 +215,24 @@ function DayDetail({ day }: { day: DayData }) {
   );
 }
 
+// The day in ?date=YYYY-MM-DD, if it is a real date that can have records (2000-01-01 to today by this device's clock).
+function dateFromAddress() {
+  const date = new URLSearchParams(window.location.search).get('date');
+  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
+  // An impossible day such as 02-30 rolls over, so it no longer reads back as the same date.
+  const parsed = new Date(`${date}T00:00:00Z`);
+  const real = !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === date;
+  return real && date >= '2000-01-01' && date <= serviceDate() ? date : null;
+}
+
 // Read-only on purpose: checks and the diary change on their own pages, under their own rules.
 export function Records() {
+  // A day named by ?date= (the search results link here) opens its month and is chosen at the start.
+  const [linked] = useState(dateFromAddress);
   // null follows the server's current month.
-  const [month, setMonth] = useState<string | null>(null);
+  const [month, setMonth] = useState<string | null>(linked?.slice(0, 7) ?? null);
   // null follows the server's today, until a day is picked.
-  const [chosen, setChosen] = useState<string | null>(null);
+  const [chosen, setChosen] = useState<string | null>(linked);
 
   // Each month and each day is its own query, so loading one never refetches the other.
   const monthQuery = useApiQuery<MonthData>(
