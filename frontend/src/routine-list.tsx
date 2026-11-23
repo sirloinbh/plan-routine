@@ -106,6 +106,7 @@ export function RoutineItems({
                   onClick={() => {
                     list.setConfirmArchive(null);
                     list.setAmountEditing(null);
+                    list.setScheduleEditing(null);
                     list.setEditing({ id: routine.id, name: routine.name });
                   }}
                 >
@@ -118,10 +119,26 @@ export function RoutineItems({
                   aria-label={`Set the amount of ${routine.name}`}
                   data-focus-key={`amount-${routine.id}`}
                   disabled={busy}
-                  onClick={() => list.startAmountEditing(routine)}
+                  onClick={() => {
+                    list.setScheduleEditing(null);
+                    list.startAmountEditing(routine);
+                  }}
                 >
                   Amount
                 </Button>
+                {routine.cadence !== 'four_week' && routine.cadence !== 'twelve_week' && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    aria-label={`Set the schedule of ${routine.name}`}
+                    data-focus-key={`schedule-${routine.id}`}
+                    disabled={busy}
+                    onClick={() => list.startScheduleEditing(routine)}
+                  >
+                    Schedule
+                  </Button>
+                )}
                 {confirmArchive === routine.id ? (
                   <Button
                     type="button"
@@ -157,6 +174,94 @@ export function RoutineItems({
                   </Button>
                 )}
               </span>
+              {list.scheduleEditing?.id === routine.id && (
+                <form
+                  className="flex w-full flex-wrap items-center gap-2"
+                  aria-label={`Schedule of ${routine.name}`}
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    void list.saveSchedule(routine);
+                  }}
+                >
+                  {routine.cadence === 'daily' ? (
+                    <fieldset className="flex w-full flex-wrap items-center gap-1">
+                      <legend className="sr-only">{`Days of the week for ${routine.name}`}</legend>
+                      {weekdayNames.map((day, dayIndex) => {
+                        const editing = list.scheduleEditing;
+                        const on = editing?.weekdays.includes(dayIndex) ?? false;
+                        return (
+                          <Button
+                            key={day}
+                            type="button"
+                            size="sm"
+                            variant={on ? 'default' : 'outline'}
+                            aria-pressed={on}
+                            aria-label={fullWeekdayNames[dayIndex]}
+                            onClick={() =>
+                              editing &&
+                              list.setScheduleEditing({
+                                ...editing,
+                                weekdays: on
+                                  ? editing.weekdays.filter((value) => value !== dayIndex)
+                                  : [...editing.weekdays, dayIndex].sort((a, b) => a - b),
+                              })
+                            }
+                          >
+                            {day}
+                          </Button>
+                        );
+                      })}
+                      <span className="w-full text-caption text-muted-foreground">
+                        {list.scheduleEditing.weekdays.length === 0
+                          ? 'Every day unless you choose days'
+                          : ''}
+                      </span>
+                    </fieldset>
+                  ) : (
+                    <label className="flex items-center gap-2 text-body-sm text-muted-foreground">
+                      How often
+                      <NativeSelect
+                        className="max-w-48"
+                        aria-label={`Times per week for ${routine.name}`}
+                        value={list.scheduleEditing.timesPerWeek ?? ''}
+                        onChange={(event) =>
+                          list.scheduleEditing &&
+                          list.setScheduleEditing({
+                            ...list.scheduleEditing,
+                            timesPerWeek: event.target.value ? Number(event.target.value) : null,
+                          })
+                        }
+                      >
+                        <option value="">Once a week</option>
+                        {[2, 3, 4, 5, 6, 7].map((count) => (
+                          <option key={count} value={count}>
+                            {count} times a week
+                          </option>
+                        ))}
+                      </NativeSelect>
+                    </label>
+                  )}
+                  <Button type="submit" disabled={busy}>
+                    {list.pending === 'schedule' && <Spinner size="sm" label="Saving" />}
+                    Save
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => {
+                      list.setScheduleEditing(null);
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <p className="w-full text-caption text-muted-foreground">
+                    The new schedule applies to the whole history, so past days and weeks are
+                    counted with it.
+                    {routine.cadence === 'weekly' &&
+                      ' Switching between once a week and several times a week converts your checks, and the day each check was made is lost.'}
+                  </p>
+                </form>
+              )}
               {list.amountEditing?.id === routine.id && (
                 <form
                   className="flex w-full flex-wrap items-center gap-2"

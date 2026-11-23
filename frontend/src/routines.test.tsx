@@ -1,6 +1,7 @@
 import { act, configure, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { expect, test, vi } from 'vitest';
 
+import { WeeklyRoutines } from './period-routines';
 import { groupByCategory } from './routine-groups';
 import { DailyRoutines, type Routine } from './routines';
 import { findLive, getLive } from './test/live';
@@ -10,12 +11,18 @@ import { unexpectedRequest } from './test/unexpected-request';
 // Focus follows a reload, which on a busy machine can outlast the default one second.
 configure({ asyncUtilTimeout: 10_000 });
 
-type Seed = { id: number; name: string; category: string };
+type Seed = {
+  id: number;
+  name: string;
+  category: string | null;
+  cadence?: string;
+  weekdays?: number[] | null;
+};
 
 // A fake routine API with state, like the server: add, move, rename, archive, and 404 for
 // a routine that is gone. Moved here from backend/test/app-ui.test.ts (#27).
 function routineApi(seed: Seed[] = []) {
-  let routines: Routine[] = seed.map((r, i) => ({ ...r, cadence: 'daily', sortOrder: i + 1 }));
+  let routines: Routine[] = seed.map((r, i) => ({ cadence: 'daily', ...r, sortOrder: i + 1 }));
   let nextId = 100;
   const writes: { method: string; path: string; body?: unknown }[] = [];
   const reply = (status: number, body: unknown) =>
@@ -29,12 +36,24 @@ function routineApi(seed: Seed[] = []) {
       if (method === 'GET') {
         if (path === '/api/routines') return reply(200, { routines });
         if (path === '/api/project-links') return reply(200, { projects: [] });
+        // The weekly page also loads its checklist; an empty one is enough here.
+        if (path === '/api/checklist')
+          return reply(200, {
+            date: '2026-10-22',
+            today: '2026-10-22',
+            previousDate: null,
+            nextDate: null,
+            period: { start: '2026-10-18', end: '2026-10-24' },
+            remainingDays: 2,
+            endsSoon: true,
+            items: [],
+          });
         return unexpectedRequest(method, url);
       }
       const knownWrite =
         (method === 'POST' && /^\/api\/routines(\/\d+\/(move|archive))?$/.test(path)) ||
         (method === 'PATCH' && /^\/api\/routines\/\d+$/.test(path)) ||
-        (method === 'PUT' && /^\/api\/routines\/\d+\/amount$/.test(path));
+        (method === 'PUT' && /^\/api\/routines\/\d+\/(amount|schedule)$/.test(path));
       if (!knownWrite) return unexpectedRequest(method, url);
       const body = init?.body ? JSON.parse(String(init.body)) : undefined;
       writes.push({ method, path, body });
@@ -48,6 +67,11 @@ function routineApi(seed: Seed[] = []) {
         return reply(201, {});
       }
       if (!found) return notFound();
+      if (path.endsWith('/schedule')) {
+        found.weekdays = body.weekdays ?? null;
+        found.timesPerWeek = body.timesPerWeek ?? null;
+        return reply(200, {});
+      }
       if (path.endsWith('/amount')) {
         found.unit = body.unit;
         found.targetAmount = body.targetAmount;
@@ -705,4 +729,57 @@ test('saving the amount form with nothing set is allowed and cancel closes it (#
   fireEvent.click(within(reading).getByRole('button', { name: 'Save' }));
   expect(await screen.findByText("Saved the amount of the routine 'Read'")).toBeInTheDocument();
   expect(api.writes[0].body).toEqual({ unit: null, targetAmount: null });
+});
+
+test('the weekdays of a daily routine are edited and sent as a whole (#276)', async () => {
+  const api = routineApi([{ id: 5, name: 'Run', category: 'exercise', weekdays: [1, 3] }]);
+  render(<DailyRoutines />);
+  const exercise = await screen.findByRole('region', { name: 'Exercise routines' });
+  fireEvent.click(within(exercise).getByRole('button', { name: 'Set the schedule of Run' }));
+  const form = within(exercise).getByRole('form', { name: 'Schedule of Run' });
+  expect(within(form).getByRole('button', { name: 'Monday' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  expect(within(form).getByText(/applies to the whole history/)).toBeInTheDocument();
+  expect(within(form).queryByText(/converts your checks/)).toBeNull();
+  fireEvent.click(within(form).getByRole('button', { name: 'Friday' }));
+  fireEvent.click(within(form).getByRole('button', { name: 'Monday' }));
+  fireEvent.click(within(form).getByRole('button', { name: 'Save' }));
+  expect(await screen.findByText("Saved the schedule of the routine 'Run'")).toBeInTheDocument();
+  expect(api.writes[0]).toEqual({
+    method: 'PUT',
+    path: '/api/routines/5/schedule',
+    body: { weekdays: [3, 5] },
+  });
+
+  // Clearing every day means every day.
+  fireEvent.click(within(exercise).getByRole('button', { name: 'Set the schedule of Run' }));
+  const again = within(exercise).getByRole('form', { name: 'Schedule of Run' });
+  fireEvent.click(within(again).getByRole('button', { name: 'Wednesday' }));
+  fireEvent.click(within(again).getByRole('button', { name: 'Friday' }));
+  expect(within(again).getByText('Every day unless you choose days')).toBeInTheDocument();
+  fireEvent.click(within(again).getByRole('button', { name: 'Save' }));
+  await waitFor(() => expect(api.writes).toHaveLength(2));
+  expect(api.writes[1].body).toEqual({ weekdays: null });
+});
+
+test('a weekly routine switches between once and several times a week with a notice (#276)', async () => {
+  const api = routineApi([{ id: 8, name: 'Clean', cadence: 'weekly', category: null }]);
+  render(<WeeklyRoutines />);
+  const button = await screen.findByRole('button', { name: 'Set the schedule of Clean' });
+  fireEvent.click(button);
+  const form = screen.getByRole('form', { name: 'Schedule of Clean' });
+  expect(within(form).getByText(/day each check was made is lost/)).toBeInTheDocument();
+  fireEvent.change(within(form).getByRole('combobox', { name: 'Times per week for Clean' }), {
+    target: { value: '3' },
+  });
+  fireEvent.click(within(form).getByRole('button', { name: 'Save' }));
+  expect(await screen.findByText("Saved the schedule of the routine 'Clean'")).toBeInTheDocument();
+  expect(api.writes[0]).toEqual({
+    method: 'PUT',
+    path: '/api/routines/8/schedule',
+    body: { timesPerWeek: 3 },
+  });
+  expect(screen.queryByRole('form', { name: 'Schedule of Clean' })).toBeNull();
 });

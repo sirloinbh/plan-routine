@@ -11,8 +11,11 @@ import {
   routineInput,
   routineName,
   routineTarget,
+  routineTimesPerWeek,
   routineUnit,
+  routineWeekdays,
 } from './routines.js';
+import { auditContext, writeAudit } from './standard/audit.js';
 import { HttpError } from './standard/http.js';
 import { inTransaction } from './transaction.js';
 
@@ -51,6 +54,13 @@ export const moveInput = z.object(
 // deleted, while there is no unit.
 export const amountInput = z.object(
   { unit: routineUnit.nullish(), targetAmount: routineTarget.nullish() },
+  badRequest,
+);
+
+// The whole schedule of a routine at once, so repeating a request changes nothing: weekdays for a daily routine,
+// times per week for a weekly one (null or left out: every day, or once a week).
+export const scheduleInput = z.object(
+  { weekdays: routineWeekdays.nullish(), timesPerWeek: routineTimesPerWeek.nullish() },
   badRequest,
 );
 
@@ -157,6 +167,79 @@ export function routineRoutes(pool: Pool, today: () => string) {
   });
 
   // Null clears the link. A project removed meanwhile answers 404, not a database error.
+  // A schedule change applies to the whole history (decision on #276): past periods are read with the new
+  // schedule. Switching a weekly routine between once a week and N times a week also converts its checks, in
+  // the same transaction, and writes an audit entry.
+  router.put('/:id/schedule', async (req, res) => {
+    const { id } = idParam.parse(req.params);
+    const input = scheduleInput.parse(requestBody(req.body));
+    const reply = await inTransaction(pool, async (client) => {
+      const current = await client.query<{
+        cadence: string;
+        weekdays: number[] | null;
+        timesPerWeek: number | null;
+        hasUnit: boolean;
+      }>(
+        `SELECT cadence, weekdays, times_per_week AS "timesPerWeek", unit IS NOT NULL AS "hasUnit"
+         FROM routines WHERE id = $1 AND archived_at IS NULL FOR UPDATE`,
+        [id],
+      );
+      const before = current.rows[0];
+      if (!before) throw new HttpError(404, routineNotFound);
+      if (input.weekdays && before.cadence !== 'daily')
+        throw new HttpError(400, 'Only daily routines can have weekdays');
+      if (input.weekdays?.length === 0) throw new HttpError(400, 'Choose at least one weekday');
+      if (input.timesPerWeek && before.cadence !== 'weekly')
+        throw new HttpError(400, 'Only weekly routines can have times per week');
+      const weekdays = normalizeWeekdays(input.weekdays);
+      const timesPerWeek = input.timesPerWeek ?? null;
+      let converted = null as null | { from: string; to: string };
+      if (
+        before.cadence === 'weekly' &&
+        (before.timesPerWeek === null) !== (timesPerWeek === null)
+      ) {
+        if (timesPerWeek !== null) {
+          // Once a week -> N times: a check sits on the week's first day, so it stays there as a check on that
+          // day only. Nothing moves; skips (one per week, at the week start) stay as they are.
+          converted = { from: 'once a week', to: 'times per week' };
+        } else {
+          // N times -> once a week: each week's checks collapse into one check on the week's first day (Sunday),
+          // keeping the earliest check time and the sum of the week's amounts. Skips stay (a skipped week has no
+          // checks, so there is nothing to merge into it).
+          await client.query(
+            `WITH weeks AS (
+               DELETE FROM routine_checks WHERE routine_id = $1
+               RETURNING period_start, checked_at, amount
+             ), merged AS (
+               SELECT (period_start - EXTRACT(DOW FROM period_start)::int) AS week_start,
+                      min(checked_at) AS checked_at, sum(amount) AS amount
+               FROM weeks GROUP BY 1
+             )
+             INSERT INTO routine_checks (routine_id, period_start, checked_at, amount)
+             SELECT $1, week_start, checked_at, amount FROM merged`,
+            [id],
+          );
+          converted = { from: 'times per week', to: 'once a week' };
+        }
+      }
+      const { rows } = await client.query(
+        `UPDATE routines SET weekdays = $1::smallint[], times_per_week = $2::smallint, updated_at = now()
+         WHERE id = $3 RETURNING ${routineColumns}`,
+        [weekdays, timesPerWeek, id],
+      );
+      await writeAudit(client, {
+        ...auditContext(req, res),
+        action: 'update',
+        entity: 'routine_schedule',
+        entityId: id,
+        before: { weekdays: before.weekdays, timesPerWeek: before.timesPerWeek },
+        after: { weekdays, timesPerWeek, ...(converted ? { checksConverted: converted } : {}) },
+      });
+      return { status: 200, body: { routine: rows[0] } };
+    });
+    res.status(reply.status).json(reply.body);
+  });
+
   router.put('/:id/amount', async (req, res) => {
     const { id } = idParam.parse(req.params);
     const { unit = null, targetAmount = null } = amountInput.parse(requestBody(req.body));
