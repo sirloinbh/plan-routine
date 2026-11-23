@@ -76,10 +76,11 @@ test(
         await withApi(pool, async (call) => {
           const { status, text } = await call('/api/export/checks.csv');
           assert.equal(status, 200);
+          // fetch's text() drops the byte order mark, which the route test checks.
           const lines = text.split('\r\n');
           assert.equal(
             lines[0],
-            '\ufeffdate,routine,cadence,category,checked_at,status,amount,unit,skip_reason',
+            'date,routine,cadence,category,checked_at,status,amount,unit,skip_reason',
           );
           const mine = lines.filter((line) => line.includes('Export csv test'));
           assert.equal(mine.length, 2);
