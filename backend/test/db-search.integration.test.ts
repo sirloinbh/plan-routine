@@ -19,6 +19,13 @@ test(
          RETURNING id`,
       );
       const id = routine.rows[0].id;
+      // A second routine with no diary entries on its days: due 03-05 to 03-08, done on 03-06 only.
+      const other = await client.query<{ id: number }>(
+        `INSERT INTO routines (name, cadence, category, created_at, archived_at)
+         VALUES ('Search test read', 'daily', 'care', '2001-03-05 12:00+09', '2001-03-09 12:00+09')
+         RETURNING id`,
+      );
+      const otherId = other.rows[0].id;
       try {
         await client.query(
           `INSERT INTO diary_entries (entry_date, body, good_note) VALUES
@@ -31,6 +38,10 @@ test(
         await client.query(
           "INSERT INTO routine_checks (routine_id, period_start) VALUES ($1, '2001-03-02')",
           [id],
+        );
+        await client.query(
+          "INSERT INTO routine_checks (routine_id, period_start) VALUES ($1, '2001-03-06')",
+          [otherId],
         );
         // A skip with a reason on 03-03, the day the routine was not done.
         await client.query(
@@ -79,6 +90,33 @@ test(
                 ['skip', '2001-03-03'],
               ],
             );
+            // Missed days without a diary entry are listed for a routine alone, newest first, with no text.
+            const days = async (path: string) => {
+              const { data } = await call(path);
+              return (data.results as Result[]).map(({ kind, date }) => `${kind} ${date}`);
+            };
+            assert.deepEqual(await days(`/api/search?routineId=${otherId}`), [
+              'missed 2001-03-08',
+              'missed 2001-03-07',
+              'missed 2001-03-05',
+            ]);
+            // The range narrows them; the day before the routine existed and after it was archived are not there.
+            assert.deepEqual(
+              await days(`/api/search?routineId=${otherId}&from=2001-03-06&to=2001-03-07`),
+              ['missed 2001-03-07'],
+            );
+            assert.deepEqual(
+              await days(`/api/search?routineId=${otherId}&from=2001-03-09&to=2001-03-20`),
+              [],
+            );
+            // Text or "done" asks for something else: no missed-day results.
+            assert.deepEqual(await days(`/api/search?routineId=${otherId}&q=zzz`), []);
+            assert.deepEqual(await days(`/api/search?routineId=${otherId}&result=done`), []);
+            // A missed day with a diary entry stays one diary result, not two.
+            assert.deepEqual(await days(`/api/search?routineId=${id}&${range}`), [
+              'diary 2001-03-03',
+              'skip 2001-03-03',
+            ]);
             // Skip reasons are found by text, with the routine name; other dates stay out.
             const knee = await call(`/api/search?q=KNEE&${range}`);
             assert.deepEqual(knee.data.results, [
@@ -113,9 +151,12 @@ test(
           { today: () => '2026-10-22' },
         );
       } finally {
-        await client.query('DELETE FROM routine_skips WHERE routine_id = $1', [id]);
-        await client.query('DELETE FROM routine_checks WHERE routine_id = $1', [id]);
-        await client.query('DELETE FROM routines WHERE id = $1', [id]);
+        const ids = [id, otherId];
+        await client.query('DELETE FROM routine_skips WHERE routine_id = ANY($1::bigint[])', [ids]);
+        await client.query('DELETE FROM routine_checks WHERE routine_id = ANY($1::bigint[])', [
+          ids,
+        ]);
+        await client.query('DELETE FROM routines WHERE id = ANY($1::bigint[])', [ids]);
         await client.query('DELETE FROM diary_entries WHERE entry_date = ANY($1::date[])', [dates]);
       }
     }),
