@@ -6,7 +6,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseEnvExample, ssmProblems } from './lib/env-tags.mjs';
+import { bareEnvLines, parseEnvExample, ssmProblems } from './lib/env-tags.mjs';
 import { checkManifest, MANIFEST_PATH } from './lib/manifest.mjs';
 
 const CENTRAL = 'sirloinbh/project-standards';
@@ -154,6 +154,31 @@ export const ADOPTION_RULES = [
       if (server && !/\bAI_TOOLS_PUBLIC_KEY\b/.test(server.text)) warnings.push('backend/src/server.ts: pass toolsPublicKey: process.env.AI_TOOLS_PUBLIC_KEY to createApp, or the AI tool routes stay off (docs/ai-tools.md).');
       return warnings;
     },
+  },
+  {
+    id: 'api-rate-limit',
+    helper: 'apiRateLimit',
+    managedFile: 'backend/src/standard/rate-limit.ts',
+    ownedFile: 'backend/src/app.ts',
+    applies: (sources, managed) => Boolean(managed['backend/src/standard/rate-limit.ts'] && backendFile(sources, 'backend/src/app.ts')),
+    check: (sources) => {
+      const app = backendFile(sources, 'backend/src/app.ts').text;
+      const limitAt = app.search(/\bapiRateLimit\(/);
+      if (limitAt < 0) return ['backend/src/app.ts: call apiRateLimit(app) from standard/rate-limit.ts, after requestLog and before express.json, so /api has the shared per-client-IP rate limit (project-standards#678, #1035).'];
+      const bodyAt = app.search(/\bexpress\.json\(/);
+      return bodyAt >= 0 && bodyAt < limitAt ? ['backend/src/app.ts: apiRateLimit(app) must run before express.json(), so a request over the limit is refused before its body is read (project-standards#678, #1035).'] : [];
+    },
+  },
+  {
+    id: 'int8-parser',
+    helper: 'setInt8Parser',
+    managedFile: 'backend/src/standard/db.ts',
+    ownedFile: 'any backend/src file outside standard/ (app.ts or pool.ts)',
+    applies: (sources, managed) => Boolean(managed['backend/src/standard/db.ts'] && backendFile(sources, 'backend/src/app.ts')),
+    check: (sources) =>
+      notStandard(sources).some((s) => /\bsetInt8Parser\(/.test(s.text))
+        ? []
+        : ['backend/src/app.ts: call setInt8Parser(types) from standard/db.ts once at startup, so a BIGINT id is a number in every row and a value past 2^53 throws (ADR-0025, project-standards#778, #1035).'],
   },
 ];
 
@@ -316,6 +341,11 @@ export function runCheck(root) {
   }
   // @ssm= tags name the SSM parameter the deploy script reads for a key (ADR-0014).
   const envExample = read('.env.example');
+  if (envExample !== null) {
+    for (const { line, text } of bareEnvLines(envExample)) {
+      problems.push({ group: 'env example', path: '.env.example', message: `line ${line} is not blank, a # comment, or KEY=value (a comment split by a real line break?): ${text.slice(0, 60)}` });
+    }
+  }
   if (envExample !== null && manifest.project) {
     for (const message of ssmProblems(parseEnvExample(envExample), manifest.project)) problems.push({ group: 'SSM key', path: '.env.example', message });
   }
