@@ -24,6 +24,15 @@ export const routineCategoryLabels: Record<(typeof routineCategories)[number], s
   reading: 'Reading',
 };
 
+const amountMessage = 'Amount must be a number from 0 to 999999999';
+const maxAmount = 999_999_999;
+
+// An amount recorded on a check, in the routine's unit. 0 is allowed ("tried, did none").
+export const checkAmount = z
+  .number({ error: amountMessage })
+  .min(0, amountMessage)
+  .max(maxAmount, amountMessage);
+
 const weekdayMessage = 'Weekdays must be numbers from 0 to 6';
 
 export const routineCadence = z.enum(cadences, {
@@ -59,6 +68,19 @@ export const routineInput = z
           { error: weekdayMessage },
         )
         .nullish(),
+      // An optional unit ("pages") and target amount; checks of the routine can then carry an amount (#246).
+      unit: z
+        .string({ error: 'The unit must be text' })
+        .trim()
+        .refine((value) => value.length >= 1, 'Enter a unit, such as pages or minutes')
+        .refine((value) => value.length <= 20, 'The unit must be 20 characters or fewer')
+        .refine(noNul, nulMessage)
+        .nullish(),
+      targetAmount: z
+        .number({ error: 'The target must be a number above 0' })
+        .gt(0, 'The target must be a number above 0')
+        .max(maxAmount, 'The target must be a number above 0')
+        .nullish(),
       // Weekly routines only: how many days of the week it is done on (2 to 7).
       timesPerWeek: z
         .number({ error: 'Times per week must be a number from 2 to 7' })
@@ -90,6 +112,12 @@ export const routineInput = z
           message: 'Choose at least one weekday',
         });
     }
+    if (value.targetAmount && !value.unit)
+      ctx.addIssue({
+        code: 'custom',
+        path: ['targetAmount'],
+        message: 'Enter a unit for the target',
+      });
     if (value.timesPerWeek && value.cadence !== 'weekly')
       ctx.addIssue({
         code: 'custom',

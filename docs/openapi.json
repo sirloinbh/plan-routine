@@ -310,6 +310,16 @@
             }
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Check"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Success"
@@ -346,6 +356,16 @@
           },
           "409": {
             "description": "Duplicate",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body too large",
             "content": {
               "application/json": {
                 "schema": {
@@ -2171,6 +2191,24 @@
               }
             ]
           },
+          "unit": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "targetAmount": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "maximum": 999999999
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "timesPerWeek": {
             "anyOf": [
               {
@@ -2299,6 +2337,23 @@
         "required": [
           "reviews"
         ]
+      },
+      "Check": {
+        "type": "object",
+        "properties": {
+          "amount": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 999999999
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
       },
       "RoutineProjectLink": {
         "type": "object",

@@ -23,8 +23,12 @@ type Item = Tally & {
   sortOrder: number;
   archived: boolean;
   streak: Streak;
+  unit: string | null;
+  targetAmount: number | null;
+  amountTotals: { weeks: AmountTotal[]; fourWeeks: AmountTotal[] } | null;
   periods: { start: string; end: string; status: Status }[];
 };
+type AmountTotal = { start: string; end: string; total: number };
 type StatsData = {
   today: string;
   daily: { weeks: PeriodTally[]; months: (PeriodTally & { month: string })[] };
@@ -118,6 +122,43 @@ const periodRows = (periods: PeriodTally[]) =>
     tally: period,
   }));
 
+// Totals of the amounts recorded on a routine's checks. The target is only shown: any check counts as done.
+function AmountTotals({
+  name,
+  unit,
+  target,
+  totals,
+}: {
+  name: string;
+  unit: string;
+  target: number | null;
+  totals: { weeks: AmountTotal[]; fourWeeks: AmountTotal[] };
+}) {
+  const list = (label: string, periods: AmountTotal[]) => (
+    <ul className="mt-1 flex flex-col gap-0.5" aria-label={`${name} ${label} totals`}>
+      {periods.map((period) => (
+        <li key={period.start} className="flex justify-between gap-2">
+          <span>{periodName(period)}</span>
+          <span className="tabular-nums">
+            {period.total} {unit}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+  return (
+    <details className="text-caption text-muted-foreground">
+      <summary className="cursor-pointer wrap-anywhere pointer-coarse:py-3">
+        {name} amounts ({unit}
+        {target ? `, target ${target}` : ''}) — this week {totals.weeks[0].total}, these 4 weeks{' '}
+        {totals.fourWeeks[0].total}
+      </summary>
+      {list('weekly', totals.weeks)}
+      {list('four-week', totals.fourWeeks)}
+    </details>
+  );
+}
+
 function ItemRow({ item }: { item: Item }) {
   const oldestFirst = [...item.periods].reverse();
   return (
@@ -141,6 +182,14 @@ function ItemRow({ item }: { item: Item }) {
         </span>
       </div>
       <StreakText streak={item.streak} cadence={item.cadence} />
+      {item.unit && item.amountTotals && (
+        <AmountTotals
+          name={item.name}
+          unit={item.unit}
+          target={item.targetAmount}
+          totals={item.amountTotals}
+        />
+      )}
       {/* Oldest on the left, so the row reads forward in time. A quick look for the eye; the
           list below says the same in words for touch screens, keyboards and screen readers. */}
       <ol className="flex flex-wrap gap-1" aria-hidden>

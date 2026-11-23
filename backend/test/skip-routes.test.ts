@@ -11,13 +11,14 @@ function fakePool({
   checked = false,
   skipped = false,
   timesPerWeek = null as number | null,
+  hasUnit = false,
 } = {}) {
   const queries: { sql: string; params: unknown[] }[] = [];
   const query = async (sql: string, params: unknown[] = []) => {
     queries.push({ sql, params });
     if (sql.includes('app_settings')) return { rows: [{ value: '2026-10-18' }] };
     if (sql.includes('FOR UPDATE'))
-      return { rows: routine ? [{ cadence: 'weekly', timesPerWeek }] : [] };
+      return { rows: routine ? [{ cadence: 'weekly', timesPerWeek, hasUnit }] : [] };
     if (sql.includes('FROM routine_checks')) return { rows: checked ? [{}] : [] };
     if (sql.includes('FROM routine_skips')) return { rows: skipped ? [{}] : [] };
     return { rows: [] };
@@ -193,9 +194,61 @@ test('an N-per-week routine stores one check per day, and a skip covers the week
     { today },
   );
   // The check and its removal are keyed by the day, not by the week start.
-  assert.deepEqual(writes(queries, 'INSERT INTO routine_checks')[0].params, [1, '2026-10-21']);
+  assert.deepEqual(writes(queries, 'INSERT INTO routine_checks')[0].params, [
+    1,
+    '2026-10-21',
+    null,
+    false,
+  ]);
   assert.deepEqual(writes(queries, 'DELETE FROM routine_checks')[0].params, [1, '2026-10-21']);
   // Skipping looks for a check anywhere in the week, and stores the skip at the week start.
   assert.deepEqual(writes(queries, 'BETWEEN')[0].params, [1, '2026-10-18', '2026-10-24']);
   assert.deepEqual(writes(queries, 'INSERT INTO routine_skips')[0].params, [1, '2026-10-18', null]);
+});
+
+test('a check can carry an amount for a routine with a unit; repeating without one keeps it (#246)', async () => {
+  const { pool, queries } = fakePool({ hasUnit: true });
+  await withApi(
+    pool,
+    async (call) => {
+      const put = (body?: unknown) =>
+        call('/api/routines/1/checks/2026-10-21', { method: 'PUT', body });
+      const withAmount = await put({ amount: 20 });
+      assert.equal(withAmount.status, 200);
+      assert.equal(withAmount.data.amount, 20);
+      assert.equal((await put({ amount: null })).status, 200);
+      const plain = await put();
+      assert.equal(plain.status, 200);
+      assert.equal('amount' in plain.data, false);
+      for (const amount of [-1, 'ten', 1e12]) {
+        const bad = await put({ amount });
+        assert.equal(bad.status, 400);
+        assert.equal(bad.data.error, 'Amount must be a number from 0 to 999999999');
+      }
+    },
+    { today },
+  );
+  const inserts = writes(queries, 'INSERT INTO routine_checks').map((query) => query.params);
+  assert.deepEqual(inserts, [
+    [1, '2026-10-18', 20, true],
+    [1, '2026-10-18', null, true],
+    [1, '2026-10-18', null, false],
+  ]);
+});
+
+test('an amount for a routine without a unit is refused and nothing is stored (#246)', async () => {
+  const { pool, queries } = fakePool();
+  await withApi(
+    pool,
+    async (call) => {
+      const { status, data } = await call('/api/routines/1/checks/2026-10-21', {
+        method: 'PUT',
+        body: { amount: 5 },
+      });
+      assert.equal(status, 400);
+      assert.equal(data.error, 'This routine has no unit, so it cannot record an amount');
+    },
+    { today },
+  );
+  assert.equal(writes(queries, 'INSERT INTO routine_checks').length, 0);
 });

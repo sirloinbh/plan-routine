@@ -22,6 +22,10 @@ export type ChecklistItem = {
   /** An N-per-week routine: the target, and the days checked so far this week. */
   timesPerWeek?: number | null;
   weekChecks?: number | null;
+  /** A routine that records an amount: its unit, the target (only shown) and today's amount. */
+  unit?: string | null;
+  targetAmount?: number | null;
+  amount?: number | null;
   linkName?: string | null;
   linkUrl?: string | null;
 };
@@ -60,6 +64,7 @@ export function Checklist({
   onToggle,
   onSkip,
   onUnskip,
+  onAmount,
 }: {
   title: string;
   headingLevel?: 'h2' | 'h3';
@@ -68,6 +73,8 @@ export function Checklist({
   /** Without both skip handlers the list has no skip controls. */
   onSkip?: (item: ChecklistItem, reason: string) => void;
   onUnskip?: (item: ChecklistItem) => void;
+  /** Saves the amount of a checked routine that has a unit; null clears it. */
+  onAmount?: (item: ChecklistItem, amount: number | null) => void;
 }) {
   return (
     <Card role="region" aria-label={`${title} checklist`}>
@@ -93,6 +100,11 @@ export function Checklist({
                   className="min-w-0 flex-1 text-body leading-normal font-normal break-words"
                 >
                   {item.name}
+                  {item.unit && item.targetAmount ? (
+                    <span className="block text-body-sm text-muted-foreground">
+                      Target {item.targetAmount} {item.unit}
+                    </span>
+                  ) : null}
                   {item.timesPerWeek ? (
                     <span className="block text-body-sm text-muted-foreground">
                       {item.weekChecks ?? 0}/{item.timesPerWeek} this week
@@ -112,6 +124,9 @@ export function Checklist({
                   </Button>
                 )}
               </div>
+              {onAmount && item.unit && item.checked && !item.skipped && (
+                <AmountControl item={item} onAmount={onAmount} />
+              )}
               {onSkip && onUnskip && (
                 <SkipControl item={item} onSkip={onSkip} onUnskip={onUnskip} />
               )}
@@ -193,6 +208,52 @@ function SkipControl({
       </Button>
       <Button type="button" variant="ghost" size="sm" onClick={() => setEditing(false)}>
         Cancel
+      </Button>
+    </form>
+  );
+}
+
+// The amount of a checked routine that has a unit. Any check counts as done; the amount is only recorded (#246).
+function AmountControl({
+  item,
+  onAmount,
+}: {
+  item: ChecklistItem;
+  onAmount: (item: ChecklistItem, amount: number | null) => void;
+}) {
+  // Keyed by the saved value, so a reload shows what the server holds.
+  const saved = item.amount === null || item.amount === undefined ? '' : String(item.amount);
+  const [draft, setDraft] = useState<{ from: string; text: string }>({ from: saved, text: saved });
+  const text = draft.from === saved ? draft.text : saved;
+  return (
+    <form
+      className="flex flex-wrap items-center gap-2 pl-7"
+      onSubmit={(event) => {
+        event.preventDefault();
+        const value = text.trim();
+        onAmount(item, value === '' ? null : Number(value));
+      }}
+    >
+      <Input
+        className="w-28"
+        type="number"
+        inputMode="decimal"
+        min={0}
+        step="any"
+        aria-label={`Amount of ${item.name} in ${item.unit}`}
+        placeholder={item.unit ?? ''}
+        value={text}
+        onChange={(event) => setDraft({ from: saved, text: event.target.value })}
+      />
+      <span className="text-body-sm text-muted-foreground">{item.unit}</span>
+      <Button
+        type="submit"
+        variant="ghost"
+        size="sm"
+        aria-label={`Save amount: ${item.name}`}
+        disabled={text.trim() !== '' && !(Number(text) >= 0)}
+      >
+        Save amount
       </Button>
     </form>
   );

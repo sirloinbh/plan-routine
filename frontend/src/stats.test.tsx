@@ -22,6 +22,9 @@ const dailyItem = {
   checked: 1,
   total: 2,
   streak: { current: 0, best: 1 },
+  unit: null,
+  targetAmount: null,
+  amountTotals: null,
   periods: [
     { start: '2026-10-22', end: '2026-10-22', status: 'open' },
     { start: '2026-10-21', end: '2026-10-21', status: 'missed' },
@@ -39,6 +42,9 @@ const weeklyItem = {
   checked: 0,
   total: 0,
   streak: { current: 0, best: 0 },
+  unit: null,
+  targetAmount: null,
+  amountTotals: null,
   periods: [{ start: '2026-10-18', end: '2026-10-24', status: 'none' }],
 };
 const full = {
@@ -286,6 +292,39 @@ test('an open window reloads when the date changes, and not before', async () =>
     await new Promise((resolve) => setTimeout(resolve));
   });
   expect(api.calls.mock.calls.length).toBe(before + 1);
+});
+
+test('a routine with a unit lists its amount totals by week and four-week period', async () => {
+  const totals = (list: [string, string, number][]) =>
+    list.map(([start, end, total]) => ({ start, end, total }));
+  statsApi({
+    ...full,
+    items: [
+      {
+        ...dailyItem,
+        unit: 'pages',
+        targetAmount: 20,
+        amountTotals: {
+          weeks: totals([
+            ['2026-10-18', '2026-10-24', 35.5],
+            ['2026-10-11', '2026-10-17', 10],
+          ]),
+          fourWeeks: totals([['2026-10-18', '2026-11-14', 35.5]]),
+        },
+      },
+    ],
+  });
+  render(<Stats />);
+  await flush();
+  expect(
+    screen.getByText(/Wake at 6 amounts \(pages, target 20\) — this week 35.5, these 4 weeks 35.5/),
+  ).toBeInTheDocument();
+  const weekly = screen.getByRole('list', { name: 'Wake at 6 weekly totals' });
+  expect(weekly).toHaveTextContent('35.5 pages');
+  expect(weekly).toHaveTextContent('10 pages');
+  expect(screen.getByRole('list', { name: 'Wake at 6 four-week totals' })).toHaveTextContent(
+    '35.5 pages',
+  );
 });
 
 test('each item shows its current and best streak in its own unit', async () => {

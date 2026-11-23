@@ -16,6 +16,9 @@ export type Routine = {
   weekdays?: number[] | null;
   /** Weekly routines done on this many days of the week. */
   timesPerWeek?: number | null;
+  /** The unit of an amount recorded on its checks, and the target shown beside it. */
+  unit?: string | null;
+  targetAmount?: number | null;
 };
 
 export function DailyRoutines() {

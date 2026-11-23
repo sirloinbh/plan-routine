@@ -623,3 +623,30 @@ test('a daily routine can be added on chosen weekdays, which the list then shows
   );
   await waitFor(() => expect(within(exercise).getByText('Mon, Wed, Fri')).toBeInTheDocument());
 });
+
+test('a unit and target can be set when adding, and are shown in the list (#246)', async () => {
+  const api = routineApi();
+  render(<DailyRoutines />);
+  const reading = await screen.findByRole('region', { name: 'Reading routines' });
+  fireEvent.change(within(reading).getByRole('textbox', { name: 'New reading routine name' }), {
+    target: { value: 'Read' },
+  });
+  // The target appears only once there is a unit.
+  expect(within(reading).queryByRole('spinbutton')).toBeNull();
+  fireEvent.change(within(reading).getByRole('textbox', { name: /^Unit for the new Reading/ }), {
+    target: { value: ' pages ' },
+  });
+  fireEvent.change(within(reading).getByRole('spinbutton', { name: /^Target amount/ }), {
+    target: { value: '20' },
+  });
+  fireEvent.click(within(reading).getByRole('button', { name: 'Add' }));
+  expect(await screen.findByText("Added the routine 'Read' to Reading")).toBeInTheDocument();
+  expect(api.writes[0].body).toEqual({
+    name: 'Read',
+    cadence: 'daily',
+    category: 'reading',
+    unit: 'pages',
+    targetAmount: 20,
+  });
+  await waitFor(() => expect(within(reading).getByText('pages, target 20')).toBeInTheDocument());
+});

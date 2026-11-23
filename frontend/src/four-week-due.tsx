@@ -8,7 +8,7 @@ import { useChecklist } from './use-checklist';
 
 // Unfinished four-week routines on the daily page, during the last 7 days of their period.
 export function FourWeekDue() {
-  const { data, loadFailed, notice, toggle, skip, unskip, retry } =
+  const { data, loadFailed, notice, toggle, skip, unskip, saveAmount, retry } =
     useChecklist<ChecklistItem>('four_week');
   // Boxes checked here stay in place so a mistaken click can be undone, until the page is left.
   // Keyed by period, so a page left open does not keep showing them in the next period.
@@ -44,6 +44,7 @@ export function FourWeekDue() {
                 void skip(data.date, item, reason);
               }}
               onUnskip={(item) => void unskip(data.date, item)}
+              onAmount={(item, amount) => void saveAmount(data.date, item, amount)}
             />
           </div>
           <p className="text-body-sm text-muted-foreground">

@@ -26,7 +26,8 @@ function withChecked<T extends ChecklistItem>(item: T, checked: boolean): T {
     item.timesPerWeek && item.weekChecks != null
       ? Math.max(item.weekChecks + (checked ? 1 : -1), 0)
       : item.weekChecks;
-  return { ...item, checked, weekChecks };
+  // An amount belongs to a check, so unchecking drops it.
+  return { ...item, checked, weekChecks, amount: checked ? item.amount : null };
 }
 
 // Loads a cadence's checklist and saves checks, showing them at once. `onSaveFailed` tells pages that
@@ -191,6 +192,45 @@ export function useChecklist<T extends ChecklistItem>(cadence: string, onSaveFai
     changeSkip(itemDate, item, reason);
   const unskip = (itemDate: string, item: ChecklistItem) => changeSkip(itemDate, item, null);
 
+  // Saves the amount of a checked routine. Shown once the server has answered, like a skip.
+  const saveAmount = async (itemDate: string, item: ChecklistItem, amount: number | null) => {
+    const saveKey = `${itemDate}/${item.id}`;
+    if (saving.current.has(saveKey)) return;
+    saving.current.add(saveKey);
+    saveEvents.current += 1;
+    clear();
+    try {
+      await requestJson(`/api/routines/${item.id}/checks/${itemDate}`, {
+        method: 'PUT',
+        body: { amount },
+      });
+      client.setQueriesData<ChecklistData<T>>({ queryKey: listKey }, (current) =>
+        current?.date === itemDate
+          ? {
+              ...current,
+              items: current.items.map((entry) =>
+                entry.id === item.id ? { ...entry, amount } : entry,
+              ),
+            }
+          : current,
+      );
+      status(
+        amount === null ? `Cleared the amount of ${item.name}` : `Saved the amount of ${item.name}`,
+      );
+    } catch (cause) {
+      error(cause);
+      void refetch();
+      onSaveFailed?.();
+    } finally {
+      saving.current.delete(saveKey);
+      saveEvents.current += 1;
+      if (saving.current.size === 0 && reloadAfterSaves.current) {
+        reloadAfterSaves.current = false;
+        void refetch();
+      }
+    }
+  };
+
   // Moving to the same day again retries a failed load.
   const moveTo = (target: string | null) => {
     clear();
@@ -200,5 +240,5 @@ export function useChecklist<T extends ChecklistItem>(cadence: string, onSaveFai
 
   const retry = () => moveTo(date);
 
-  return { data, loadFailed, notice, toggle, skip, unskip, moveTo, retry };
+  return { data, loadFailed, notice, toggle, skip, unskip, saveAmount, moveTo, retry };
 }
