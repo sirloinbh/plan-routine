@@ -257,7 +257,8 @@ export function Search() {
                             {result.kind === 'skip'
                               ? `Skipped ${result.routineName ?? 'a routine'}`
                               : (fieldLabel[result.field] ?? result.field)}
-                            :{' '}
+                            {/* A skip may have no reason: then the line is only "Skipped <routine>". */}
+                            {result.snippet ? ': ' : ''}
                           </span>
                           {result.snippet}
                         </p>

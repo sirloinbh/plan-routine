@@ -2,6 +2,7 @@ import { Router } from 'express';
 import type { Pool } from 'pg';
 import { z } from 'zod/v4';
 
+import { dailyRoutineOn } from './day-records.js';
 import { bodyId } from './ids.js';
 import { calendarDate } from './periods.js';
 import { buildSnippet, type DiaryTexts, escapeLike } from './search.js';
@@ -96,13 +97,7 @@ export function searchRoutes(pool: Pool, today: () => string) {
     if (routineParam) {
       const checked = `EXISTS (SELECT 1 FROM routine_checks c WHERE c.routine_id = ${routineParam} AND c.period_start = d.entry_date)`;
       if (result === 'done') diaryWhere.push(checked);
-      else {
-        // Due that day by the same rule as the records page: created by then and not archived on or before it.
-        diaryWhere.push(`d.entry_date < ${todayParam} AND NOT ${checked}
-          AND EXISTS (SELECT 1 FROM routines r WHERE r.id = ${routineParam} AND r.cadence = 'daily'
-            AND (r.created_at AT TIME ZONE 'Asia/Seoul')::date <= d.entry_date
-            AND (r.archived_at IS NULL OR (r.archived_at AT TIME ZONE 'Asia/Seoul')::date > d.entry_date))`);
-      }
+      else diaryWhere.push('d.entry_date IN (SELECT day FROM missed_days)');
     }
     const sources = [
       `SELECT 'diary' AS kind, d.entry_date AS date, d.body, d.good_note AS "goodNote",
@@ -110,10 +105,12 @@ export function searchRoutes(pool: Pool, today: () => string) {
          NULL::bigint AS "routineId", NULL::text AS "routineName", NULL::text AS reason
        FROM diary_entries d WHERE ${diaryWhere.join(' AND ') || 'true'}`,
     ];
-    // A skipped day counts as not done, so skip reasons are searched unless only the days the routine was done are
-    // asked for. Only daily routines (their period start is the day) and only skips that have a reason.
+    // Skip reasons are searched unless only the days the routine was done are asked for. Only daily routines (their
+    // period start is the day).
     if (!(routineParam && result === 'done')) {
-      const skipWhere = [...range('s.period_start'), "r.cadence = 'daily'", 's.reason IS NOT NULL'];
+      const skipWhere = [...range('s.period_start'), "r.cadence = 'daily'"];
+      // Text searches only reach skips that have a reason; for a routine every skip is a "Skipped" day.
+      if (!routineParam) skipWhere.push('s.reason IS NOT NULL');
       if (pattern) skipWhere.push(`s.reason ILIKE ${pattern}`);
       if (routineParam) skipWhere.push(`s.routine_id = ${routineParam}`);
       sources.push(
@@ -121,24 +118,33 @@ export function searchRoutes(pool: Pool, today: () => string) {
          FROM routine_skips s JOIN routines r ON r.id = s.routine_id WHERE ${skipWhere.join(' AND ')}`,
       );
     }
-    // With a routine and no text, the days it was missed that have no diary entry, so they can be found too: from the
-    // later of the start date and the day the routine was created, to the earlier of the end date and yesterday.
+    // With a routine and no text, the days it was missed that have no diary entry, so they can be found too.
     if (todayParam && routineParam && q === null)
       sources.push(
-        `SELECT 'missed', days.date::date, NULL, NULL, NULL, NULL, r.id, r.name, NULL
-         FROM routines r
-         CROSS JOIN LATERAL generate_series(
-           GREATEST(COALESCE(${fromParam ?? 'NULL::date'}, DATE '2000-01-01'), (r.created_at AT TIME ZONE 'Asia/Seoul')::date)::timestamp,
-           LEAST(COALESCE(${toParam ?? 'NULL::date'}, ${todayParam} - 1), ${todayParam} - 1)::timestamp,
-           interval '1 day'
-         ) AS days(date)
-         WHERE r.id = ${routineParam} AND r.cadence = 'daily'
-           AND (r.archived_at IS NULL OR (r.archived_at AT TIME ZONE 'Asia/Seoul')::date > days.date::date)
-           AND NOT EXISTS (SELECT 1 FROM routine_checks c WHERE c.routine_id = r.id AND c.period_start = days.date::date)
-           AND NOT EXISTS (SELECT 1 FROM diary_entries d WHERE d.entry_date = days.date::date)`,
+        `SELECT 'missed', m.day, NULL, NULL, NULL, NULL, r.id, r.name, NULL
+         FROM missed_days m JOIN routines r ON r.id = ${routineParam}
+         WHERE NOT EXISTS (SELECT 1 FROM diary_entries d WHERE d.entry_date = m.day)`,
       );
+    // The days a routine was missed, by the rule Records and Stats use (dailyRoutineOn: created by then, scheduled on
+    // that weekday, not archived on or before it) minus the days with a check or a skip, which are not misses. From
+    // the later of the start date and the day the routine was created, to the earlier of the end date and yesterday.
+    const missedDays = todayParam
+      ? `WITH missed_days AS (
+           SELECT days.date AS day FROM routines
+           CROSS JOIN LATERAL (
+             SELECT series::date AS date FROM generate_series(
+               GREATEST(COALESCE(${fromParam ?? 'NULL::date'}, DATE '2000-01-01'), (routines.created_at AT TIME ZONE 'Asia/Seoul')::date)::timestamp,
+               LEAST(COALESCE(${toParam ?? 'NULL::date'}, ${todayParam} - 1), ${todayParam} - 1)::timestamp,
+               interval '1 day'
+             ) AS series
+           ) AS days
+           WHERE routines.id = ${routineParam} AND ${dailyRoutineOn('routines', 'days.date')}
+             AND NOT EXISTS (SELECT 1 FROM routine_checks c WHERE c.routine_id = routines.id AND c.period_start = days.date)
+             AND NOT EXISTS (SELECT 1 FROM routine_skips k WHERE k.routine_id = routines.id AND k.period_start = days.date)
+         ) `
+      : '';
     const { rows } = await pool.query<Row>(
-      `SELECT *, count(*) OVER ()::int AS total FROM (${sources.join(' UNION ALL ')}) AS found
+      `${missedDays}SELECT *, count(*) OVER ()::int AS total FROM (${sources.join(' UNION ALL ')}) AS found
        ORDER BY date DESC, kind, "routineName"
        LIMIT ${bind(limit)} OFFSET ${bind(offset)}`,
       params,
