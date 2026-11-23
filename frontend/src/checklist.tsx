@@ -19,6 +19,9 @@ export type ChecklistItem = {
   checked: boolean;
   skipped?: boolean;
   skipReason?: string | null;
+  /** An N-per-week routine: the target, and the days checked so far this week. */
+  timesPerWeek?: number | null;
+  weekChecks?: number | null;
   linkName?: string | null;
   linkUrl?: string | null;
 };
@@ -90,6 +93,11 @@ export function Checklist({
                   className="min-w-0 flex-1 text-body leading-normal font-normal break-words"
                 >
                   {item.name}
+                  {item.timesPerWeek ? (
+                    <span className="block text-body-sm text-muted-foreground">
+                      {item.weekChecks ?? 0}/{item.timesPerWeek} this week
+                    </span>
+                  ) : null}
                 </Label>
                 {safeLink(item.linkUrl) && (
                   <Button asChild variant="ghost" size="icon">

@@ -24,6 +24,7 @@ export function dailyRoutineOn(routine: RoutineAlias, day: DayExpression) {
     )
     OR (
       ${seoulDate('created_at')} <= ${day}
+      AND (${routine}.weekdays IS NULL OR EXTRACT(DOW FROM ${day})::int = ANY(${routine}.weekdays))
       AND (${routine}.archived_at IS NULL OR ${seoulDate('archived_at')} > ${day})
     )
   )`;

@@ -1,6 +1,8 @@
 import { Button } from './components/ui/button';
 import { Input } from './components/ui/input';
+import { NativeSelect } from './components/ui/native-select';
 import { Spinner } from './components/ui/spinner';
+import { fullWeekdayNames, scheduleText, weekdayNames } from './routine-schedule';
 import type { Routine } from './routines';
 import type { RoutineList, RoutineNotice } from './use-routine-list';
 
@@ -63,7 +65,14 @@ export function RoutineItems({
             </form>
           ) : (
             <>
-              <span className="min-w-0 flex-1 basis-48 text-body break-words">{routine.name}</span>
+              <span className="min-w-0 flex-1 basis-48 text-body break-words">
+                {routine.name}
+                {scheduleText(routine) && (
+                  <span className="block text-body-sm text-muted-foreground">
+                    {scheduleText(routine)}
+                  </span>
+                )}
+              </span>
               <span className="flex flex-wrap gap-1">
                 <Button
                   type="button"
@@ -175,6 +184,7 @@ export function RoutineAddForm({
   addLabel,
   addedTo,
   category,
+  cadence,
   placeholder = 'New routine name',
 }: {
   list: RoutineList;
@@ -184,11 +194,21 @@ export function RoutineAddForm({
   /** Where the new routine went, for the confirmation, such as "Exercise". */
   addedTo: string;
   category?: string;
+  /** `weekly` adds the times-per-week choice. */
+  cadence?: string;
   placeholder?: string;
 }) {
+  const schedule = list.schedules[draftKey] ?? { weekdays: [], timesPerWeek: null };
+  const toggleDay = (day: number) =>
+    list.setSchedule(draftKey, {
+      ...schedule,
+      weekdays: schedule.weekdays.includes(day)
+        ? schedule.weekdays.filter((value) => value !== day)
+        : [...schedule.weekdays, day].sort((a, b) => a - b),
+    });
   return (
     <form
-      className="flex gap-2"
+      className="flex flex-wrap gap-2"
       aria-label={addLabel}
       onSubmit={(event) => {
         event.preventDefault();
@@ -208,6 +228,53 @@ export function RoutineAddForm({
         {list.pending === `add:${draftKey}` && <Spinner size="sm" label="Saving" />}
         Add
       </Button>
+      {category && (
+        <fieldset className="flex w-full flex-wrap items-center gap-1">
+          <legend className="sr-only">{`Days of the week for the new ${addedTo} routine`}</legend>
+          <span aria-hidden className="mr-1 text-body-sm text-muted-foreground">
+            Days
+          </span>
+          {weekdayNames.map((day, index) => (
+            <Button
+              key={day}
+              type="button"
+              size="sm"
+              variant={schedule.weekdays.includes(index) ? 'default' : 'outline'}
+              aria-pressed={schedule.weekdays.includes(index)}
+              aria-label={fullWeekdayNames[index]}
+              onClick={() => toggleDay(index)}
+            >
+              {day}
+            </Button>
+          ))}
+          <span className="w-full text-caption text-muted-foreground">
+            {schedule.weekdays.length === 0 ? 'Every day unless you choose days' : ''}
+          </span>
+        </fieldset>
+      )}
+      {cadence === 'weekly' && (
+        <label className="flex w-full items-center gap-2 text-body-sm text-muted-foreground">
+          How often
+          <NativeSelect
+            className="max-w-48"
+            aria-label="Times per week for the new weekly routine"
+            value={schedule.timesPerWeek ?? ''}
+            onChange={(event) =>
+              list.setSchedule(draftKey, {
+                ...schedule,
+                timesPerWeek: event.target.value ? Number(event.target.value) : null,
+              })
+            }
+          >
+            <option value="">Once a week</option>
+            {[2, 3, 4, 5, 6, 7].map((count) => (
+              <option key={count} value={count}>
+                {count} times a week
+              </option>
+            ))}
+          </NativeSelect>
+        </label>
+      )}
     </form>
   );
 }

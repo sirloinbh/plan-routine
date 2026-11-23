@@ -6,12 +6,18 @@ import type { Pool } from 'pg';
 import { withApi } from './helpers.js';
 
 // Fake pool that answers by matching the SQL and records every query. The real SQL runs in the DB test.
-function fakePool({ routine = true, checked = false, skipped = false } = {}) {
+function fakePool({
+  routine = true,
+  checked = false,
+  skipped = false,
+  timesPerWeek = null as number | null,
+} = {}) {
   const queries: { sql: string; params: unknown[] }[] = [];
   const query = async (sql: string, params: unknown[] = []) => {
     queries.push({ sql, params });
     if (sql.includes('app_settings')) return { rows: [{ value: '2026-10-18' }] };
-    if (sql.includes('FOR UPDATE')) return { rows: routine ? [{ cadence: 'weekly' }] : [] };
+    if (sql.includes('FOR UPDATE'))
+      return { rows: routine ? [{ cadence: 'weekly', timesPerWeek }] : [] };
     if (sql.includes('FROM routine_checks')) return { rows: checked ? [{}] : [] };
     if (sql.includes('FROM routine_skips')) return { rows: skipped ? [{}] : [] };
     return { rows: [] };
@@ -167,4 +173,29 @@ test('skips follow the editable range and need an active routine', async () => {
     },
     { today },
   );
+});
+
+test('an N-per-week routine stores one check per day, and a skip covers the week (#245)', async () => {
+  const { pool, queries } = fakePool({ timesPerWeek: 3 });
+  await withApi(
+    pool,
+    async (call) => {
+      assert.equal(
+        (await call('/api/routines/1/checks/2026-10-21', { method: 'PUT' })).status,
+        200,
+      );
+      assert.equal(
+        (await call('/api/routines/1/checks/2026-10-21', { method: 'DELETE' })).status,
+        200,
+      );
+      assert.equal((await call(path, { method: 'PUT', body: {} })).status, 200);
+    },
+    { today },
+  );
+  // The check and its removal are keyed by the day, not by the week start.
+  assert.deepEqual(writes(queries, 'INSERT INTO routine_checks')[0].params, [1, '2026-10-21']);
+  assert.deepEqual(writes(queries, 'DELETE FROM routine_checks')[0].params, [1, '2026-10-21']);
+  // Skipping looks for a check anywhere in the week, and stores the skip at the week start.
+  assert.deepEqual(writes(queries, 'BETWEEN')[0].params, [1, '2026-10-18', '2026-10-24']);
+  assert.deepEqual(writes(queries, 'INSERT INTO routine_skips')[0].params, [1, '2026-10-18', null]);
 });

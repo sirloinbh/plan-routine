@@ -41,6 +41,11 @@ export function shiftMonth(month: string, months: number) {
   return `${String(Math.floor(index / 12)).padStart(4, '0')}-${String((index % 12) + 1).padStart(2, '0')}`;
 }
 
+/** 0 = Sunday ... 6 = Saturday, as PostgreSQL's DOW. */
+export function weekdayOf(date: string) {
+  return (((toDayNumber(date) + 4) % 7) + 7) % 7;
+}
+
 export function daysBetween(from: string, to: string) {
   return toDayNumber(to) - toDayNumber(from);
 }

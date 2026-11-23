@@ -9,6 +9,9 @@ import type { ProjectLink } from './project-links';
 import type { Routine } from './routines';
 import { useReloadWhenShown } from './use-date-change';
 
+export type Schedule = { weekdays: number[]; timesPerWeek: number | null };
+const noSchedule: Schedule = { weekdays: [], timesPerWeek: null };
+
 export type RoutineNotice = { kind: 'status' | 'alert'; text: string } | null;
 
 /** Which control to focus: the first of these that exists and is enabled. */
@@ -26,6 +29,8 @@ const focusKeys = {
 export function useRoutineList(cadence: string) {
   const client = useQueryClient();
   const [drafts, setDrafts] = useState<Record<string, string>>({});
+  // The schedule chosen in each add form (#245): weekdays of a daily routine, times per week of a weekly one.
+  const [schedules, setSchedules] = useState<Record<string, Schedule>>({});
   const [editing, setEditing] = useState<{ id: number; name: string } | null>(null);
   const [confirmArchive, setConfirmArchive] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
@@ -107,6 +112,7 @@ export function useRoutineList(cadence: string) {
 
   const add = async (draftKey: string, addedTo: string, category?: string) => {
     const name = (drafts[draftKey] ?? '').trim();
+    const schedule = schedules[draftKey] ?? noSchedule;
     if (!name) {
       setNotice({ kind: 'alert', text: 'Enter a routine name' });
       return;
@@ -115,13 +121,22 @@ export function useRoutineList(cadence: string) {
       () =>
         requestJson('/api/routines', {
           method: 'POST',
-          body: { name, cadence, category },
+          body: {
+            name,
+            cadence,
+            category,
+            ...(schedule.weekdays.length > 0 ? { weekdays: schedule.weekdays } : {}),
+            ...(schedule.timesPerWeek ? { timesPerWeek: schedule.timesPerWeek } : {}),
+          },
         }),
       `Added the routine '${name}' to ${addedTo}`,
       `add:${draftKey}`,
     );
     requestFocus([focusKeys.add(draftKey)]);
-    if (ok) setDrafts((current) => ({ ...current, [draftKey]: '' }));
+    if (ok) {
+      setDrafts((current) => ({ ...current, [draftKey]: '' }));
+      setSchedules((current) => ({ ...current, [draftKey]: noSchedule }));
+    }
   };
 
   const rename = async (draftKey: string) => {
@@ -182,6 +197,8 @@ export function useRoutineList(cadence: string) {
     setConfirmArchive(null);
   };
 
+  const setSchedule = (draftKey: string, schedule: Schedule) =>
+    setSchedules((current) => ({ ...current, [draftKey]: schedule }));
   const setDraft = (draftKey: string, value: string) =>
     setDrafts((current) => ({ ...current, [draftKey]: value }));
 
@@ -209,6 +226,8 @@ export function useRoutineList(cadence: string) {
     loadFailed,
     refresh,
     drafts,
+    schedules,
+    setSchedule,
     editing,
     confirmArchive,
     busy,

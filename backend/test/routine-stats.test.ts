@@ -347,3 +347,48 @@ test('the trend lists 12 weeks and 6 four-week periods, newest first, with skips
   assert.deepEqual([fourWeek.checked, fourWeek.total], [3, 5]);
   assert.ok(stats.trend.fourWeeks[1].end < fourWeek.start);
 });
+
+test('a weekday routine does not count its off days, and a check on one still counts (#245)', () => {
+  // Mon/Wed/Fri (1, 3, 5). Week 10-18 (Sun) .. 10-24: Mon 19 done, Wed 21 missed, Fri 23 is in the future.
+  const run = routine({ id: 1, weekdays: [1, 3, 5] });
+  const stats = buildStats({
+    today,
+    anchorDate,
+    routines: [run],
+    checks: [check(1, '2026-10-19'), check(1, '2026-10-20')],
+  });
+  const statusOn = (date: string) =>
+    stats.items[0].periods.find((period) => period.start === date)?.status;
+  assert.equal(statusOn('2026-10-19'), 'done');
+  assert.equal(statusOn('2026-10-20'), 'done'); // Tuesday, checked anyway
+  assert.equal(statusOn('2026-10-21'), 'missed');
+  assert.equal(statusOn('2026-10-22'), 'none'); // Thursday, today, off day
+  assert.equal(statusOn('2026-10-18'), 'none'); // Sunday
+  // Week of 10-18: done 19, 20 (extra), missed 21.
+  assert.deepEqual(
+    { checked: stats.daily.weeks[0].checked, total: stats.daily.weeks[0].total },
+    { checked: 2, total: 3 },
+  );
+});
+
+test('an N-per-week routine is done at N checks in the week and missed otherwise (#245)', () => {
+  const read = routine({ id: 2, cadence: 'weekly', category: null, timesPerWeek: 3 });
+  const periods = (checks: string[], day: string) =>
+    buildStats({
+      today: day,
+      anchorDate,
+      routines: [read],
+      checks: checks.map((date) => check(2, date)),
+    }).items[0].periods;
+  // The running week (10-18..10-24): open with 2 checks, done with 3.
+  assert.equal(periods(['2026-10-18', '2026-10-19'], today)[0].status, 'open');
+  assert.equal(periods(['2026-10-18', '2026-10-19', '2026-10-21'], today)[0].status, 'done');
+  // The same week once it is over (today 10-28, so it is the second period).
+  assert.equal(periods(['2026-10-18', '2026-10-19'], '2026-10-28')[1].status, 'missed');
+  assert.equal(periods(['2026-10-18', '2026-10-19', '2026-10-24'], '2026-10-28')[1].status, 'done');
+  // A check in another week does not count.
+  assert.equal(
+    periods(['2026-10-11', '2026-10-12', '2026-10-13'], '2026-10-28')[1].status,
+    'missed',
+  );
+});

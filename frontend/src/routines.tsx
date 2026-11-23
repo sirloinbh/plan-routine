@@ -12,6 +12,10 @@ export type Routine = {
   category: string | null;
   sortOrder: number;
   projectLinkId?: number | null;
+  /** Daily routines on chosen days only (0 = Sunday ... 6 = Saturday). */
+  weekdays?: number[] | null;
+  /** Weekly routines done on this many days of the week. */
+  timesPerWeek?: number | null;
 };
 
 export function DailyRoutines() {

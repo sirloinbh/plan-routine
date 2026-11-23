@@ -1,5 +1,6 @@
 import { addDays } from './periods.js';
 import {
+  checkLookup,
   periodStatus,
   type StatsCheck,
   type StatsRoutine,
@@ -11,7 +12,15 @@ export const mostMissedCount = 3;
 
 export type ReviewRoutine = Pick<
   StatsRoutine,
-  'id' | 'name' | 'cadence' | 'category' | 'sortOrder' | 'createdOn' | 'archivedOn'
+  | 'id'
+  | 'name'
+  | 'cadence'
+  | 'category'
+  | 'sortOrder'
+  | 'createdOn'
+  | 'archivedOn'
+  | 'weekdays'
+  | 'timesPerWeek'
 >;
 
 /**
@@ -31,11 +40,11 @@ export function buildWeeklyReview(input: {
   const { today, routines, checks, skips = [] } = input;
   const start = input.weekStart;
   const end = addDays(start, 6);
-  const checkedKeys = new Set(checks.map((check) => `${check.routineId}/${check.periodStart}`));
+  const isChecked = checkLookup(checks);
   const skippedKeys = new Set(skips.map((skip) => `${skip.routineId}/${skip.periodStart}`));
   const statusOf = (routine: ReviewRoutine, period: { start: string; end: string }) => {
     const key = `${routine.id}/${period.start}`;
-    return periodStatus(routine, period, checkedKeys.has(key), today, skippedKeys.has(key));
+    return periodStatus(routine, period, isChecked(routine, period), today, skippedKeys.has(key));
   };
 
   const rate = { checked: 0, total: 0 };

@@ -99,6 +99,7 @@ export function PeriodRoutines({
           <RoutineAddForm
             list={list}
             draftKey={cadence}
+            cadence={cadence}
             addLabel={`Add a ${name} routine`}
             addedTo={`the ${name} list`}
             placeholder={examples}

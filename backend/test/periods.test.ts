@@ -7,6 +7,7 @@ import {
   isCalendarDate,
   periodFor,
   periodsFor,
+  weekdayOf,
   weekStart,
 } from '../src/periods.js';
 
@@ -107,4 +108,11 @@ test('a missing date and a date of the wrong type have different messages', () =
   const message = (input: unknown) => calendarDate.safeParse(input).error?.issues[0].message;
   assert.equal(message(undefined), 'Enter a date');
   assert.equal(message(20261022), 'Invalid date format');
+});
+
+test('weekdayOf counts from Sunday = 0', () => {
+  assert.equal(weekdayOf('2026-10-18'), 0);
+  assert.equal(weekdayOf('2026-10-19'), 1);
+  assert.equal(weekdayOf('2026-10-24'), 6);
+  assert.equal(weekdayOf('1969-12-28'), 0);
 });

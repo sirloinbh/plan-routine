@@ -19,6 +19,16 @@ export type ChecklistData<T> = {
   items: T[];
 };
 
+// An N-per-week routine counts today's check in its week total too, so the box and "2/3 this week" agree.
+function withChecked<T extends ChecklistItem>(item: T, checked: boolean): T {
+  if (item.checked === checked) return item;
+  const weekChecks =
+    item.timesPerWeek && item.weekChecks != null
+      ? Math.max(item.weekChecks + (checked ? 1 : -1), 0)
+      : item.weekChecks;
+  return { ...item, checked, weekChecks };
+}
+
 // Loads a cadence's checklist and saves checks, showing them at once. `onSaveFailed` tells pages that
 // also list the routines that a save failed. Changes to the routines invalidate this checklist's query.
 export function useChecklist<T extends ChecklistItem>(cadence: string, onSaveFailed?: () => void) {
@@ -51,7 +61,7 @@ export function useChecklist<T extends ChecklistItem>(cadence: string, onSaveFai
             ...loaded,
             items: loaded.items.map((item) => {
               const key = `${loaded.date}/${item.id}`;
-              return key in pending ? { ...item, checked: pending[key] } : item;
+              return key in pending ? withChecked(item, pending[key]) : item;
             }),
           }
         : loaded,
@@ -94,7 +104,9 @@ export function useChecklist<T extends ChecklistItem>(cadence: string, onSaveFai
       current?.date === itemDate
         ? {
             ...current,
-            items: current.items.map((item) => (item.id === id ? { ...item, checked } : item)),
+            items: current.items.map((item) =>
+              item.id === id ? withChecked(item, checked) : item,
+            ),
           }
         : current,
     );

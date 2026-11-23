@@ -2155,6 +2155,33 @@
                 "type": "null"
               }
             ]
+          },
+          "weekdays": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 6
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "timesPerWeek": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 2,
+                "maximum": 7
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [

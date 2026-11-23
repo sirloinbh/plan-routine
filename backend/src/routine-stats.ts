@@ -1,4 +1,12 @@
-import { addDays, type Cadence, type Period, periodFor, shiftMonth, weekStart } from './periods.js';
+import {
+  addDays,
+  type Cadence,
+  type Period,
+  periodFor,
+  shiftMonth,
+  weekdayOf,
+  weekStart,
+} from './periods.js';
 
 export type StatsRoutine = {
   id: number;
@@ -9,6 +17,10 @@ export type StatsRoutine = {
   /** YYYY-MM-DD in the service time zone. */
   createdOn: string;
   archivedOn: string | null;
+  /** Daily routines on chosen days only (0 = Sunday ... 6 = Saturday); null is every day (#245). */
+  weekdays?: number[] | null;
+  /** Weekly routines done on this many days of the week (2 to 7); null is one check per week (#245). */
+  timesPerWeek?: number | null;
 };
 export type StatsCheck = { routineId: number; periodStart: string };
 export type StatsSkip = StatsCheck;
@@ -37,7 +49,7 @@ const trendFourWeeks = 6;
 // A period still running is not a miss yet, so it counts only once done. A skipped period (checked and
 // skipped never both hold) is shown as skipped and left out of both counts.
 export function periodStatus(
-  routine: Pick<StatsRoutine, 'createdOn' | 'archivedOn'>,
+  routine: Pick<StatsRoutine, 'createdOn' | 'archivedOn' | 'weekdays'>,
   period: Period,
   checked: boolean,
   today: string,
@@ -45,9 +57,32 @@ export function periodStatus(
 ): PeriodStatus {
   if (checked) return 'done';
   if (skipped) return 'skipped';
+  // A day the routine does not apply to is not a miss, and not counted (#245).
+  if (
+    routine.weekdays &&
+    period.start === period.end &&
+    !routine.weekdays.includes(weekdayOf(period.start))
+  )
+    return 'none';
   if (routine.createdOn > period.end) return 'none';
   if (routine.archivedOn && routine.archivedOn <= period.end) return 'none';
   return period.end >= today ? 'open' : 'missed';
+}
+
+/**
+ * Whether a routine's period is checked. An N-per-week routine stores one check per day, and is done
+ * once the period holds N of them; every other routine has one check at the period's start (#245).
+ */
+export function checkLookup(checks: StatsCheck[]) {
+  const keys = new Set(checks.map((check) => `${check.routineId}/${check.periodStart}`));
+  const dates = new Map<number, string[]>();
+  for (const { routineId, periodStart } of checks)
+    dates.set(routineId, [...(dates.get(routineId) ?? []), periodStart]);
+  return (routine: Pick<StatsRoutine, 'id' | 'timesPerWeek'>, period: Period) =>
+    routine.timesPerWeek
+      ? (dates.get(routine.id) ?? []).filter((date) => date >= period.start && date <= period.end)
+          .length >= routine.timesPerWeek
+      : keys.has(`${routine.id}/${period.start}`);
 }
 
 function addStatus(tally: Tally, status: PeriodStatus) {
@@ -77,11 +112,11 @@ export function buildStats(input: {
 }) {
   const { today, anchorDate, routines, checks, skips = [] } = input;
   const keyOf = (entry: StatsCheck) => `${entry.routineId}/${entry.periodStart}`;
-  const checkedKeys = new Set(checks.map(keyOf));
+  const isChecked = checkLookup(checks);
   const skippedKeys = new Set(skips.map(keyOf));
   const statusOf = (routine: StatsRoutine, period: Period) => {
     const key = `${routine.id}/${period.start}`;
-    return periodStatus(routine, period, checkedKeys.has(key), today, skippedKeys.has(key));
+    return periodStatus(routine, period, isChecked(routine, period), today, skippedKeys.has(key));
   };
   const byCadence = (cadence: Cadence) => routines.filter((routine) => routine.cadence === cadence);
   const days = (start: string, end: string) => {
