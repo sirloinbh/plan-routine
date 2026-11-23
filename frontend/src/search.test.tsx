@@ -1,5 +1,5 @@
 import { act, fireEvent, screen, within } from '@testing-library/react';
-import { MemoryRouter } from 'react-router';
+import { MemoryRouter, useLocation, useNavigate } from 'react-router';
 import { expect, test, vi } from 'vitest';
 
 import { Search } from './search';
@@ -52,12 +52,27 @@ function api(
   return urls;
 }
 
-const renderSearch = () =>
+// Shows the address and a Back button, so tests can see what the page writes to the address.
+function AddressProbe() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  return (
+    <>
+      <output aria-label="address">{location.search}</output>
+      <button type="button" onClick={() => void navigate(-1)}>
+        Back
+      </button>
+    </>
+  );
+}
+const renderSearch = (entry = '/search') =>
   render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[entry]}>
       <Search />
+      <AddressProbe />
     </MemoryRouter>,
   );
+const address = () => screen.getByLabelText('address').textContent;
 const tick = () => new Promise((resolve) => setTimeout(resolve));
 const flush = () =>
   act(async () => {
@@ -291,4 +306,56 @@ test('a failed search shows the server message and a retry', async () => {
   await flush();
   expect(getLive('alert')).toHaveTextContent('Server error');
   expect(screen.getByRole('button', { name: 'Try again' })).toBeVisible();
+});
+
+test('an address with a search opens it: the form is filled and the results are loaded', async () => {
+  const urls = api({ total: 45 });
+  renderSearch('/search?q=coffee&from=2026-10-01&routineId=7&result=done&offset=20');
+  await flush();
+  expect(searchCalls(urls)).toEqual([
+    '/api/search?q=coffee&from=2026-10-01&routineId=7&result=done&limit=20&offset=20',
+  ]);
+  expect(screen.getByLabelText('Search text')).toHaveValue('coffee');
+  expect(screen.getByLabelText('From')).toHaveValue('2026-10-01');
+  expect(screen.getByLabelText('Daily routine')).toHaveValue('7');
+  expect(screen.getByLabelText('On days the routine was')).toHaveValue('done');
+  expect(screen.getByText('Showing 21–22 of 45')).toBeVisible();
+});
+
+test('unusable address values are ignored: no search without a word or a routine', async () => {
+  const urls = api();
+  renderSearch('/search?from=nope&routineId=abc&offset=-1');
+  await flush();
+  expect(searchCalls(urls)).toEqual([]);
+  expect(screen.getByLabelText('Search text')).toHaveValue('');
+  expect(screen.getByLabelText('From')).toHaveValue('');
+});
+
+test('submitting and paging write the search to the address', async () => {
+  api({ total: 45 });
+  renderSearch();
+  await flush();
+  fireEvent.change(screen.getByLabelText('Search text'), { target: { value: ' coffee ' } });
+  fireEvent.change(screen.getByLabelText('Daily routine'), { target: { value: '7' } });
+  submit();
+  await flush();
+  expect(address()).toBe('?q=coffee&routineId=7&result=missed');
+  fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+  await flush();
+  expect(address()).toBe('?q=coffee&routineId=7&result=missed&offset=20');
+});
+
+test('Back brings the earlier search and its form back', async () => {
+  const urls = api();
+  renderSearch('/search?q=coffee');
+  await flush();
+  fireEvent.change(screen.getByLabelText('Search text'), { target: { value: 'tea' } });
+  submit();
+  await flush();
+  expect(address()).toBe('?q=tea');
+  fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+  await flush();
+  expect(address()).toBe('?q=coffee');
+  expect(screen.getByLabelText('Search text')).toHaveValue('coffee');
+  expect(searchCalls(urls).at(-1)).toBe('/api/search?q=coffee&limit=20&offset=0');
 });

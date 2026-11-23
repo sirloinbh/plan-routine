@@ -1,5 +1,5 @@
-import { type FormEvent, useState } from 'react';
-import { Link } from 'react-router';
+import { type FormEvent, useMemo, useState } from 'react';
+import { Link, useSearchParams } from 'react-router';
 
 import { Button } from './components/ui/button';
 import { Card, CardContent } from './components/ui/card';
@@ -55,6 +55,39 @@ const fieldLabel: Record<string, string> = {
   regretNote: 'What could be better',
   tomorrowNote: 'To do tomorrow',
 };
+
+// The search lives in the address (?q=&from=&to=&routineId=&result=&offset=), so Back from a result's day brings
+// the same search back. Values that cannot be right are left out, as the form would not have produced them.
+const calendarDay = /^\d{4}-\d{2}-\d{2}$/;
+function fromAddress(params: URLSearchParams) {
+  const day = (name: string) => {
+    const value = params.get(name) ?? '';
+    return calendarDay.test(value) ? value : '';
+  };
+  const routine = params.get('routineId') ?? '';
+  const filters: Filters = {
+    q: (params.get('q') ?? '').trim(),
+    from: day('from'),
+    to: day('to'),
+    routineId: /^[1-9]\d{0,14}$/.test(routine) ? routine : '',
+    result: params.get('result') === 'done' ? 'done' : 'missed',
+  };
+  const offset = /^\d{1,6}$/.test(params.get('offset') ?? '') ? Number(params.get('offset')) : 0;
+  return { filters: filters.q || filters.routineId ? filters : null, offset };
+}
+
+function toAddress({ q, from, to, routineId, result }: Filters, offset: number) {
+  const params = new URLSearchParams();
+  if (q.trim()) params.set('q', q.trim());
+  if (from) params.set('from', from);
+  if (to) params.set('to', to);
+  if (routineId) {
+    params.set('routineId', routineId);
+    params.set('result', result);
+  }
+  if (offset > 0) params.set('offset', String(offset));
+  return params;
+}
 
 function searchPath({ q, from, to, routineId, result }: Filters, offset: number) {
   const params = new URLSearchParams();
@@ -112,9 +145,16 @@ function WholeDay({ date }: { date: string }) {
 }
 
 export function Search() {
-  const [draft, setDraft] = useState<Filters>(empty);
-  const [submitted, setSubmitted] = useState<Filters | null>(null);
-  const [offset, setOffset] = useState(0);
+  const [params, setParams] = useSearchParams();
+  const address = params.toString();
+  const { filters: submitted, offset } = useMemo(() => fromAddress(params), [params]);
+  const [draft, setDraft] = useState<Filters>(submitted ?? empty);
+  // Back and Forward change the address: the form shows the filters of that search again.
+  const [shownAddress, setShownAddress] = useState(address);
+  if (shownAddress !== address) {
+    setShownAddress(address);
+    setDraft(submitted ?? empty);
+  }
   const [formError, setFormError] = useState<string | null>(null);
   const routines = useApiQuery<{ routines: { id: number; name: string }[] }>(
     apiKey('/api/routines', 'daily'),
@@ -135,11 +175,10 @@ export function Search() {
     if (draft.from && draft.to && draft.from > draft.to)
       return setFormError('The start date must not be after the end date');
     setFormError(null);
-    // The same search again has the same key, so ask for fresh results instead of showing the cached ones.
-    if (submitted && offset === 0 && JSON.stringify(submitted) === JSON.stringify(draft))
-      void search.refetch();
-    setOffset(0);
-    setSubmitted(draft);
+    const next = toAddress(draft, 0);
+    // The same search again is the same address and key, so ask for fresh results instead of showing the cached ones.
+    if (next.toString() === address) void search.refetch();
+    else setParams(next);
   };
 
   const data = search.data;
@@ -274,7 +313,10 @@ export function Search() {
                 variant="outline"
                 size="sm"
                 disabled={data.offset === 0}
-                onClick={() => setOffset(Math.max(0, data.offset - data.limit))}
+                onClick={() =>
+                  submitted &&
+                  setParams(toAddress(submitted, Math.max(0, data.offset - data.limit)))
+                }
               >
                 Previous
               </Button>
@@ -282,7 +324,9 @@ export function Search() {
                 variant="outline"
                 size="sm"
                 disabled={last >= data.total}
-                onClick={() => setOffset(data.offset + data.limit)}
+                onClick={() =>
+                  submitted && setParams(toAddress(submitted, data.offset + data.limit))
+                }
               >
                 Next
               </Button>
