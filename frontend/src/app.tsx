@@ -8,6 +8,7 @@ import {
   History,
   ListChecks,
   NotebookPen,
+  Search as SearchIcon,
   Settings2,
   Target,
 } from 'lucide-react';
@@ -27,6 +28,7 @@ import { FourWeekRoutines, WeeklyRoutines } from './period-routines';
 import { ProjectLinks } from './project-links';
 import { Records } from './records';
 import { DailyRoutines } from './routines';
+import { Search } from './search';
 import { AccountActions, SignInGate } from './sign-in';
 import { Stats } from './stats';
 import { TwelveWeek } from './twelve-week';
@@ -44,6 +46,7 @@ const pages = {
   records: '/records',
   stats: '/stats',
   review: '/review',
+  search: '/search',
   settings: '/settings',
 } as const;
 
@@ -58,6 +61,7 @@ const nav: NavItem[] = [
   { to: pages.records, label: 'Records', icon: History },
   { to: pages.stats, label: 'Completion rates', icon: ChartNoAxesColumn },
   { to: pages.review, label: 'Weekly review', icon: ClipboardCheck },
+  { to: pages.search, label: 'Search', icon: SearchIcon },
   { to: pages.settings, label: 'Settings', icon: Settings2 },
 ];
 
@@ -237,6 +241,18 @@ export function App() {
                     health={health}
                   >
                     <WeeklyReview />
+                  </Page>
+                }
+              />
+              <Route
+                path={pages.search}
+                element={
+                  <Page
+                    title="Search"
+                    description="Find past diary entries by word, date range, or the days a routine was missed"
+                    health={health}
+                  >
+                    <Search />
                   </Page>
                 }
               />

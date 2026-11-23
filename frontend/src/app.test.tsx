@@ -68,6 +68,7 @@ const emptyReview = {
 
 const pageData = (url: string) => {
   if (url.startsWith('/api/stats')) return emptyStats;
+  if (url.startsWith('/api/search')) return { limit: 20, offset: 0, total: 0, results: [] };
   if (url.startsWith('/api/mood-stats')) return { today: '2026-10-26', weeks: [] };
   if (url.startsWith('/api/weekly-review')) return emptyReview;
   if (url.startsWith('/api/records/')) return emptyDay;
@@ -271,6 +272,17 @@ test('the main menu opens the weekly review page', async () => {
     await screen.findByRole('heading', { level: 1, name: 'Weekly review' }),
   ).toBeInTheDocument();
   expect(await screen.findByText('No records this week')).toBeInTheDocument();
+  window.history.replaceState(null, '', '/');
+});
+
+test('the main menu opens the search page', async () => {
+  health({ today: '2026-10-26' });
+  render(<App />);
+  const menu = screen.getByRole('navigation', { name: 'Main menu' });
+  fireEvent.click(within(menu).getByRole('link', { name: 'Search' }));
+  expect(window.location.pathname).toBe('/search');
+  expect(await screen.findByRole('heading', { level: 1, name: 'Search' })).toBeInTheDocument();
+  expect(screen.getByLabelText('Search text')).toBeInTheDocument();
   window.history.replaceState(null, '', '/');
 });
 
