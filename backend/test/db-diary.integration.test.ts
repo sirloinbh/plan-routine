@@ -64,7 +64,24 @@ test(
               goodNote: 'Good points',
               regretNote: null,
               tomorrowNote: null,
+              mood: null,
+              energy: null,
             });
+
+            // Scores save and reload, and saving without them clears them.
+            const scored = await call(path, {
+              method: 'PUT',
+              body: { body: 'Scored', mood: 4, energy: 1 },
+            });
+            assert.equal(scored.status, 200);
+            const scoredAgain = await call('/api/diary?date=2026-10-22');
+            assert.deepEqual(
+              [
+                (scoredAgain.data.entry as { mood: number }).mood,
+                (scoredAgain.data.entry as { energy: number }).energy,
+              ],
+              [4, 1],
+            );
 
             const second = await call(path, { method: 'PUT', body: { body: 'Edited text' } });
             assert.equal(second.status, 200);
