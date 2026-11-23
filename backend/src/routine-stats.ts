@@ -11,8 +11,10 @@ export type StatsRoutine = {
   archivedOn: string | null;
 };
 export type StatsCheck = { routineId: number; periodStart: string };
+export type StatsSkip = StatsCheck;
 
-export type PeriodStatus = 'done' | 'missed' | 'open' | 'none';
+/** `skipped`: left out on purpose (#243); it counts neither as done nor as missed. */
+export type PeriodStatus = 'done' | 'missed' | 'skipped' | 'open' | 'none';
 export type Tally = { checked: number; total: number };
 type PeriodTally = Period & Tally;
 
@@ -43,14 +45,17 @@ export function statsStart(today: string, anchorDate: string) {
 
 // The same rule as "routines of that day" on the records page (day-records.ts), for any period: a
 // check always counts; otherwise the routine must have been there through the end of the period.
-// A period still running is not a miss yet, so it counts only once done.
+// A period still running is not a miss yet, so it counts only once done. A skipped period (checked and
+// skipped never both hold) is shown as skipped and left out of both counts.
 export function periodStatus(
   routine: Pick<StatsRoutine, 'createdOn' | 'archivedOn'>,
   period: Period,
   checked: boolean,
   today: string,
+  skipped = false,
 ): PeriodStatus {
   if (checked) return 'done';
+  if (skipped) return 'skipped';
   if (routine.createdOn > period.end) return 'none';
   if (routine.archivedOn && routine.archivedOn <= period.end) return 'none';
   return period.end >= today ? 'open' : 'missed';
@@ -79,11 +84,16 @@ export function buildStats(input: {
   anchorDate: string;
   routines: StatsRoutine[];
   checks: StatsCheck[];
+  skips?: StatsSkip[];
 }) {
-  const { today, anchorDate, routines, checks } = input;
-  const checkedKeys = new Set(checks.map((check) => `${check.routineId}/${check.periodStart}`));
-  const statusOf = (routine: StatsRoutine, period: Period) =>
-    periodStatus(routine, period, checkedKeys.has(`${routine.id}/${period.start}`), today);
+  const { today, anchorDate, routines, checks, skips = [] } = input;
+  const keyOf = (entry: StatsCheck) => `${entry.routineId}/${entry.periodStart}`;
+  const checkedKeys = new Set(checks.map(keyOf));
+  const skippedKeys = new Set(skips.map(keyOf));
+  const statusOf = (routine: StatsRoutine, period: Period) => {
+    const key = `${routine.id}/${period.start}`;
+    return periodStatus(routine, period, checkedKeys.has(key), today, skippedKeys.has(key));
+  };
   const byCadence = (cadence: Cadence) => routines.filter((routine) => routine.cadence === cadence);
   const days = (start: string, end: string) => {
     const dates: string[] = [];

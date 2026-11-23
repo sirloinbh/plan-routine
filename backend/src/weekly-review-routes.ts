@@ -59,6 +59,11 @@ export function weeklyReviewRoutes(pool: Pool, today: () => string) {
        FROM routine_checks WHERE period_start BETWEEN $1 AND $2`,
       [start, end],
     );
+    const skips = await pool.query<StatsCheck>(
+      `SELECT routine_id AS "routineId", period_start AS "periodStart"
+       FROM routine_skips WHERE period_start BETWEEN $1 AND $2`,
+      [start, end],
+    );
     const notes = await pool.query<{ wentWell: string | null; toChange: string | null }>(
       `SELECT ${noteColumns} FROM weekly_reviews WHERE week_start = $1`,
       [start],
@@ -73,6 +78,7 @@ export function weeklyReviewRoutes(pool: Pool, today: () => string) {
         today: current,
         routines: routines.rows,
         checks: checks.rows,
+        skips: skips.rows,
       }),
       notes: notes.rows[0] ?? { wentWell: null, toChange: null },
     });

@@ -216,3 +216,23 @@ test('PUT validates the week and the notes', async () => {
     clock,
   );
 });
+
+test('skipped days and weeks are neither done nor missed, as on the stats page (#243)', () => {
+  const routines = [routine(1, 'Read', 'daily'), routine(3, 'Clean', 'weekly')];
+  const checks = [check(1, '2026-10-19')];
+  const skips = [check(1, '2026-10-20'), check(1, '2026-10-21'), check(3, '2026-10-18')];
+  const stats = buildStats({ today, anchorDate: '2026-10-04', routines, checks, skips });
+  const daily = stats.daily.weeks[0];
+  const weekly = stats.weekly[0];
+  const review = buildWeeklyReview({ weekStart: daily.start, today, routines, checks, skips });
+  // Read: 18 missed, 19 done, 20 and 21 skipped; Clean skipped.
+  assert.deepEqual(review.rate, { checked: 1, total: 2 });
+  assert.deepEqual(review.rate, {
+    checked: daily.checked + weekly.checked,
+    total: daily.total + weekly.total,
+  });
+  assert.deepEqual(
+    review.mostMissed.map(({ name, missed, total }) => [name, missed, total]),
+    [['Read', 1, 2]],
+  );
+});

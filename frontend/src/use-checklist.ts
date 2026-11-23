@@ -135,6 +135,50 @@ export function useChecklist<T extends ChecklistItem>(cadence: string, onSaveFai
     }
   };
 
+  const setSkip = (itemDate: string, id: number, skipped: boolean, skipReason: string | null) =>
+    client.setQueriesData<ChecklistData<T>>({ queryKey: listKey }, (current) =>
+      current?.date === itemDate
+        ? {
+            ...current,
+            items: current.items.map((item) =>
+              item.id === id ? { ...item, skipped, skipReason } : item,
+            ),
+          }
+        : current,
+    );
+
+  // Skipping or removing a skip. Shown once the server has answered: a refused skip (409, the item was
+  // checked elsewhere) must not flash as saved.
+  const changeSkip = async (itemDate: string, item: ChecklistItem, reason: string | null) => {
+    const saveKey = `${itemDate}/${item.id}`;
+    if (saving.current.has(saveKey)) return;
+    saving.current.add(saveKey);
+    saveEvents.current += 1;
+    clear();
+    try {
+      const skipped = reason !== null;
+      await requestJson(`/api/routines/${item.id}/skips/${itemDate}`, {
+        method: skipped ? 'PUT' : 'DELETE',
+        ...(skipped ? { body: { reason } } : {}),
+      });
+      setSkip(itemDate, item.id, skipped, reason || null);
+    } catch (cause) {
+      error(cause);
+      void refetch();
+      onSaveFailed?.();
+    } finally {
+      saving.current.delete(saveKey);
+      saveEvents.current += 1;
+      if (saving.current.size === 0 && reloadAfterSaves.current) {
+        reloadAfterSaves.current = false;
+        void refetch();
+      }
+    }
+  };
+  const skip = (itemDate: string, item: ChecklistItem, reason: string) =>
+    changeSkip(itemDate, item, reason);
+  const unskip = (itemDate: string, item: ChecklistItem) => changeSkip(itemDate, item, null);
+
   // Moving to the same day again retries a failed load.
   const moveTo = (target: string | null) => {
     clear();
@@ -144,5 +188,5 @@ export function useChecklist<T extends ChecklistItem>(cadence: string, onSaveFai
 
   const retry = () => moveTo(date);
 
-  return { data, loadFailed, notice, toggle, moveTo, retry };
+  return { data, loadFailed, notice, toggle, skip, unskip, moveTo, retry };
 }

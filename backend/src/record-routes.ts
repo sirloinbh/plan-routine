@@ -36,7 +36,11 @@ export function recordRoutes(pool: Pool, today: () => string) {
     const lastDay = addDays(`${shiftMonth(month, 1)}-01`, -1);
     const { rows } = await pool.query(
       `SELECT days.date,
-         (SELECT count(*)::int FROM routines WHERE ${dailyRoutineOn('routines', 'days.date')}) AS total,
+         (SELECT count(*)::int FROM routines WHERE ${dailyRoutineOn('routines', 'days.date')}
+            AND NOT EXISTS (
+              SELECT 1 FROM routine_skips
+              WHERE routine_skips.routine_id = routines.id AND routine_skips.period_start = days.date
+            )) AS total,
          (SELECT count(*)::int FROM routine_checks
           JOIN routines ON routines.id = routine_checks.routine_id
           WHERE routines.cadence = 'daily' AND routine_checks.period_start = days.date) AS checked,
@@ -63,14 +67,20 @@ export function recordRoutes(pool: Pool, today: () => string) {
     const current = today();
     if (date > current) throw new HttpError(400, 'Records for a future date cannot be viewed');
     if (date < earliestDate) throw new HttpError(400, earlyRecords);
-    const routines = await pool.query<{ checked: boolean }>(
+    const routines = await pool.query<{ checked: boolean; skipped: boolean }>(
       `SELECT routines.id, routines.name, routines.cadence, routines.category,
          routines.sort_order AS "sortOrder",
          routines.archived_at IS NOT NULL AS archived,
          EXISTS (
            SELECT 1 FROM routine_checks
            WHERE routine_checks.routine_id = routines.id AND routine_checks.period_start = $1
-         ) AS checked
+         ) AS checked,
+         EXISTS (
+           SELECT 1 FROM routine_skips
+           WHERE routine_skips.routine_id = routines.id AND routine_skips.period_start = $1
+         ) AS skipped,
+         (SELECT s.reason FROM routine_skips s
+          WHERE s.routine_id = routines.id AND s.period_start = $1) AS "skipReason"
        FROM routines
        WHERE ${dailyRoutineOn('routines', '$1::date')}
        ORDER BY routines.category, routines.sort_order, routines.id`,
@@ -85,7 +95,7 @@ export function recordRoutes(pool: Pool, today: () => string) {
       today: current,
       progress: {
         checked: routines.rows.filter((routine) => routine.checked).length,
-        total: routines.rows.length,
+        total: routines.rows.filter((routine) => !routine.skipped).length,
       },
       routines: routines.rows,
       diary: diary.rows[0] ?? null,

@@ -18,6 +18,10 @@ export function dailyRoutineOn(routine: RoutineAlias, day: DayExpression) {
       SELECT 1 FROM routine_checks
       WHERE routine_checks.routine_id = ${routine}.id AND routine_checks.period_start = ${day}
     )
+    OR EXISTS (
+      SELECT 1 FROM routine_skips
+      WHERE routine_skips.routine_id = ${routine}.id AND routine_skips.period_start = ${day}
+    )
     OR (
       ${seoulDate('created_at')} <= ${day}
       AND (${routine}.archived_at IS NULL OR ${seoulDate('archived_at')} > ${day})

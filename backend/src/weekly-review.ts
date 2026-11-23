@@ -1,5 +1,10 @@
 import { addDays } from './periods.js';
-import { periodStatus, type StatsCheck, type StatsRoutine } from './routine-stats.js';
+import {
+  periodStatus,
+  type StatsCheck,
+  type StatsRoutine,
+  type StatsSkip,
+} from './routine-stats.js';
 
 /** How many of the most-missed routines the review lists (issue #242). */
 export const mostMissedCount = 3;
@@ -20,13 +25,18 @@ export function buildWeeklyReview(input: {
   routines: ReviewRoutine[];
   /** Checks of the week: a daily check has the day as periodStart, a weekly one the week's start. */
   checks: StatsCheck[];
+  /** Skips of the week (#243): shown as skipped, counted neither as done nor as missed. */
+  skips?: StatsSkip[];
 }) {
-  const { today, routines, checks } = input;
+  const { today, routines, checks, skips = [] } = input;
   const start = input.weekStart;
   const end = addDays(start, 6);
   const checkedKeys = new Set(checks.map((check) => `${check.routineId}/${check.periodStart}`));
-  const statusOf = (routine: ReviewRoutine, period: { start: string; end: string }) =>
-    periodStatus(routine, period, checkedKeys.has(`${routine.id}/${period.start}`), today);
+  const skippedKeys = new Set(skips.map((skip) => `${skip.routineId}/${skip.periodStart}`));
+  const statusOf = (routine: ReviewRoutine, period: { start: string; end: string }) => {
+    const key = `${routine.id}/${period.start}`;
+    return periodStatus(routine, period, checkedKeys.has(key), today, skippedKeys.has(key));
+  };
 
   const rate = { checked: 0, total: 0 };
   const missedList: {

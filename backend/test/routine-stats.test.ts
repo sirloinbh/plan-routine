@@ -257,3 +257,31 @@ test('the API loads routines with archived ones and checks from the window start
   const checks = queries.find((query) => query.sql.includes('FROM routine_checks'));
   assert.deepEqual(checks?.params, [statsStart(today, anchorDate)]);
 });
+
+test('a skipped period is shown as skipped and counts as neither done nor missed', () => {
+  const steady = { createdOn: '2026-01-01', archivedOn: null };
+  assert.equal(periodStatus(steady, day('2026-10-21'), false, today, true), 'skipped');
+  // The running period can be skipped too, and a check still wins.
+  assert.equal(periodStatus(steady, day(today), false, today, true), 'skipped');
+  assert.equal(periodStatus(steady, day('2026-10-21'), true, today, true), 'done');
+
+  const stats = buildStats({
+    today,
+    anchorDate,
+    routines: [routine({ id: 1 })],
+    checks: [{ routineId: 1, periodStart: '2026-10-21' }],
+    skips: [
+      { routineId: 1, periodStart: '2026-10-20' },
+      { routineId: 1, periodStart: '2026-10-19' },
+    ],
+  });
+  const item = stats.items[0];
+  const statusOn = (date: string) => item.periods.find((period) => period.start === date)?.status;
+  assert.equal(statusOn('2026-10-21'), 'done');
+  assert.equal(statusOn('2026-10-20'), 'skipped');
+  assert.equal(statusOn('2026-10-18'), 'missed');
+  // 14 days to today (open): 13 past days, 1 done, 2 skipped, so 10 missed.
+  assert.deepEqual({ checked: item.checked, total: item.total }, { checked: 1, total: 11 });
+  const week = stats.daily.weeks[0];
+  assert.deepEqual({ checked: week.checked, total: week.total }, { checked: 1, total: 2 });
+});
