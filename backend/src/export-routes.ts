@@ -36,8 +36,9 @@ export function exportRoutes(pool: Pool, today: () => string) {
       const tables: Record<string, unknown[]> = {};
       for (const { name } of names.rows) {
         if (skippedTables.has(name)) continue;
+        // ctid, not a column: a future table whose first column cannot be sorted (json) must not break the backup.
         tables[name] = (
-          await client.query(`SELECT * FROM ${quoteIdentifier(name)} ORDER BY 1`)
+          await client.query(`SELECT * FROM ${quoteIdentifier(name)} ORDER BY ctid`)
         ).rows;
       }
       await client.query('COMMIT');
