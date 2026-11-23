@@ -136,3 +136,28 @@ test('a failed load offers a retry', async () => {
   expect(getLive('alert')).toHaveTextContent('Server error');
   expect(screen.getByRole('button', { name: 'Try again' })).toBeVisible();
 });
+
+test('unsaved text of a week is kept while another week is shown, and dropped once saved', async () => {
+  api();
+  render(<WeeklyReview />);
+  await flush();
+  fireEvent.change(screen.getByLabelText('What to change next week'), {
+    target: { value: 'Typed, not saved' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: /Previous week/ }));
+  await flush();
+  // The other week shows its own saved notes, not the draft.
+  expect(screen.getByLabelText('What to change next week')).toHaveValue('Sleep earlier');
+  fireEvent.click(screen.getByRole('button', { name: /Next week/ }));
+  await flush();
+  expect(screen.getByLabelText('What to change next week')).toHaveValue('Typed, not saved');
+  expect(screen.getByLabelText('What went well')).toHaveValue('Ran twice');
+  // After saving, the draft is gone: coming back shows what the server holds.
+  fireEvent.click(screen.getByRole('button', { name: 'Save notes' }));
+  await flush();
+  fireEvent.click(screen.getByRole('button', { name: /Previous week/ }));
+  await flush();
+  fireEvent.click(screen.getByRole('button', { name: /Next week/ }));
+  await flush();
+  expect(screen.getByLabelText('What to change next week')).toHaveValue('');
+});
