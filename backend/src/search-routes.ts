@@ -46,7 +46,7 @@ export const searchQuery = z.object({
 });
 
 type Row = {
-  kind: 'diary' | 'skip';
+  kind: 'diary' | 'skip' | 'missed';
   date: string;
   body: string | null;
   goodNote: string | null;
@@ -62,7 +62,8 @@ export function searchRoutes(pool: Pool, today: () => string) {
   const router = Router();
 
   // Diary entries and skip reasons, newest first, that hold the text and sit in the date range, optionally only on
-  // the days one daily routine was done or missed. Plain ILIKE: one user and a few thousand entries at most (#250).
+  // the days one daily routine was done or missed; for a routine alone also its missed days that have no diary entry.
+  // Plain ILIKE: one user and a few thousand entries at most (#250).
   router.get('/', async (req, res) => {
     const { q, from, to, routineId, result, limit, offset } = searchQuery.parse(req.query);
     if (q === null && routineId === undefined)
@@ -80,6 +81,8 @@ export function searchRoutes(pool: Pool, today: () => string) {
     const fromParam = from ? `${bind(from)}::date` : null;
     const toParam = to ? `${bind(to)}::date` : null;
     const routineParam = routineId !== undefined ? bind(routineId) : null;
+    // Missed days are past days only, so "today" is bound once for both uses below.
+    const todayParam = routineParam && result === 'missed' ? `${bind(today())}::date` : null;
     const range = (column: string) => [
       ...(fromParam ? [`${column} >= ${fromParam}`] : []),
       ...(toParam ? [`${column} <= ${toParam}`] : []),
@@ -95,7 +98,7 @@ export function searchRoutes(pool: Pool, today: () => string) {
       if (result === 'done') diaryWhere.push(checked);
       else {
         // Due that day by the same rule as the records page: created by then and not archived on or before it.
-        diaryWhere.push(`d.entry_date < ${bind(today())}::date AND NOT ${checked}
+        diaryWhere.push(`d.entry_date < ${todayParam} AND NOT ${checked}
           AND EXISTS (SELECT 1 FROM routines r WHERE r.id = ${routineParam} AND r.cadence = 'daily'
             AND (r.created_at AT TIME ZONE 'Asia/Seoul')::date <= d.entry_date
             AND (r.archived_at IS NULL OR (r.archived_at AT TIME ZONE 'Asia/Seoul')::date > d.entry_date))`);
@@ -118,6 +121,22 @@ export function searchRoutes(pool: Pool, today: () => string) {
          FROM routine_skips s JOIN routines r ON r.id = s.routine_id WHERE ${skipWhere.join(' AND ')}`,
       );
     }
+    // With a routine and no text, the days it was missed that have no diary entry, so they can be found too: from the
+    // later of the start date and the day the routine was created, to the earlier of the end date and yesterday.
+    if (todayParam && routineParam && q === null)
+      sources.push(
+        `SELECT 'missed', days.date::date, NULL, NULL, NULL, NULL, r.id, r.name, NULL
+         FROM routines r
+         CROSS JOIN LATERAL generate_series(
+           GREATEST(COALESCE(${fromParam ?? 'NULL::date'}, DATE '2000-01-01'), (r.created_at AT TIME ZONE 'Asia/Seoul')::date)::timestamp,
+           LEAST(COALESCE(${toParam ?? 'NULL::date'}, ${todayParam} - 1), ${todayParam} - 1)::timestamp,
+           interval '1 day'
+         ) AS days(date)
+         WHERE r.id = ${routineParam} AND r.cadence = 'daily'
+           AND (r.archived_at IS NULL OR (r.archived_at AT TIME ZONE 'Asia/Seoul')::date > days.date::date)
+           AND NOT EXISTS (SELECT 1 FROM routine_checks c WHERE c.routine_id = r.id AND c.period_start = days.date::date)
+           AND NOT EXISTS (SELECT 1 FROM diary_entries d WHERE d.entry_date = days.date::date)`,
+      );
     const { rows } = await pool.query<Row>(
       `SELECT *, count(*) OVER ()::int AS total FROM (${sources.join(' UNION ALL ')}) AS found
        ORDER BY date DESC, kind, "routineName"
@@ -130,6 +149,15 @@ export function searchRoutes(pool: Pool, today: () => string) {
       // An offset past the last page has no row to carry the count.
       total: rows[0]?.total ?? 0,
       results: rows.map((row) => {
+        if (row.kind === 'missed')
+          return {
+            kind: 'missed' as const,
+            date: row.date,
+            field: 'none' as const,
+            snippet: '',
+            routineId: row.routineId,
+            routineName: row.routineName,
+          };
         if (row.kind === 'skip')
           return {
             kind: 'skip' as const,

@@ -31,7 +31,7 @@ type SearchData = {
   offset: number;
   total: number;
   results: {
-    kind: 'diary' | 'skip';
+    kind: 'diary' | 'skip' | 'missed';
     date: string;
     field: string;
     snippet: string;
@@ -247,15 +247,21 @@ export function Search() {
                           {formatDate(result.date)}
                         </Link>
                       </h3>
-                      <p className="text-body-sm wrap-anywhere">
-                        <span className="text-muted-foreground">
-                          {result.kind === 'skip'
-                            ? `Skipped ${result.routineName ?? 'a routine'}`
-                            : (fieldLabel[result.field] ?? result.field)}
-                          :{' '}
-                        </span>
-                        {result.snippet}
-                      </p>
+                      {result.kind === 'missed' ? (
+                        <p className="text-body-sm wrap-anywhere text-muted-foreground">
+                          Missed {result.routineName ?? 'a routine'}
+                        </p>
+                      ) : (
+                        <p className="text-body-sm wrap-anywhere">
+                          <span className="text-muted-foreground">
+                            {result.kind === 'skip'
+                              ? `Skipped ${result.routineName ?? 'a routine'}`
+                              : (fieldLabel[result.field] ?? result.field)}
+                            :{' '}
+                          </span>
+                          {result.snippet}
+                        </p>
+                      )}
                       {result.kind === 'diary' && <WholeDay date={result.date} />}
                     </CardContent>
                   </Card>

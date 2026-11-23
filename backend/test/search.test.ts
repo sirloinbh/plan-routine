@@ -181,6 +181,48 @@ test('with a routine, skip reasons are of that routine and left out for the days
   );
 });
 
+test('a routine alone also lists its missed days without a diary entry', async () => {
+  const missed = {
+    kind: 'missed',
+    date: '2026-10-05',
+    body: null,
+    goodNote: null,
+    regretNote: null,
+    tomorrowNote: null,
+    routineId: 7,
+    routineName: 'Morning run',
+    reason: null,
+    total: 1,
+  };
+  const { pool, queries } = fakePool([missed]);
+  await withApi(
+    pool,
+    async (call) => {
+      const { data } = await call('/api/search?routineId=7&from=2026-10-01');
+      assert.deepEqual(data.results, [
+        {
+          kind: 'missed',
+          date: '2026-10-05',
+          field: 'none',
+          snippet: '',
+          routineId: 7,
+          routineName: 'Morning run',
+        },
+      ]);
+      // The routine, today and the start date are bound once and shared by every source.
+      assert.deepEqual(queries[0].params, ['2026-10-01', 7, '2026-10-22', 20, 0]);
+      assert.match(queries[0].sql, /generate_series/);
+      assert.match(queries[0].sql, /NOT EXISTS \(SELECT 1 FROM diary_entries/);
+      // With text, or only the days it was done, the missed days are not asked for.
+      await call('/api/search?routineId=7&q=run');
+      await call('/api/search?routineId=7&result=done');
+      await call('/api/search?q=run');
+      for (const query of queries.slice(1)) assert.doesNotMatch(query.sql, /generate_series/);
+    },
+    clock,
+  );
+});
+
 test('the search refuses missing, malformed and out-of-range input without querying', async () => {
   const { pool, queries } = fakePool();
   await withApi(
