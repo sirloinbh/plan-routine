@@ -167,7 +167,12 @@ test('today and the date seven days ago can both be checked', async () => {
       },
       { today },
     );
-    assert.deepEqual(issued(queries, 'INSERT INTO routine_checks')[0].params, [1, date]);
+    assert.deepEqual(issued(queries, 'INSERT INTO routine_checks')[0].params, [
+      1,
+      date,
+      null,
+      false,
+    ]);
     assert.equal(issued(queries, 'COMMIT').length, 1);
   }
 });
@@ -185,7 +190,12 @@ test('a check records first use and is stored under the start of its period', as
   // The stored date is read with a SELECT, so nothing is offered or written (#153).
   assert.deepEqual(issued(queries, 'app_settings')[0].params, ['routine_anchor_date']);
   assert.equal(issued(queries, 'INSERT INTO app_settings').length, 0);
-  assert.deepEqual(issued(queries, 'INSERT INTO routine_checks')[0].params, [1, '2026-10-18']);
+  assert.deepEqual(issued(queries, 'INSERT INTO routine_checks')[0].params, [
+    1,
+    '2026-10-18',
+    null,
+    false,
+  ]);
 });
 
 test('unchecking deletes the check of that period', async () => {

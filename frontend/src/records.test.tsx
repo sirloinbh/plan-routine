@@ -40,6 +40,7 @@ function recordsApi() {
         routine('1', 'Wake at 6', 'wake', true),
         routine('2', 'Routine from then', 'exercise', false, true),
         { ...routine('3', 'Squats', 'exercise', false), skipped: true, skipReason: 'Knee hurts' },
+        { ...routine('4', 'Reading', 'reading', true), unit: 'pages', amount: 20 },
       ],
       diary: {
         body: 'A good day',
@@ -228,6 +229,8 @@ test('a chosen day shows its checks, archived routines and diary', async () => {
   expect(items[2]).toContain('Squats');
   expect(items[2]).toContain('Skipped');
   expect(items[2]).toContain('Reason: Knee hurts');
+  // An amount recorded on a check is shown with its unit.
+  expect(items[3]).toContain('Done · 20 pages');
   expect(within(record).getByText('A good day')).toBeInTheDocument();
   expect(within(record).getByText('Woke up early')).toBeInTheDocument();
   expect(within(record).queryByText('What could be better')).not.toBeInTheDocument();

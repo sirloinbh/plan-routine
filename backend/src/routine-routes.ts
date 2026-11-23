@@ -15,7 +15,7 @@ import { HttpError } from './standard/http.js';
 import { inTransaction } from './transaction.js';
 
 export const routineColumns =
-  'id, name, cadence, category, sort_order AS "sortOrder", project_link_id AS "projectLinkId", weekdays, times_per_week AS "timesPerWeek"';
+  'id, name, cadence, category, sort_order AS "sortOrder", project_link_id AS "projectLinkId", weekdays, times_per_week AS "timesPerWeek", unit, target_amount AS "targetAmount"';
 export const routineNotFound = 'Routine not found';
 const projectOrRoutineNotFound = 'Routine or project not found';
 
@@ -68,8 +68,8 @@ export function routineRoutes(pool: Pool, today: () => string) {
       `WITH first_use AS (
          INSERT INTO app_settings (key, value) VALUES ($4, $5) ON CONFLICT (key) DO NOTHING
        )
-       INSERT INTO routines (name, cadence, category, weekdays, times_per_week, sort_order)
-       SELECT $1, $2::text, $3::text, $6::smallint[], $7::smallint, COALESCE(MAX(sort_order) + 1, 0) FROM routines
+       INSERT INTO routines (name, cadence, category, weekdays, times_per_week, unit, target_amount, sort_order)
+       SELECT $1, $2::text, $3::text, $6::smallint[], $7::smallint, $8::text, $9::double precision, COALESCE(MAX(sort_order) + 1, 0) FROM routines
        WHERE cadence = $2::text AND category IS NOT DISTINCT FROM $3::text AND archived_at IS NULL
        RETURNING ${routineColumns}`,
       [
@@ -80,6 +80,8 @@ export function routineRoutes(pool: Pool, today: () => string) {
         today(),
         normalizeWeekdays(input.weekdays),
         input.timesPerWeek ?? null,
+        input.unit ?? null,
+        input.targetAmount ?? null,
       ],
     );
     res.status(201).json({ routine: rows[0] });

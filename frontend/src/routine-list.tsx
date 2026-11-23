@@ -2,9 +2,9 @@ import { Button } from './components/ui/button';
 import { Input } from './components/ui/input';
 import { NativeSelect } from './components/ui/native-select';
 import { Spinner } from './components/ui/spinner';
-import { fullWeekdayNames, scheduleText, weekdayNames } from './routine-schedule';
+import { amountText, fullWeekdayNames, scheduleText, weekdayNames } from './routine-schedule';
 import type { Routine } from './routines';
-import type { RoutineList, RoutineNotice } from './use-routine-list';
+import { noSchedule, type RoutineList, type RoutineNotice } from './use-routine-list';
 
 export function RoutineNotices({ notice }: { notice: RoutineNotice }) {
   return (
@@ -67,9 +67,9 @@ export function RoutineItems({
             <>
               <span className="min-w-0 flex-1 basis-48 text-body break-words">
                 {routine.name}
-                {scheduleText(routine) && (
+                {[scheduleText(routine), amountText(routine)].filter(Boolean).length > 0 && (
                   <span className="block text-body-sm text-muted-foreground">
-                    {scheduleText(routine)}
+                    {[scheduleText(routine), amountText(routine)].filter(Boolean).join(' · ')}
                   </span>
                 )}
               </span>
@@ -198,7 +198,7 @@ export function RoutineAddForm({
   cadence?: string;
   placeholder?: string;
 }) {
-  const schedule = list.schedules[draftKey] ?? { weekdays: [], timesPerWeek: null };
+  const schedule = list.schedules[draftKey] ?? noSchedule;
   const toggleDay = (day: number) =>
     list.setSchedule(draftKey, {
       ...schedule,
@@ -252,6 +252,37 @@ export function RoutineAddForm({
           </span>
         </fieldset>
       )}
+      <fieldset className="flex w-full flex-wrap items-center gap-2">
+        <legend className="sr-only">Amount to record (optional)</legend>
+        <span aria-hidden className="text-body-sm text-muted-foreground">
+          Amount
+        </span>
+        <Input
+          className="w-28"
+          aria-label={`Unit for the new ${addedTo} routine (optional)`}
+          placeholder="Unit, e.g. pages"
+          maxLength={20}
+          value={schedule.unit}
+          onChange={(event) =>
+            list.setSchedule(draftKey, { ...schedule, unit: event.target.value })
+          }
+        />
+        {schedule.unit.trim() && (
+          <Input
+            className="w-28"
+            type="number"
+            inputMode="decimal"
+            min={0}
+            step="any"
+            aria-label={`Target amount for the new ${addedTo} routine (optional)`}
+            placeholder="Target"
+            value={schedule.target}
+            onChange={(event) =>
+              list.setSchedule(draftKey, { ...schedule, target: event.target.value })
+            }
+          />
+        )}
+      </fieldset>
       {cadence === 'weekly' && (
         <label className="flex w-full items-center gap-2 text-body-sm text-muted-foreground">
           How often

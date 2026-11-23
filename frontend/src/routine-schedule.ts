@@ -10,6 +10,12 @@ export const fullWeekdayNames = [
   'Saturday',
 ];
 
+/** "pages" or "pages, target 20"; empty for a routine with no unit. */
+export function amountText(routine: { unit?: string | null; targetAmount?: number | null }) {
+  if (!routine.unit) return '';
+  return routine.targetAmount ? `${routine.unit}, target ${routine.targetAmount}` : routine.unit;
+}
+
 /** "Mon, Wed, Fri" or "3 times a week"; empty for a routine with no schedule. */
 export function scheduleText(routine: {
   weekdays?: number[] | null;

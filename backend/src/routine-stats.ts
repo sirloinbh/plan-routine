@@ -21,8 +21,11 @@ export type StatsRoutine = {
   weekdays?: number[] | null;
   /** Weekly routines done on this many days of the week (2 to 7); null is one check per week (#245). */
   timesPerWeek?: number | null;
+  /** The unit of the amounts recorded on its checks, and the target (only shown), #246. */
+  unit?: string | null;
+  targetAmount?: number | null;
 };
-export type StatsCheck = { routineId: number; periodStart: string };
+export type StatsCheck = { routineId: number; periodStart: string; amount?: number | null };
 export type StatsSkip = StatsCheck;
 
 /** `skipped`: left out on purpose (#243); it counts neither as done nor as missed. */
@@ -42,6 +45,9 @@ const recentPeriods: Record<Exclude<Cadence, 'daily'>, number> = {
 
 // Trend lengths (confirmed on issue #244): 12 weeks and 6 four-week periods.
 const trendWeeks = 12;
+// Amount totals per week and per four-week period (#246).
+const amountWeeks = 8;
+const amountFourWeeks = 6;
 const trendFourWeeks = 6;
 
 // The same rule as "routines of that day" on the records page (day-records.ts), for any period: a
@@ -209,6 +215,26 @@ export function buildStats(input: {
     return { current, best };
   };
 
+  // Totals of the amounts recorded on a routine's checks, for routines with a unit.
+  const amountTotal = (routine: StatsRoutine, period: Period) => {
+    let total = 0;
+    for (const check of checks)
+      if (
+        check.routineId === routine.id &&
+        check.periodStart >= period.start &&
+        check.periodStart <= period.end
+      )
+        total += check.amount ?? 0;
+    return { ...period, total };
+  };
+  const amountPeriods = {
+    weeks: Array.from({ length: amountWeeks }, (_, index) => {
+      const start = addDays(thisWeek, -7 * index);
+      return { start, end: addDays(start, 6) };
+    }),
+    fourWeeks: previousPeriods('four_week', today, anchorDate, amountFourWeeks),
+  };
+
   const dailyHistory = days(addDays(today, 1 - dailyHistoryDays), today)
     .reverse()
     .map((date) => ({ start: date, end: date }));
@@ -228,6 +254,14 @@ export function buildStats(input: {
         archived: routine.archivedOn !== null,
         ...tally,
         streak: streakOf(routine),
+        unit: routine.unit ?? null,
+        targetAmount: routine.targetAmount ?? null,
+        amountTotals: routine.unit
+          ? {
+              weeks: amountPeriods.weeks.map((period) => amountTotal(routine, period)),
+              fourWeeks: amountPeriods.fourWeeks.map((period) => amountTotal(routine, period)),
+            }
+          : null,
         periods,
       };
     })

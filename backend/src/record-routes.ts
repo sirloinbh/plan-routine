@@ -75,6 +75,9 @@ export function recordRoutes(pool: Pool, today: () => string) {
            SELECT 1 FROM routine_checks
            WHERE routine_checks.routine_id = routines.id AND routine_checks.period_start = $1
          ) AS checked,
+         routines.unit,
+         (SELECT c.amount FROM routine_checks c
+          WHERE c.routine_id = routines.id AND c.period_start = $1) AS amount,
          EXISTS (
            SELECT 1 FROM routine_skips
            WHERE routine_skips.routine_id = routines.id AND routine_skips.period_start = $1

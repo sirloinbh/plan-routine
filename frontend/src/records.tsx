@@ -29,6 +29,8 @@ type DayRoutine = Routine & {
   archived: boolean;
   skipped?: boolean;
   skipReason?: string | null;
+  unit?: string | null;
+  amount?: number | null;
 };
 type DayData = {
   date: string;
@@ -174,6 +176,9 @@ function DayDetail({ day }: { day: DayData }) {
                           </span>
                           <span className="text-caption text-muted-foreground">
                             {routine.checked ? 'Done' : routine.skipped ? 'Skipped' : 'Not done'}
+                            {routine.checked && routine.unit && routine.amount != null
+                              ? ` · ${routine.amount} ${routine.unit}`
+                              : ''}
                           </span>
                           {routine.archived && <Badge variant="secondary">Archived</Badge>}
                           {routine.skipped && routine.skipReason && (

@@ -392,3 +392,36 @@ test('an N-per-week routine is done at N checks in the week and missed otherwise
     'missed',
   );
 });
+
+test('a routine with a unit totals the amounts of its checks per week and four-week period (#246)', () => {
+  const read = routine({ id: 7, unit: 'pages', targetAmount: 20 });
+  const plain = routine({ id: 8 });
+  const stats = buildStats({
+    today,
+    anchorDate,
+    routines: [read, plain],
+    checks: [
+      { routineId: 7, periodStart: '2026-10-19', amount: 20 },
+      { routineId: 7, periodStart: '2026-10-21', amount: 15.5 },
+      { routineId: 7, periodStart: '2026-10-20', amount: null }, // done without an amount
+      { routineId: 7, periodStart: '2026-10-14', amount: 10 },
+      { routineId: 8, periodStart: '2026-10-19', amount: 99 },
+    ],
+  });
+  const [item, other] = stats.items;
+  assert.deepEqual([item.unit, item.targetAmount], ['pages', 20]);
+  assert.deepEqual(
+    item.amountTotals?.weeks.slice(0, 2).map((week) => week.total),
+    [35.5, 10],
+  );
+  assert.equal(item.amountTotals?.weeks.length, 8);
+  // Four-week period 10-18..11-14 holds this week only; the one before holds 10-14.
+  assert.deepEqual(
+    item.amountTotals?.fourWeeks.slice(0, 2).map((period) => period.total),
+    [35.5, 10],
+  );
+  // The amounts do not change what counts as done, and a routine without a unit has no totals.
+  assert.equal(item.checked, 4);
+  assert.equal(other.amountTotals, null);
+  assert.equal(other.unit, null);
+});

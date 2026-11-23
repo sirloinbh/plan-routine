@@ -4,7 +4,7 @@
 import { z } from 'zod/v4';
 
 import { periodsQuery } from './app.js';
-import { checklistQuery, skipInput } from './check-routes.js';
+import { checkInput, checklistQuery, skipInput } from './check-routes.js';
 import { diaryInput, diaryQuery } from './diary-routes.js';
 import { goalInput, reviewsInput, routineLinksInput } from './goal-routes.js';
 import { projectInput } from './project-link-routes.js';
@@ -43,6 +43,7 @@ export const operations: Record<string, Operation> = {
   },
   'PUT /api/routines/:id/checks/:date': {
     params: { date: z.iso.date() },
+    body: ['Check', checkInput],
     summary:
       'Check a routine for the period holding a date; repeating it changes nothing. A skipped period cannot be checked (409). Only today and the 7 days before it can change',
     status: [200, 400, 404, 409],

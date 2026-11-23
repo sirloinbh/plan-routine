@@ -43,6 +43,8 @@ test('creating a routine records first use, then appends it to its category', as
     '2026-10-22',
     null,
     null,
+    null,
+    null,
   ]);
 });
 
@@ -176,7 +178,7 @@ test('a weekday or times-per-week schedule is stored sorted, and every day means
     { today: () => '2026-10-22' },
   );
   assert.deepEqual(
-    queries.map((query) => query.params.slice(5)),
+    queries.map((query) => query.params.slice(5, 7)),
     [
       [[1, 3, 5], null],
       [null, null],
@@ -219,4 +221,48 @@ test('a schedule on the wrong cadence or with bad values is an English 400 befor
     }
   });
   assert.equal(queries.length, 0);
+});
+
+test('a unit and a target are stored with the routine; a target needs a unit (#246)', async () => {
+  const { pool, queries } = scriptedPool({ rows: [wake] });
+  await withApi(
+    pool,
+    async (call) => {
+      const post = (body: unknown) => call('/api/routines', { method: 'POST', body });
+      const ok = await post({
+        name: 'Read',
+        cadence: 'daily',
+        category: 'reading',
+        unit: ' pages ',
+        targetAmount: 20,
+      });
+      assert.equal(ok.status, 201);
+      const cases: [unknown, string][] = [
+        [
+          { name: 'A', cadence: 'daily', category: 'reading', targetAmount: 20 },
+          'Enter a unit for the target',
+        ],
+        [
+          { name: 'A', cadence: 'daily', category: 'reading', unit: '   ' },
+          'Enter a unit, such as pages or minutes',
+        ],
+        [
+          { name: 'A', cadence: 'daily', category: 'reading', unit: 'x'.repeat(21) },
+          'The unit must be 20 characters or fewer',
+        ],
+        [
+          { name: 'A', cadence: 'daily', category: 'reading', unit: 'pages', targetAmount: 0 },
+          'The target must be a number above 0',
+        ],
+      ];
+      for (const [body, message] of cases) {
+        const { status, data } = await post(body);
+        assert.equal(status, 400, message);
+        assert.equal(data.error, message);
+      }
+    },
+    { today: () => '2026-10-22' },
+  );
+  assert.equal(queries.length, 1);
+  assert.deepEqual(queries[0].params.slice(7), ['pages', 20]);
 });

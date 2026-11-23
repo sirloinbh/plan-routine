@@ -5,7 +5,7 @@ import { z } from 'zod/v4';
 import { addDays, type Cadence, calendarDate, daysBetween, periodFor } from './periods.js';
 import { badRequest, noNul, nulMessage, requestBody } from './request-input.js';
 import { routineColumns, routineId, routineNotFound } from './routine-routes.js';
-import { routineAnchorDate, routineCadence } from './routines.js';
+import { checkAmount, routineAnchorDate, routineCadence } from './routines.js';
 
 // Checks can change for today and the seven days before it (confirmed on issue #5).
 const editableDays = 7;
@@ -34,6 +34,9 @@ export const skipInput = z.object(
   },
   badRequest,
 );
+// The body of a check: an optional amount in the routine's unit. Left out keeps the stored amount; null clears it.
+export const checkInput = z.object({ amount: checkAmount.nullable().optional() }, badRequest);
+const noUnit = 'This routine has no unit, so it cannot record an amount';
 const skippedAlready = 'This period is skipped. Remove the skip before checking it';
 const checkedAlready = 'This period is checked. Uncheck it before skipping it';
 
@@ -48,8 +51,12 @@ function dateRangeError(date: string, today: string) {
 // Locks the active routine row (so a concurrent archive, check or skip of it waits, and a period is never
 // both checked and skipped) and returns the period holding the date.
 async function lockRoutinePeriod(client: PoolClient, id: number, date: string, current: string) {
-  const target = await client.query<{ cadence: Cadence; timesPerWeek: number | null }>(
-    `SELECT cadence, times_per_week AS "timesPerWeek"
+  const target = await client.query<{
+    cadence: Cadence;
+    timesPerWeek: number | null;
+    hasUnit: boolean;
+  }>(
+    `SELECT cadence, times_per_week AS "timesPerWeek", unit IS NOT NULL AS "hasUnit"
      FROM routines WHERE id = $1 AND archived_at IS NULL FOR UPDATE`,
     [id],
   );
@@ -58,7 +65,11 @@ async function lockRoutinePeriod(client: PoolClient, id: number, date: string, c
   const anchorDate = await routineAnchorDate(client, current);
   const period = periodFor(target.rows[0].cadence, date, anchorDate);
   // An N-per-week routine checks single days of its week; the skip still covers the whole week (#245).
-  return { period, checkStart: target.rows[0].timesPerWeek ? date : period.start };
+  return {
+    period,
+    checkStart: target.rows[0].timesPerWeek ? date : period.start,
+    hasUnit: target.rows[0].hasUnit,
+  };
 }
 
 export function checkRoutes(pool: Pool, today: () => string) {
@@ -79,6 +90,10 @@ export function checkRoutes(pool: Pool, today: () => string) {
          WHERE routine_checks.routine_id = routines.id
            AND routine_checks.period_start = CASE WHEN routines.times_per_week IS NULL THEN $2::date ELSE $3::date END
        ) AS checked,
+       (SELECT routine_checks.amount FROM routine_checks
+        WHERE routine_checks.routine_id = routines.id
+          AND routine_checks.period_start = CASE WHEN routines.times_per_week IS NULL THEN $2::date ELSE $3::date END
+       ) AS amount,
        CASE WHEN routines.times_per_week IS NULL THEN NULL ELSE (
          SELECT count(*)::int FROM routine_checks
          WHERE routine_checks.routine_id = routines.id
@@ -129,11 +144,14 @@ export function checkRoutes(pool: Pool, today: () => string) {
   // PUT and DELETE both answer with the final state, so repeating either changes nothing.
   const changeCheck = async (req: Request, res: Response, checked: boolean) => {
     const { id, date } = checkParams.parse(req.params);
+    // Only PUT carries a body; DELETE removes the check with its amount.
+    const { amount } = checked ? checkInput.parse(requestBody(req.body)) : { amount: undefined };
     const current = today();
     const rangeError = dateRangeError(date, current);
     if (rangeError) throw new HttpError(400, rangeError);
     const reply = await inTransaction(pool, async (client) => {
-      const { period, checkStart } = await lockRoutinePeriod(client, id, date, current);
+      const { period, checkStart, hasUnit } = await lockRoutinePeriod(client, id, date, current);
+      if (checked && amount != null && !hasUnit) throw new HttpError(400, noUnit);
       if (checked) {
         const skipped = await client.query(
           'SELECT 1 FROM routine_skips WHERE routine_id = $1 AND period_start = $2',
@@ -143,12 +161,22 @@ export function checkRoutes(pool: Pool, today: () => string) {
       }
       await client.query(
         checked
-          ? `INSERT INTO routine_checks (routine_id, period_start) VALUES ($1, $2)
-             ON CONFLICT (routine_id, period_start) DO NOTHING`
+          ? `INSERT INTO routine_checks (routine_id, period_start, amount) VALUES ($1, $2, $3)
+             ON CONFLICT (routine_id, period_start) DO UPDATE
+             SET amount = CASE WHEN $4::boolean THEN EXCLUDED.amount ELSE routine_checks.amount END`
           : 'DELETE FROM routine_checks WHERE routine_id = $1 AND period_start = $2',
-        [id, checkStart],
+        checked ? [id, checkStart, amount ?? null, amount !== undefined] : [id, checkStart],
       );
-      return { status: 200, body: { routineId: id, date, period, checked } };
+      return {
+        status: 200,
+        body: {
+          routineId: id,
+          date,
+          period,
+          checked,
+          ...(checked && amount !== undefined ? { amount } : {}),
+        },
+      };
     });
     res.status(reply.status).json(reply.body);
   };

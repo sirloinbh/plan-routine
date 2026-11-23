@@ -9,8 +9,14 @@ import type { ProjectLink } from './project-links';
 import type { Routine } from './routines';
 import { useReloadWhenShown } from './use-date-change';
 
-export type Schedule = { weekdays: number[]; timesPerWeek: number | null };
-const noSchedule: Schedule = { weekdays: [], timesPerWeek: null };
+// What the add form can set besides the name: weekdays, times per week (#245), unit and target amount (#246).
+export type Schedule = {
+  weekdays: number[];
+  timesPerWeek: number | null;
+  unit: string;
+  target: string;
+};
+export const noSchedule: Schedule = { weekdays: [], timesPerWeek: null, unit: '', target: '' };
 
 export type RoutineNotice = { kind: 'status' | 'alert'; text: string } | null;
 
@@ -127,6 +133,10 @@ export function useRoutineList(cadence: string) {
             category,
             ...(schedule.weekdays.length > 0 ? { weekdays: schedule.weekdays } : {}),
             ...(schedule.timesPerWeek ? { timesPerWeek: schedule.timesPerWeek } : {}),
+            ...(schedule.unit.trim() ? { unit: schedule.unit.trim() } : {}),
+            ...(schedule.unit.trim() && Number(schedule.target) > 0
+              ? { targetAmount: Number(schedule.target) }
+              : {}),
           },
         }),
       `Added the routine '${name}' to ${addedTo}`,
