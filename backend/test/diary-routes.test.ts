@@ -11,7 +11,15 @@ const saved = {
   goodNote: null,
   regretNote: null,
   tomorrowNote: null,
+  mood: null,
+  energy: null,
 };
+
+const dayRoutines = [
+  { id: 1, name: 'Wake at 6', category: 'wake', checked: true },
+  { id: 2, name: 'Read', category: 'evening', checked: true },
+  { id: 3, name: 'Stretch', category: 'evening', checked: false },
+];
 
 // Fake pool that answers by matching the SQL and records every query. The real SQL runs in the DB
 // tests. `entry` stands for the row stored for the requested date.
@@ -20,7 +28,7 @@ function fakePool(entry: unknown = null) {
   const pool = {
     query: async (sql: string, params: unknown[] = []) => {
       queries.push({ sql, params });
-      if (sql.includes('count(')) return { rows: [{ checked: 2, total: 5 }] };
+      if (sql.includes('FROM routines')) return { rows: dayRoutines };
       if (sql.includes('INSERT')) return { rows: [saved] };
       return { rows: entry ? [entry] : [] };
     },
@@ -43,7 +51,8 @@ test('the diary defaults to today with its entry, progress and neighbouring date
         today: '2026-10-22',
         previousDate: '2026-10-21',
         nextDate: null,
-        progress: { checked: 2, total: 5 },
+        progress: { checked: 2, total: 3 },
+        routines: dayRoutines,
         entry: saved,
       });
     },
@@ -88,6 +97,8 @@ test('saving trims the text, treats blank notes as none and upserts by date', as
     'Woke up early',
     null,
     null,
+    null,
+    null,
   ]);
 });
 
@@ -106,6 +117,10 @@ test('an empty or too long entry is an English 400 before any query', async () =
           'Good points must be 1000 characters or fewer',
         ],
         [{ body: 'Body', regretNote: 1 }, 'Regrets must be text'],
+        [{ body: 'Body', mood: 0 }, 'Mood must be from 1 to 5'],
+        [{ body: 'Body', mood: 6 }, 'Mood must be from 1 to 5'],
+        [{ body: 'Body', energy: 2.5 }, 'Energy must be a whole number from 1 to 5'],
+        [{ body: 'Body', energy: '3' }, 'Energy must be a number from 1 to 5'],
         [{ body: 'a\0b' }, 'Contains characters that are not allowed'],
         [{ body: 'Body', goodNote: 'a\0b' }, 'Contains characters that are not allowed'],
         [
@@ -195,7 +210,7 @@ test('notes left out or blank are saved as no note', async () => {
     },
     { today },
   );
-  assert.deepEqual(queries[0].params, ['2026-10-22', 'Body', null, null, null]);
+  assert.deepEqual(queries[0].params, ['2026-10-22', 'Body', null, null, null, null, null]);
 });
 
 test('diary text that is not text answers with one message, even if it has a length', async () => {
@@ -216,4 +231,29 @@ test('diary text that is not text answers with one message, even if it has a len
     { today },
   );
   assert.equal(queries.length, 0);
+});
+
+test('mood and energy scores are saved as given, and left out means none', async () => {
+  const { pool, queries } = fakePool();
+  await withApi(
+    pool,
+    async (call) => {
+      for (const body of [
+        { body: 'Body', mood: 1, energy: 5 },
+        { body: 'Body', mood: null },
+        { body: 'Body' },
+      ])
+        assert.equal((await call('/api/diary/2026-10-22', put(body))).status, 200);
+    },
+    { today },
+  );
+  assert.deepEqual(
+    queries.map(({ params }) => params.slice(5)),
+    [
+      [1, 5],
+      [null, null],
+      [null, null],
+    ],
+  );
+  assert.match(queries[0].sql, /mood = EXCLUDED\.mood/);
 });

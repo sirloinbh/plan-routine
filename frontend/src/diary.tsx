@@ -5,6 +5,7 @@ import { Button } from './components/ui/button';
 import { Card, CardContent } from './components/ui/card';
 import { Notice } from './components/ui/notice';
 import { Spinner } from './components/ui/spinner';
+import { DiaryChecks, type DiaryRoutine } from './diary-checks';
 import {
   clearDraft,
   type DiaryForm,
@@ -14,6 +15,7 @@ import {
   useDiaryDraft,
 } from './diary-draft';
 import { diaryLimits } from './diary-limits';
+import { ScoreField } from './diary-scores';
 import { isFocusFree, useDateHeading } from './focus-moves';
 import { dateHeading, formatDate } from './format-date';
 import { LabeledTextarea } from './labeled-textarea';
@@ -29,6 +31,8 @@ type DiaryEntry = {
   goodNote: string | null;
   regretNote: string | null;
   tomorrowNote: string | null;
+  mood: number | null;
+  energy: number | null;
 };
 
 type DiaryData = {
@@ -37,6 +41,7 @@ type DiaryData = {
   previousDate: string | null;
   nextDate: string | null;
   progress: { checked: number; total: number };
+  routines: DiaryRoutine[];
   entry: DiaryEntry | null;
 };
 
@@ -46,6 +51,9 @@ const fieldIds: Record<keyof DiaryForm, string> = {
   goodNote: 'diary-good',
   regretNote: 'diary-regret',
   tomorrowNote: 'diary-tomorrow',
+  // The first radio button of the score, where focus goes.
+  mood: 'diary-mood-1',
+  energy: 'diary-energy-1',
 };
 
 const formFrom = (entry: DiaryEntry | null): DiaryForm => ({
@@ -53,6 +61,8 @@ const formFrom = (entry: DiaryEntry | null): DiaryForm => ({
   goodNote: entry?.goodNote ?? '',
   regretNote: entry?.regretNote ?? '',
   tomorrowNote: entry?.tomorrowNote ?? '',
+  mood: entry?.mood ?? null,
+  energy: entry?.energy ?? null,
 });
 
 export function Diary() {
@@ -154,11 +164,18 @@ export function Diary() {
 
   const dirty = !sameForm(form, savedForm);
 
-  const setField = (field: keyof DiaryForm) => (value: string) => {
+  const setScore = (field: 'mood' | 'energy') => (value: number | null) => {
     setConfirmingDiscard(false);
     setInvalidField((current) => (current === field ? null : current));
     setForm((current) => ({ ...current, [field]: value }));
   };
+
+  const setField =
+    (field: 'body' | 'goodNote' | 'regretNote' | 'tomorrowNote') => (value: string) => {
+      setConfirmingDiscard(false);
+      setInvalidField((current) => (current === field ? null : current));
+      setForm((current) => ({ ...current, [field]: value }));
+    };
 
   // Pressing the same date button again loads that day again, which retries a failed load.
   const moveTo = (target: string | null) => {
@@ -290,6 +307,7 @@ export function Diary() {
         </div>
       </div>
       {!noticeAtSave && <Notice notice={notice} />}
+      <DiaryChecks routines={data.routines} />
       <Card>
         <CardContent>
           <form
@@ -340,6 +358,26 @@ export function Diary() {
               invalid={invalidField === 'tomorrowNote'}
               onChange={setField('tomorrowNote')}
             />
+            <div className="flex flex-wrap gap-x-8 gap-y-4">
+              <ScoreField
+                id="diary-mood"
+                label="Mood (optional)"
+                low="low"
+                high="great"
+                value={form.mood}
+                disabled={readOnly}
+                onChange={setScore('mood')}
+              />
+              <ScoreField
+                id="diary-energy"
+                label="Energy (optional)"
+                low="drained"
+                high="full of energy"
+                value={form.energy}
+                disabled={readOnly}
+                onChange={setScore('energy')}
+              />
+            </div>
             {noticeAtSave && <Notice notice={notice} />}
             <div className="flex flex-wrap items-center gap-3">
               <Button ref={saveButton} type="submit">

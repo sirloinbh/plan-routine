@@ -22,6 +22,7 @@ import { Diary } from './diary';
 import { FourWeekDue } from './four-week-due';
 import { type Health, healthText } from './health';
 import { createQueryClient } from './lib/query';
+import { MoodStats } from './mood-stats';
 import { FourWeekRoutines, WeeklyRoutines } from './period-routines';
 import { ProjectLinks } from './project-links';
 import { Records } from './records';
@@ -220,7 +221,10 @@ export function App() {
                     description="See how consistently you kept your routines, by period"
                     health={health}
                   >
-                    <Stats />
+                    <div className="flex flex-col gap-6">
+                      <Stats />
+                      <MoodStats />
+                    </div>
                   </Page>
                 }
               />
