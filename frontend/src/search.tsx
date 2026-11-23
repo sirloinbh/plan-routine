@@ -127,6 +127,9 @@ export function Search() {
     if (draft.from && draft.to && draft.from > draft.to)
       return setFormError('The start date must not be after the end date');
     setFormError(null);
+    // The same search again has the same key, so ask for fresh results instead of showing the cached ones.
+    if (submitted && offset === 0 && JSON.stringify(submitted) === JSON.stringify(draft))
+      void search.refetch();
     setOffset(0);
     setSubmitted(draft);
   };

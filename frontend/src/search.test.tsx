@@ -85,6 +85,18 @@ test('a search sends the filters and lists dates, fields and snippets newest fir
   expect(within(items[1]).getByText(/What went well:/)).toBeVisible();
 });
 
+test('submitting the same search again asks the server again', async () => {
+  const urls = api();
+  render(<Search />);
+  await flush();
+  fireEvent.change(screen.getByLabelText('Search text'), { target: { value: 'coffee' } });
+  submit();
+  await flush();
+  submit();
+  await flush();
+  expect(searchCalls(urls)).toHaveLength(2);
+});
+
 test('a routine filter sends the routine and the chosen result', async () => {
   const urls = api();
   render(<Search />);
