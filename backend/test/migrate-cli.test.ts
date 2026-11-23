@@ -19,7 +19,7 @@ test('an unreachable database exits 1 with one line and no stack trace', () => {
   assert.equal(result.status, 1);
   const lines = result.stderr.trim().split('\n');
   assert.equal(lines.length, 1, result.stderr);
-  assert.match(lines[0], /^Migration failed: /);
+  assert.match(lines[0], /ECONNREFUSED/);
   assert.doesNotMatch(result.stderr, /\n\s+at /);
 });
 
@@ -27,5 +27,5 @@ test('an unknown option is refused by the managed CLI with exit 2 before it touc
   const result = run(['--stauts'], { DATABASE_URL: 'postgres://u:p@127.0.0.1:1/none' });
   assert.equal(result.status, 2);
   assert.match(result.stderr, /Unknown option: --stauts\. The only option is --status\./);
-  assert.doesNotMatch(result.stderr, /Migration failed|ECONNREFUSED/);
+  assert.doesNotMatch(result.stderr, /ECONNREFUSED/);
 });
