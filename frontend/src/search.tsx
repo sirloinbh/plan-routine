@@ -30,7 +30,14 @@ type SearchData = {
   limit: number;
   offset: number;
   total: number;
-  results: { date: string; field: string; snippet: string }[];
+  results: {
+    kind: 'diary' | 'skip' | 'missed';
+    date: string;
+    field: string;
+    snippet: string;
+    routineId?: number;
+    routineName?: string;
+  }[];
 };
 type DayData = {
   diary: {
@@ -225,11 +232,11 @@ export function Search() {
         ) : (
           <section className="flex flex-col gap-4" aria-labelledby="search-results">
             <h2 id="search-results" className="text-body font-semibold">
-              {data.total} {data.total === 1 ? 'entry' : 'entries'}, newest first
+              {data.total} {data.total === 1 ? 'result' : 'results'}, newest first
             </h2>
             <ul className="flex flex-col gap-3">
               {data.results.map((result) => (
-                <li key={result.date}>
+                <li key={`${result.kind}/${result.date}/${result.routineId ?? ''}`}>
                   <Card>
                     <CardContent className="flex flex-col gap-2">
                       <h3 className="text-body-sm font-semibold">
@@ -240,13 +247,22 @@ export function Search() {
                           {formatDate(result.date)}
                         </Link>
                       </h3>
-                      <p className="text-body-sm wrap-anywhere">
-                        <span className="text-muted-foreground">
-                          {fieldLabel[result.field] ?? result.field}:{' '}
-                        </span>
-                        {result.snippet}
-                      </p>
-                      <WholeDay date={result.date} />
+                      {result.kind === 'missed' ? (
+                        <p className="text-body-sm wrap-anywhere text-muted-foreground">
+                          Missed {result.routineName ?? 'a routine'}
+                        </p>
+                      ) : (
+                        <p className="text-body-sm wrap-anywhere">
+                          <span className="text-muted-foreground">
+                            {result.kind === 'skip'
+                              ? `Skipped ${result.routineName ?? 'a routine'}`
+                              : (fieldLabel[result.field] ?? result.field)}
+                            :{' '}
+                          </span>
+                          {result.snippet}
+                        </p>
+                      )}
+                      {result.kind === 'diary' && <WholeDay date={result.date} />}
                     </CardContent>
                   </Card>
                 </li>

@@ -174,7 +174,7 @@ export const operations: Record<string, Operation> = {
 
   'GET /api/search': {
     summary:
-      'Search diary entries by text (body and the three notes) in a date range, newest first and paged; with a routine, only the days it was done or missed. Needs a word or a routine',
+      'Search diary entries (body and the three notes) and the reasons of skipped daily routines by text in a date range, newest first and paged; with a routine, only the days it was done or missed and its own skip reasons. Needs a word or a routine',
     query: searchQuery,
     status: [200, 400],
   },

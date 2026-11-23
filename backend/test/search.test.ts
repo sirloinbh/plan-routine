@@ -75,12 +75,12 @@ test('a text search returns snippets, dates and the total, with its filters boun
       assert.equal(data.limit, 5);
       assert.equal(data.offset, 10);
       assert.deepEqual(data.results, [
-        { date: '2026-10-20', field: 'body', snippet: 'Drank coffee late' },
-        { date: '2026-10-10', field: 'body', snippet: 'No coffee today' },
+        { kind: 'diary', date: '2026-10-20', field: 'body', snippet: 'Drank coffee late' },
+        { kind: 'diary', date: '2026-10-10', field: 'body', snippet: 'No coffee today' },
       ]);
       const { sql, params } = queries[0];
       assert.deepEqual(params, ['%coffee%', '2026-10-01', '2026-10-21', 5, 10]);
-      assert.match(sql, /ORDER BY d\.entry_date DESC/);
+      assert.match(sql, /ORDER BY date DESC/);
       assert.doesNotMatch(sql, /coffee/);
     },
     clock,
@@ -115,6 +115,109 @@ test('a routine filter alone lists days; missed also binds today, done does not'
       await call('/api/search?routineId=7&result=done&q=run');
       assert.deepEqual(queries[1].params, ['%run%', 7, 20, 0]);
       assert.doesNotMatch(queries[1].sql, /NOT EXISTS \(SELECT 1 FROM routine_checks/);
+    },
+    clock,
+  );
+});
+
+test('skip reasons come back as their own results with the routine name', async () => {
+  const skip = {
+    kind: 'skip',
+    date: '2026-10-21',
+    body: null,
+    goodNote: null,
+    regretNote: null,
+    tomorrowNote: null,
+    routineId: 7,
+    routineName: 'Morning run',
+    reason: 'Knee hurts',
+    total: 2,
+  };
+  const { pool, queries } = fakePool([
+    skip,
+    { ...row('2026-10-21', 'Rested the knee'), kind: 'diary' },
+  ]);
+  await withApi(
+    pool,
+    async (call) => {
+      const { status, data } = await call('/api/search?q=knee&from=2026-10-01');
+      assert.equal(status, 200);
+      assert.deepEqual(data.results, [
+        {
+          kind: 'skip',
+          date: '2026-10-21',
+          field: 'skipReason',
+          snippet: 'Knee hurts',
+          routineId: 7,
+          routineName: 'Morning run',
+        },
+        { kind: 'diary', date: '2026-10-21', field: 'body', snippet: 'Rested the knee' },
+      ]);
+      const { sql, params } = queries[0];
+      // One text, one start date: shared by both sources.
+      assert.deepEqual(params, ['%knee%', '2026-10-01', 20, 0]);
+      assert.match(sql, /UNION ALL/);
+      assert.match(sql, /s\.reason ILIKE \$1/);
+      assert.match(sql, /s\.period_start >= \$2::date/);
+      assert.match(sql, /r\.cadence = 'daily'/);
+    },
+    clock,
+  );
+});
+
+test('with a routine, skip reasons are of that routine and left out for the days it was done', async () => {
+  const { pool, queries } = fakePool();
+  await withApi(
+    pool,
+    async (call) => {
+      await call('/api/search?routineId=7');
+      assert.match(queries[0].sql, /s\.routine_id = \$1/);
+      assert.doesNotMatch(queries[0].sql, /s\.reason ILIKE/);
+      await call('/api/search?routineId=7&result=done&q=run');
+      assert.doesNotMatch(queries[1].sql, /routine_skips/);
+      assert.match(queries[1].sql, /d\.body ILIKE/);
+    },
+    clock,
+  );
+});
+
+test('a routine alone also lists its missed days without a diary entry', async () => {
+  const missed = {
+    kind: 'missed',
+    date: '2026-10-05',
+    body: null,
+    goodNote: null,
+    regretNote: null,
+    tomorrowNote: null,
+    routineId: 7,
+    routineName: 'Morning run',
+    reason: null,
+    total: 1,
+  };
+  const { pool, queries } = fakePool([missed]);
+  await withApi(
+    pool,
+    async (call) => {
+      const { data } = await call('/api/search?routineId=7&from=2026-10-01');
+      assert.deepEqual(data.results, [
+        {
+          kind: 'missed',
+          date: '2026-10-05',
+          field: 'none',
+          snippet: '',
+          routineId: 7,
+          routineName: 'Morning run',
+        },
+      ]);
+      // The routine, today and the start date are bound once and shared by every source.
+      assert.deepEqual(queries[0].params, ['2026-10-01', 7, '2026-10-22', 20, 0]);
+      assert.match(queries[0].sql, /generate_series/);
+      assert.match(queries[0].sql, /NOT EXISTS \(SELECT 1 FROM diary_entries/);
+      // With text, or only the days it was done, the missed days are not asked for.
+      await call('/api/search?routineId=7&q=run');
+      await call('/api/search?routineId=7&result=done');
+      await call('/api/search?q=run');
+      for (const query of queries.slice(1)) assert.doesNotMatch(query.sql, /generate_series/);
     },
     clock,
   );

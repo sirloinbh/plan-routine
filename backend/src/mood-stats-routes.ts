@@ -13,7 +13,7 @@ type ScoreRow = { date: string; mood: number | null; energy: number | null };
 export type MoodWeek = {
   start: string;
   end: string;
-  /** Daily routines checked and expected over the week's days up to today, as on the stats page. */
+  /** Daily routines checked and expected over the week's days up to today, skipped ones left out (#262), as on the stats page. */
   checked: number;
   total: number;
   /** Average score to one decimal, or null when no day of the week has one. */
@@ -62,7 +62,11 @@ export function moodStatsRoutes(pool: Pool, today: () => string) {
     const first = addDays(weekStart(current), -7 * (moodWeeks - 1));
     const days = await pool.query<DayRow>(
       `SELECT days.date,
-         (SELECT count(*)::int FROM routines WHERE ${dailyRoutineOn('routines', 'days.date')}) AS total,
+         (SELECT count(*)::int FROM routines WHERE ${dailyRoutineOn('routines', 'days.date')}
+            AND NOT EXISTS (
+              SELECT 1 FROM routine_skips
+              WHERE routine_skips.routine_id = routines.id AND routine_skips.period_start = days.date
+            )) AS total,
          (SELECT count(*)::int FROM routine_checks
           JOIN routines ON routines.id = routine_checks.routine_id
           WHERE routines.cadence = 'daily' AND routine_checks.period_start = days.date) AS checked
