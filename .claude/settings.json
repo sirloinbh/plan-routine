@@ -2,6 +2,15 @@
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "permissions": {
     "allow": [
+      "Bash",
+      "PowerShell",
+      "Edit",
+      "Write",
+      "NotebookEdit",
+      "WebFetch",
+      "WebSearch",
+      "SendMessage",
+      "ListAgents",
       "Bash(git switch *)",
       "Bash(git pull --ff-only)",
       "Bash(git branch --delete *)",
@@ -56,6 +65,14 @@
       "PowerShell(git branch -d *)"
     ],
     "deny": [
+      "Bash(rm -rf /)",
+      "Bash(rm -rf /*)",
+      "Bash(rm -rf ~)",
+      "Bash(rm -rf ~/*)",
+      "Bash(rm -fr /)",
+      "Bash(rm -fr /*)",
+      "Bash(rm -fr ~)",
+      "Bash(rm -fr ~/*)",
       "Bash(npm install-test *)",
       "Bash(npm it *)",
       "Bash(npm install-ci-test *)",
