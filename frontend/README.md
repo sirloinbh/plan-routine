@@ -1,3 +1,3 @@
 # Plan, Practice, Routine, Feedback frontend
 
-A deployment repository synced by subtree from `frontend/` in the umbrella repository `sirloinbh/plan-routine`. Changes go through issues and PRs in the umbrella repository.
+The React app of the umbrella repository `sirloinbh/plan-routine`. It is a workspace of that repository, not a separate deployment repository (ADR-0022). Changes go through issues and PRs there.
