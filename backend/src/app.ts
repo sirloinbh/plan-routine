@@ -18,6 +18,7 @@ import { errorHandler, notFound, requestLog, serviceDate } from './standard/http
 import { apiRateLimit } from './standard/rate-limit.js';
 import { registerToolRoutes } from './standard/tools.js';
 import { statsRoutes } from './stats-routes.js';
+import { weeklyReviewRoutes } from './weekly-review-routes.js';
 
 // DATE columns stay YYYY-MM-DD strings so the service time zone never shifts them.
 types.setTypeParser(1082, (value) => value);
@@ -58,6 +59,7 @@ export function createApp(
   app.use('/api/records', recordRoutes(pool, today));
   app.use('/api/stats', statsRoutes(pool, today));
   app.use('/api/routines', routineRoutes(pool, today));
+  app.use('/api/weekly-review', weeklyReviewRoutes(pool, today));
   // #711: shared-ai calls the AI tools here with a signed token. Outside /api, so the proxy never reaches it.
   registerToolRoutes(app, {
     app: 'plan-routine',

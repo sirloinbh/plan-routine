@@ -4,6 +4,7 @@ import {
   CalendarDays,
   CalendarRange,
   ChartNoAxesColumn,
+  ClipboardCheck,
   History,
   ListChecks,
   NotebookPen,
@@ -28,6 +29,7 @@ import { DailyRoutines } from './routines';
 import { AccountActions, SignInGate } from './sign-in';
 import { Stats } from './stats';
 import { TwelveWeek } from './twelve-week';
+import { WeeklyReview } from './weekly-review';
 
 // Every page URL lives here (central docs/directory-rules.md).
 const pages = {
@@ -40,6 +42,7 @@ const pages = {
   twelveWeek: '/twelve-week',
   records: '/records',
   stats: '/stats',
+  review: '/review',
   settings: '/settings',
 } as const;
 
@@ -53,6 +56,7 @@ const nav: NavItem[] = [
   { to: pages.twelveWeek, label: '12-week routines', icon: Target },
   { to: pages.records, label: 'Records', icon: History },
   { to: pages.stats, label: 'Completion rates', icon: ChartNoAxesColumn },
+  { to: pages.review, label: 'Weekly review', icon: ClipboardCheck },
   { to: pages.settings, label: 'Settings', icon: Settings2 },
 ];
 
@@ -217,6 +221,18 @@ export function App() {
                     health={health}
                   >
                     <Stats />
+                  </Page>
+                }
+              />
+              <Route
+                path={pages.review}
+                element={
+                  <Page
+                    title="Weekly review"
+                    description="Look back on a week: how much you did, what you missed, and what to change"
+                    health={health}
+                  >
+                    <WeeklyReview />
                   </Page>
                 }
               />
