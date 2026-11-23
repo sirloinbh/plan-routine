@@ -83,3 +83,17 @@ test('the route reads the days and the scores of the last 12 weeks', async () =>
   assert.deepEqual(queries[0].params, ['2026-08-02', today]);
   assert.deepEqual(queries[1].params, ['2026-08-02', today]);
 });
+
+test('skipped routine-days are left out of the expected count, as on the records page', async () => {
+  const queries: string[] = [];
+  const pool = {
+    query: async (sql: string) => {
+      queries.push(sql);
+      return { rows: [] };
+    },
+  } as unknown as Pool;
+  await withApi(pool, async (call) => assert.equal((await call('/api/mood-stats')).status, 200), {
+    today: () => today,
+  });
+  assert.match(queries[0], /NOT EXISTS \(\s*SELECT 1 FROM routine_skips/);
+});
