@@ -16,6 +16,7 @@ import {
   renameInput,
 } from './routine-routes.js';
 import { routineInput } from './routines.js';
+import { searchQuery } from './search-routes.js';
 import { buildOpenApi, type Operation } from './standard/openapi.js';
 import { reviewInput, reviewQuery } from './weekly-review-routes.js';
 
@@ -134,6 +135,13 @@ export const operations: Record<string, Operation> = {
     summary:
       'Save the notes of a week (its Sunday), replacing the existing ones; a blank note clears it; no weeks that have not started',
     body: ['WeeklyReviewNotes', reviewInput],
+    status: [200, 400],
+  },
+
+  'GET /api/search': {
+    summary:
+      'Search diary entries by text (body and the three notes) in a date range, newest first and paged; with a routine, only the days it was done or missed. Needs a word or a routine',
+    query: searchQuery,
     status: [200, 400],
   },
 
