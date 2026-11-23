@@ -15,7 +15,7 @@ Copy-Item .env.example .env
 docker compose up --build -d
 ```
 
-Open http://localhost:8107 . Change the password in `.env` before you run it. Data is stored in the `plan-routine-data` volume, and `docker compose down -v` deletes the data.
+Open http://localhost:8107 . Change the password in `.env` before you run it. Data is stored in the `plan-routine-data` volume, and `docker compose down -v` deletes the data. See [docs/data-export.md](docs/data-export.md) for downloading a copy first.
 
 Development run:
 
