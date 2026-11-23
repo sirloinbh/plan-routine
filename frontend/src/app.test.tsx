@@ -21,6 +21,7 @@ const emptyDiary = {
   previousDate: '2026-10-25',
   nextDate: null,
   progress: { checked: 0, total: 0 },
+  routines: [],
   entry: null,
 };
 
@@ -67,6 +68,7 @@ const emptyReview = {
 
 const pageData = (url: string) => {
   if (url.startsWith('/api/stats')) return emptyStats;
+  if (url.startsWith('/api/mood-stats')) return { today: '2026-10-26', weeks: [] };
   if (url.startsWith('/api/weekly-review')) return emptyReview;
   if (url.startsWith('/api/records/')) return emptyDay;
   if (url.startsWith('/api/records')) return emptyMonth;

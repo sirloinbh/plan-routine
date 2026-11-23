@@ -9,6 +9,8 @@ export type DiaryForm = {
   goodNote: string;
   regretNote: string;
   tomorrowNote: string;
+  mood: number | null;
+  energy: number | null;
 };
 
 // `base` is what the server held when the draft was written, to notice a later save elsewhere.
@@ -20,22 +22,42 @@ export const sameForm = (a: DiaryForm, b: DiaryForm) =>
   a.body === b.body &&
   a.goodNote === b.goodNote &&
   a.regretNote === b.regretNote &&
-  a.tomorrowNote === b.tomorrowNote;
+  a.tomorrowNote === b.tomorrowNote &&
+  a.mood === b.mood &&
+  a.energy === b.energy;
 
 // The server trims what it stores, so a difference in surrounding spaces is not unsaved text.
 export const sameText = (a: DiaryForm, b: DiaryForm) =>
   a.body.trim() === b.body.trim() &&
   a.goodNote.trim() === b.goodNote.trim() &&
   a.regretNote.trim() === b.regretNote.trim() &&
-  a.tomorrowNote.trim() === b.tomorrowNote.trim();
+  a.tomorrowNote.trim() === b.tomorrowNote.trim() &&
+  a.mood === b.mood &&
+  a.energy === b.energy;
+
+// A draft stored before the scores existed has none: that reads as no score.
+const isScore = (value: unknown) =>
+  value === undefined ||
+  value === null ||
+  (Number.isInteger(value) && (value as number) >= 1 && (value as number) <= 5);
 
 const isForm = (value: unknown): value is DiaryForm => {
   if (typeof value !== 'object' || value === null) return false;
   const form = value as Record<string, unknown>;
-  return (['body', 'goodNote', 'regretNote', 'tomorrowNote'] as const).every(
-    (field) => typeof form[field] === 'string',
+  return (
+    (['body', 'goodNote', 'regretNote', 'tomorrowNote'] as const).every(
+      (field) => typeof form[field] === 'string',
+    ) &&
+    isScore(form.mood) &&
+    isScore(form.energy)
   );
 };
+
+const withScores = (form: DiaryForm): DiaryForm => ({
+  ...form,
+  mood: form.mood ?? null,
+  energy: form.energy ?? null,
+});
 
 export function readDraft(): DiaryDraft | null {
   try {
@@ -43,7 +65,13 @@ export function readDraft(): DiaryDraft | null {
       localStorage.getItem(draftKey) ?? 'null',
     ) as Partial<DiaryDraft> | null;
     if (!stored || !/^\d{4}-\d{2}-\d{2}$/.test(String(stored.date))) return null;
-    return isForm(stored.form) && isForm(stored.base) ? (stored as DiaryDraft) : null;
+    return isForm(stored.form) && isForm(stored.base)
+      ? {
+          date: stored.date as string,
+          form: withScores(stored.form),
+          base: withScores(stored.base),
+        }
+      : null;
   } catch {
     return null;
   }
