@@ -426,7 +426,7 @@ const manage = () => screen.getByRole('region', { name: 'Manage weekly routines'
 const checklistNames = () =>
   within(thisWeek())
     .getAllByRole('checkbox')
-    .map((checkbox) => within(checkbox.closest('li')!).getByText(/./).textContent);
+    .map((checkbox) => (checkbox as HTMLInputElement).labels?.[0].textContent);
 
 test('renaming and reordering show in the checklist too', async () => {
   const api = weeklyApi(seed);

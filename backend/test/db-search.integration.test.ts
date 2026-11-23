@@ -1,0 +1,90 @@
+import assert from 'node:assert/strict';
+import { test } from 'node:test';
+
+import { url, withClient } from './db-helpers.js';
+import { withApi } from './helpers.js';
+
+type Result = { date: string; field: string; snippet: string };
+
+// Uses its own old dates (March 2001) and a test routine, and removes them afterwards.
+test(
+  'search matches the body and notes, escapes wildcards, filters by range and routine, and pages newest first',
+  { skip: !url, timeout: 30_000 },
+  () =>
+    withClient(async (client, pool) => {
+      const dates = ['2001-03-01', '2001-03-02', '2001-03-03', '2001-03-04'];
+      const routine = await client.query<{ id: number }>(
+        `INSERT INTO routines (name, cadence, category, created_at, archived_at)
+         VALUES ('Search test run', 'daily', 'care', '2001-03-02 12:00+09', '2001-03-04 12:00+09')
+         RETURNING id`,
+      );
+      const id = routine.rows[0].id;
+      try {
+        await client.query(
+          `INSERT INTO diary_entries (entry_date, body, good_note) VALUES
+             ('2001-03-01', 'Alpha 100% sure', NULL),
+             ('2001-03-02', 'Plain day', 'alpha in a note'),
+             ('2001-03-03', 'Gamma_day', NULL),
+             ('2001-03-04', 'Alpha again', NULL)`,
+        );
+        // Done on 03-02 only. Due 03-02 and 03-03 (created on 03-02, archived on 03-04), so missed on 03-03.
+        await client.query(
+          "INSERT INTO routine_checks (routine_id, period_start) VALUES ($1, '2001-03-02')",
+          [id],
+        );
+        await withApi(
+          pool,
+          async (call) => {
+            const dateList = async (path: string) => {
+              const { status, data } = await call(path);
+              assert.equal(status, 200, path);
+              return (data.results as Result[]).map((result) => result.date);
+            };
+            const range = 'from=2001-03-01&to=2001-03-04';
+            // Case-insensitive, body and notes, newest first.
+            assert.deepEqual(await dateList(`/api/search?q=ALPHA&${range}`), [
+              '2001-03-04',
+              '2001-03-02',
+              '2001-03-01',
+            ]);
+            const note = await call(`/api/search?q=in%20a%20note&${range}`);
+            assert.deepEqual(note.data.results, [
+              { date: '2001-03-02', field: 'goodNote', snippet: 'alpha in a note' },
+            ]);
+            // % and _ are matched as typed, not as wildcards.
+            assert.deepEqual(await dateList(`/api/search?q=100%25&${range}`), ['2001-03-01']);
+            assert.deepEqual(await dateList(`/api/search?q=%25&${range}`), ['2001-03-01']);
+            assert.deepEqual(await dateList(`/api/search?q=Gamm_&${range}`), []);
+            assert.deepEqual(await dateList(`/api/search?q=ma_d&${range}`), ['2001-03-03']);
+            assert.deepEqual(await dateList(`/api/search?q=Gamma_&${range}`), ['2001-03-03']);
+            // Date range.
+            assert.deepEqual(await dateList('/api/search?q=alpha&from=2001-03-02&to=2001-03-03'), [
+              '2001-03-02',
+            ]);
+            // Routine: done, and missed (only days it was due and not checked).
+            assert.deepEqual(await dateList(`/api/search?routineId=${id}&result=done&${range}`), [
+              '2001-03-02',
+            ]);
+            assert.deepEqual(await dateList(`/api/search?routineId=${id}&${range}`), [
+              '2001-03-03',
+            ]);
+            assert.deepEqual(await dateList(`/api/search?routineId=${id}&q=alpha&${range}`), []);
+            // Paging keeps the total.
+            const page = await call(`/api/search?q=alpha&${range}&limit=1&offset=1`);
+            assert.equal(page.data.total, 3);
+            assert.deepEqual(
+              (page.data.results as Result[]).map((result) => result.date),
+              ['2001-03-02'],
+            );
+            const past = await call(`/api/search?q=alpha&${range}&offset=50`);
+            assert.deepEqual(past.data, { limit: 20, offset: 50, total: 0, results: [] });
+          },
+          { today: () => '2026-10-22' },
+        );
+      } finally {
+        await client.query('DELETE FROM routine_checks WHERE routine_id = $1', [id]);
+        await client.query('DELETE FROM routines WHERE id = $1', [id]);
+        await client.query('DELETE FROM diary_entries WHERE entry_date = ANY($1::date[])', [dates]);
+      }
+    }),
+);

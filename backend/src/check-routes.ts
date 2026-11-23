@@ -1,8 +1,9 @@
 import { type Request, type Response, Router } from 'express';
-import type { Pool } from 'pg';
+import type { Pool, PoolClient } from 'pg';
 import { z } from 'zod/v4';
 
 import { addDays, type Cadence, calendarDate, daysBetween, periodFor } from './periods.js';
+import { badRequest, noNul, nulMessage, requestBody } from './request-input.js';
 import { routineColumns, routineId, routineNotFound } from './routine-routes.js';
 import { routineAnchorDate, routineCadence } from './routines.js';
 
@@ -19,12 +20,42 @@ export const checklistQuery = z.object({
 });
 const checkParams = z.object({ id: routineId, date: calendarDate });
 
+// A skip's optional reason: one line of at most 200 characters; blank means no reason.
+export const skipReasonMaxLength = 200;
+export const skipInput = z.object(
+  {
+    reason: z
+      .string()
+      .trim()
+      .max(skipReasonMaxLength, `Reason must be at most ${skipReasonMaxLength} characters`)
+      .refine(noNul, nulMessage)
+      .nullish()
+      .transform((value) => value || null),
+  },
+  badRequest,
+);
+const skippedAlready = 'This period is skipped. Remove the skip before checking it';
+const checkedAlready = 'This period is checked. Uncheck it before skipping it';
+
 // ISO dates compare correctly as strings.
 function dateRangeError(date: string, today: string) {
   if (date > today) return 'Future dates cannot be checked';
   if (date < addDays(today, -editableDays))
     return `You can only check today and the ${editableDays} days before it`;
   return null;
+}
+
+// Locks the active routine row (so a concurrent archive, check or skip of it waits, and a period is never
+// both checked and skipped) and returns the period holding the date.
+async function lockRoutinePeriod(client: PoolClient, id: number, date: string, current: string) {
+  const target = await client.query<{ cadence: Cadence }>(
+    'SELECT cadence FROM routines WHERE id = $1 AND archived_at IS NULL FOR UPDATE',
+    [id],
+  );
+  if (!target.rows[0]) throw new HttpError(404, routineNotFound);
+  // After the existence check, so a 404 does not store the first-use date (#153).
+  const anchorDate = await routineAnchorDate(client, current);
+  return { period: periodFor(target.rows[0].cadence, date, anchorDate) };
 }
 
 export function checkRoutes(pool: Pool, today: () => string) {
@@ -44,6 +75,12 @@ export function checkRoutes(pool: Pool, today: () => string) {
          SELECT 1 FROM routine_checks
          WHERE routine_checks.routine_id = routines.id AND routine_checks.period_start = $2
        ) AS checked,
+       EXISTS (
+         SELECT 1 FROM routine_skips
+         WHERE routine_skips.routine_id = routines.id AND routine_skips.period_start = $2
+       ) AS skipped,
+       (SELECT s.reason FROM routine_skips s
+        WHERE s.routine_id = routines.id AND s.period_start = $2) AS "skipReason",
        (SELECT p.name FROM project_links p WHERE p.id = routines.project_link_id) AS "linkName",
        (SELECT p.url FROM project_links p WHERE p.id = routines.project_link_id) AS "linkUrl"
        FROM routines
@@ -76,15 +113,14 @@ export function checkRoutes(pool: Pool, today: () => string) {
     const rangeError = dateRangeError(date, current);
     if (rangeError) throw new HttpError(400, rangeError);
     const reply = await inTransaction(pool, async (client) => {
-      // FOR SHARE makes a concurrent archive wait, so an archived routine cannot gain a check.
-      const target = await client.query<{ cadence: Cadence }>(
-        'SELECT cadence FROM routines WHERE id = $1 AND archived_at IS NULL FOR SHARE',
-        [id],
-      );
-      if (!target.rows[0]) throw new HttpError(404, routineNotFound);
-      // After the existence check, so a 404 does not store the first-use date (#153).
-      const anchorDate = await routineAnchorDate(client, current);
-      const period = periodFor(target.rows[0].cadence, date, anchorDate);
+      const { period } = await lockRoutinePeriod(client, id, date, current);
+      if (checked) {
+        const skipped = await client.query(
+          'SELECT 1 FROM routine_skips WHERE routine_id = $1 AND period_start = $2',
+          [id, period.start],
+        );
+        if (skipped.rows[0]) throw new HttpError(409, skippedAlready);
+      }
       await client.query(
         checked
           ? `INSERT INTO routine_checks (routine_id, period_start) VALUES ($1, $2)
@@ -99,6 +135,47 @@ export function checkRoutes(pool: Pool, today: () => string) {
 
   router.put('/routines/:id/checks/:date', (req, res) => changeCheck(req, res, true));
   router.delete('/routines/:id/checks/:date', (req, res) => changeCheck(req, res, false));
+
+  // Skips follow the same rules as checks: the editable days, one row per period, repeats change nothing.
+  // PUT again with another reason replaces the reason. A checked period cannot be skipped (409).
+  router.put('/routines/:id/skips/:date', async (req, res) => {
+    const { id, date } = checkParams.parse(req.params);
+    const { reason } = skipInput.parse(requestBody(req.body));
+    const current = today();
+    const rangeError = dateRangeError(date, current);
+    if (rangeError) throw new HttpError(400, rangeError);
+    const reply = await inTransaction(pool, async (client) => {
+      const { period } = await lockRoutinePeriod(client, id, date, current);
+      const checked = await client.query(
+        'SELECT 1 FROM routine_checks WHERE routine_id = $1 AND period_start = $2',
+        [id, period.start],
+      );
+      if (checked.rows[0]) throw new HttpError(409, checkedAlready);
+      await client.query(
+        `INSERT INTO routine_skips (routine_id, period_start, reason) VALUES ($1, $2, $3)
+         ON CONFLICT (routine_id, period_start) DO UPDATE SET reason = EXCLUDED.reason`,
+        [id, period.start, reason],
+      );
+      return { status: 200, body: { routineId: id, date, period, skipped: true, reason } };
+    });
+    res.status(reply.status).json(reply.body);
+  });
+
+  router.delete('/routines/:id/skips/:date', async (req, res) => {
+    const { id, date } = checkParams.parse(req.params);
+    const current = today();
+    const rangeError = dateRangeError(date, current);
+    if (rangeError) throw new HttpError(400, rangeError);
+    const reply = await inTransaction(pool, async (client) => {
+      const { period } = await lockRoutinePeriod(client, id, date, current);
+      await client.query('DELETE FROM routine_skips WHERE routine_id = $1 AND period_start = $2', [
+        id,
+        period.start,
+      ]);
+      return { status: 200, body: { routineId: id, date, period, skipped: false, reason: null } };
+    });
+    res.status(reply.status).json(reply.body);
+  });
 
   return router;
 }

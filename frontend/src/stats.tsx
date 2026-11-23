@@ -13,7 +13,7 @@ import { useReloadWhenCurrent } from './use-date-change';
 
 type Tally = { checked: number; total: number };
 type PeriodTally = Tally & { start: string; end: string };
-type Status = 'done' | 'missed' | 'open' | 'none';
+type Status = 'done' | 'missed' | 'skipped' | 'open' | 'none';
 type Item = Tally & {
   id: number;
   name: string;
@@ -36,6 +36,11 @@ type StatsData = {
 const statusLook: Record<Status, { mark: string; word: string; className: string }> = {
   done: { mark: '✓', word: 'Done', className: 'bg-primary text-primary-foreground' },
   missed: { mark: '✕', word: 'Not done', className: 'bg-muted text-foreground' },
+  skipped: {
+    mark: '–',
+    word: 'Skipped',
+    className: 'border border-input bg-secondary text-secondary-foreground',
+  },
   open: { mark: '…', word: 'In progress', className: 'border border-input text-muted-foreground' },
   none: { mark: '', word: 'Not applicable', className: 'border border-dashed border-input' },
 };
@@ -235,7 +240,7 @@ export function Stats() {
           History by item
         </h2>
         <ul className="flex flex-wrap gap-3 text-caption text-muted-foreground" aria-hidden>
-          {(['done', 'missed', 'open', 'none'] as const).map((status) => (
+          {(['done', 'missed', 'skipped', 'open', 'none'] as const).map((status) => (
             <li key={status} className="flex items-center gap-1">
               <span
                 className={cn(
