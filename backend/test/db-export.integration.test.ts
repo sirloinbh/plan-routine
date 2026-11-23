@@ -33,6 +33,8 @@ test(
              WHERE table_schema = 'public' AND table_type = 'BASE TABLE' AND table_name <> 'schema_migrations'`,
           );
           assert.deepEqual(Object.keys(tables).sort(), names.rows.map((row) => row.name).sort());
+          // Tables other work added must be there too.
+          for (const name of ['weekly_reviews', 'routine_skips']) assert.ok(name in tables, name);
           for (const { name } of names.rows) {
             const count = await client.query<{ n: number }>(
               `SELECT count(*)::int AS n FROM "${name}"`,
