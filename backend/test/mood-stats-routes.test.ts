@@ -97,3 +97,22 @@ test('skipped routine-days are left out of the expected count, as on the records
   });
   assert.match(queries[0], /NOT EXISTS \(\s*SELECT 1 FROM routine_skips/);
 });
+
+test('today counts only routines already done, as on the stats page', async () => {
+  const queries: { sql: string; params: unknown[] }[] = [];
+  const pool = {
+    query: async (sql: string, params: unknown[] = []) => {
+      queries.push({ sql, params });
+      return { rows: [] };
+    },
+  } as unknown as Pool;
+  await withApi(pool, async (call) => assert.equal((await call('/api/mood-stats')).status, 200), {
+    today: () => today,
+  });
+  // The days query binds today as $2 and keeps a day before it, or a routine with a check that day.
+  assert.match(
+    queries[0].sql,
+    /days\.date < \$2::date OR EXISTS \(\s*SELECT 1 FROM routine_checks/,
+  );
+  assert.equal(queries[0].params[1], today);
+});
