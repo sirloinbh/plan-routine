@@ -15,6 +15,7 @@ import {
   moveInput,
   projectLinkInput,
   renameInput,
+  scheduleInput,
 } from './routine-routes.js';
 import { routineInput } from './routines.js';
 import { searchQuery } from './search-routes.js';
@@ -200,6 +201,12 @@ export const operations: Record<string, Operation> = {
   'POST /api/routines/:id/move': {
     summary: 'Move a routine one place up or down within its group; returns the group',
     body: ['RoutineMove', moveInput],
+    status: [200, 400, 404],
+  },
+  'PUT /api/routines/:id/schedule': {
+    summary:
+      "Set the weekdays of a daily routine or the times per week of a weekly one; sends the whole schedule. It applies to the whole history. Switching a weekly routine between once a week and N times a week converts its checks (N to once: one check per week, on the week's first day, with the amounts added up) in one transaction and writes an audit entry",
+    body: ['RoutineSchedule', scheduleInput],
     status: [200, 400, 404],
   },
   'PUT /api/routines/:id/amount': {

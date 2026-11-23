@@ -161,3 +161,82 @@ test(
       }
     }),
 );
+
+test(
+  'switching a weekly routine between once a week and N times converts its checks (#276)',
+  { skip: !url, timeout: 30_000 },
+  () =>
+    withClient(async (client, pool) => {
+      const created: number[] = [];
+      try {
+        await withApi(
+          pool,
+          async (call) => {
+            const { data } = await call('/api/routines', {
+              method: 'POST',
+              body: { name: 'Schedule edit', cadence: 'weekly', timesPerWeek: 3, unit: 'km' },
+            });
+            const id = (data.routine as { id: number }).id;
+            created.push(id);
+            await client.query("UPDATE routines SET created_at = '2026-01-01' WHERE id = $1", [id]);
+            // Week of Sun 2026-10-11: three checks with amounts 2.5, 4 and none; week of 2026-10-18: one check;
+            // week of 2026-10-04: skipped (older than the editable days, so written directly).
+            await client.query(
+              `INSERT INTO routine_checks (routine_id, period_start, amount) VALUES
+                 ($1, '2026-10-13', 2.5), ($1, '2026-10-15', 4), ($1, '2026-10-17', NULL), ($1, '2026-10-20', 1)`,
+              [id],
+            );
+            await client.query(
+              "INSERT INTO routine_skips (routine_id, period_start, reason) VALUES ($1, '2026-10-04', 'Trip')",
+              [id],
+            );
+            const rows = async () =>
+              (
+                await client.query<{ day: string; amount: number | null }>(
+                  `SELECT to_char(period_start, 'YYYY-MM-DD') AS day, amount FROM routine_checks
+                   WHERE routine_id = $1 ORDER BY period_start`,
+                  [id],
+                )
+              ).rows;
+            const put = (body: unknown) =>
+              call(`/api/routines/${id}/schedule`, { method: 'PUT', body });
+            // N -> once: one check per week on its Sunday, amounts added up (no amount stays none).
+            assert.equal((await put({})).status, 200);
+            assert.deepEqual(await rows(), [
+              { day: '2026-10-11', amount: 6.5 },
+              { day: '2026-10-18', amount: 1 },
+            ]);
+            const skips = () =>
+              client.query('SELECT count(*)::int AS n FROM routine_skips WHERE routine_id = $1', [
+                id,
+              ]);
+            assert.equal((await skips()).rows[0].n, 1);
+            // Once -> N: the week-start checks stay as checks on that day.
+            assert.equal((await put({ timesPerWeek: 2 })).status, 200);
+            assert.deepEqual(await rows(), [
+              { day: '2026-10-11', amount: 6.5 },
+              { day: '2026-10-18', amount: 1 },
+            ]);
+            const audit = await client.query(
+              "SELECT count(*)::int AS n FROM audit_log WHERE entity = 'routine_schedule' AND entity_id = $1",
+              [String(id)],
+            );
+            assert.equal(audit.rows[0].n, 2);
+          },
+          { today: () => '2026-10-22' },
+        );
+      } finally {
+        await client.query(
+          "DELETE FROM audit_log WHERE entity = 'routine_schedule' AND entity_id = ANY($1)",
+          [created.map(String)],
+        );
+        await client.query('DELETE FROM routine_skips WHERE routine_id = ANY($1::bigint[])', [
+          created,
+        ]);
+        await client.query('DELETE FROM routine_checks WHERE routine_id = ANY($1::bigint[])', [
+          created,
+        ]);
+        await client.query('DELETE FROM routines WHERE id = ANY($1::bigint[])', [created]);
+      }
+    }),
+);

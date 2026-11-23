@@ -2099,6 +2099,87 @@
         }
       }
     },
+    "/api/routines/{id}/schedule": {
+      "put": {
+        "summary": "Set the weekdays of a daily routine or the times per week of a weekly one; sends the whole schedule. It applies to the whole history. Switching a weekly routine between once a week and N times a week converts its checks (N to once: one check per week, on the week's first day, with the amounts added up) in one transaction and writes an audit entry",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoutineSchedule"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Input validation failed, or the date or item is not allowed for this action",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sign-in required (no session from the shared sign-in)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No target",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body too large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/weekly-review/{week}": {
       "put": {
         "summary": "Save the notes of a week (its Sunday), replacing the existing ones; a blank note clears it; no weeks that have not started",
@@ -2478,6 +2559,38 @@
         "required": [
           "projectLinkId"
         ]
+      },
+      "RoutineSchedule": {
+        "type": "object",
+        "properties": {
+          "weekdays": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 6
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "timesPerWeek": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 2,
+                "maximum": 7
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
       },
       "Skip": {
         "type": "object",

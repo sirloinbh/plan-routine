@@ -62,6 +62,21 @@ export const routineName = z
   .refine((value) => value.length <= 100, 'The routine name must be 100 characters or fewer')
   .refine(noNul, nulMessage);
 
+export const routineWeekdays = z.array(
+  z
+    .number({ error: weekdayMessage })
+    .int(weekdayMessage)
+    .min(0, weekdayMessage)
+    .max(6, weekdayMessage),
+  { error: weekdayMessage },
+);
+
+export const routineTimesPerWeek = z
+  .number({ error: 'Times per week must be a number from 2 to 7' })
+  .int('Times per week must be a number from 2 to 7')
+  .min(2, 'Times per week must be a number from 2 to 7')
+  .max(7, 'Times per week must be a number from 2 to 7');
+
 // Mirrors the routines table checks so bad input fails with an English message before the DB.
 export const routineInput = z
   .object(
@@ -70,26 +85,12 @@ export const routineInput = z
       cadence: routineCadence,
       category: z.enum(routineCategories, { error: 'Invalid daily routine category' }).nullish(),
       // Daily routines only: the days of the week it applies to (0 = Sunday ... 6 = Saturday).
-      weekdays: z
-        .array(
-          z
-            .number({ error: weekdayMessage })
-            .int(weekdayMessage)
-            .min(0, weekdayMessage)
-            .max(6, weekdayMessage),
-          { error: weekdayMessage },
-        )
-        .nullish(),
+      weekdays: routineWeekdays.nullish(),
       // An optional unit ("pages") and target amount; checks of the routine can then carry an amount (#246).
       unit: routineUnit.nullish(),
       targetAmount: routineTarget.nullish(),
       // Weekly routines only: how many days of the week it is done on (2 to 7).
-      timesPerWeek: z
-        .number({ error: 'Times per week must be a number from 2 to 7' })
-        .int('Times per week must be a number from 2 to 7')
-        .min(2, 'Times per week must be a number from 2 to 7')
-        .max(7, 'Times per week must be a number from 2 to 7')
-        .nullish(),
+      timesPerWeek: routineTimesPerWeek.nullish(),
     },
     badRequest,
   )

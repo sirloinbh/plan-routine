@@ -26,6 +26,7 @@ const focusKeys = {
   down: (id: number) => `down-${id}`,
   edit: (id: number) => `edit-${id}`,
   amount: (id: number) => `amount-${id}`,
+  schedule: (id: number) => `schedule-${id}`,
   renameInput: 'rename-input',
   add: (draftKey: string) => `add-${draftKey}`,
 };
@@ -44,6 +45,12 @@ export function useRoutineList(cadence: string) {
     id: number;
     unit: string;
     target: string;
+  } | null>(null);
+  // The schedule being edited on one routine (#276): weekdays for a daily routine, times per week for a weekly one.
+  const [scheduleEditing, setScheduleEditing] = useState<{
+    id: number;
+    weekdays: number[];
+    timesPerWeek: number | null;
   } | null>(null);
   const [confirmArchive, setConfirmArchive] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
@@ -229,6 +236,35 @@ export function useRoutineList(cadence: string) {
     });
   };
 
+  const startScheduleEditing = (routine: Routine) => {
+    setConfirmArchive(null);
+    setEditing(null);
+    setAmountEditing(null);
+    setScheduleEditing({
+      id: routine.id,
+      weekdays: routine.weekdays ?? [],
+      timesPerWeek: routine.timesPerWeek ?? null,
+    });
+  };
+
+  const saveSchedule = async (routine: Routine) => {
+    if (!scheduleEditing || scheduleEditing.id !== routine.id) return;
+    const ok = await run(
+      () =>
+        requestJson(`/api/routines/${routine.id}/schedule`, {
+          method: 'PUT',
+          body:
+            routine.cadence === 'daily'
+              ? { weekdays: scheduleEditing.weekdays.length ? scheduleEditing.weekdays : null }
+              : { timesPerWeek: scheduleEditing.timesPerWeek },
+        }),
+      `Saved the schedule of the routine '${routine.name}'`,
+      'schedule',
+    );
+    requestFocus([...(ok ? [] : [focusKeys.schedule(routine.id)]), focusKeys.edit(routine.id)]);
+    if (ok) setScheduleEditing((current) => (current?.id === routine.id ? null : current));
+  };
+
   const saveAmount = async (routine: Routine) => {
     if (!amountEditing || amountEditing.id !== routine.id) return;
     const unit = amountEditing.unit.trim();
@@ -275,6 +311,10 @@ export function useRoutineList(cadence: string) {
     pending,
     projects,
     setProjectLink,
+    scheduleEditing,
+    setScheduleEditing,
+    startScheduleEditing,
+    saveSchedule,
     amountEditing,
     setAmountEditing,
     startAmountEditing,
