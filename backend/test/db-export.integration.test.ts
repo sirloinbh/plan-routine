@@ -54,3 +54,42 @@ test(
       }
     }),
 );
+
+test(
+  'checks.csv holds amounts with their unit and skipped periods with their reason',
+  { skip: !url, timeout: 30_000 },
+  () =>
+    withClient(async (client, pool) => {
+      const { rows } = await client.query<{ id: number }>(
+        `INSERT INTO routines (name, cadence, category, unit) VALUES ('Export csv test', 'daily', 'study', 'pages') RETURNING id`,
+      );
+      const id = rows[0].id;
+      try {
+        await client.query(
+          `INSERT INTO routine_checks (routine_id, period_start, amount) VALUES ($1, '2001-02-03', 12.5)`,
+          [id],
+        );
+        await client.query(
+          `INSERT INTO routine_skips (routine_id, period_start, reason) VALUES ($1, '2001-02-04', 'Sick')`,
+          [id],
+        );
+        await withApi(pool, async (call) => {
+          const { status, text } = await call('/api/export/checks.csv');
+          assert.equal(status, 200);
+          const lines = text.split('\r\n');
+          assert.equal(
+            lines[0],
+            '\ufeffdate,routine,cadence,category,checked_at,status,amount,unit,skip_reason',
+          );
+          const mine = lines.filter((line) => line.includes('Export csv test'));
+          assert.equal(mine.length, 2);
+          assert.match(mine[0], /^2001-02-03,Export csv test,daily,study,[^,]+,done,12\.5,pages,$/);
+          assert.equal(mine[1], '2001-02-04,Export csv test,daily,study,,skipped,,pages,Sick');
+        });
+      } finally {
+        await client.query('DELETE FROM routine_skips WHERE routine_id = $1', [id]);
+        await client.query('DELETE FROM routine_checks WHERE routine_id = $1', [id]);
+        await client.query('DELETE FROM routines WHERE id = $1', [id]);
+      }
+    }),
+);

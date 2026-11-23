@@ -33,7 +33,13 @@ export async function withApi(
     call: (
       path: string,
       request?: { method: string; body?: unknown; raw?: string; contentType?: string },
-    ) => Promise<{ status: number; data: Record<string, unknown>; headers: Headers }>,
+    ) => Promise<{
+      status: number;
+      data: Record<string, unknown>;
+      headers: Headers;
+      /** The body as text, for a download such as a CSV (`data` is then empty). */
+      text: string;
+    }>,
   ) => Promise<void>,
   options: { today?: () => string } = {},
 ) {
@@ -49,10 +55,13 @@ export async function withApi(
         body:
           request?.raw ?? (request?.body === undefined ? undefined : JSON.stringify(request.body)),
       });
+      const text = await response.text();
+      const isJson = (response.headers.get('content-type') ?? '').includes('json');
       return {
         status: response.status,
-        data: (await response.json()) as Record<string, unknown>,
+        data: isJson ? (JSON.parse(text) as Record<string, unknown>) : {},
         headers: response.headers,
+        text,
       };
     });
   } finally {
