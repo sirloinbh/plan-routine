@@ -166,23 +166,18 @@ export function RoutineItems({
                     void list.saveAmount(routine);
                   }}
                 >
-                  {routine.unit ? (
-                    // A unit that is set cannot change: amounts already recorded would lose their meaning.
-                    <span className="text-body-sm text-muted-foreground">Unit: {routine.unit}</span>
-                  ) : (
-                    <Input
-                      className="w-32"
-                      aria-label={`Unit for ${routine.name}`}
-                      placeholder="Unit, e.g. pages"
-                      maxLength={20}
-                      value={list.amountEditing.unit}
-                      onChange={(event) =>
-                        list.amountEditing &&
-                        list.setAmountEditing({ ...list.amountEditing, unit: event.target.value })
-                      }
-                    />
-                  )}
-                  {(routine.unit || list.amountEditing.unit.trim()) && (
+                  <Input
+                    className="w-32"
+                    aria-label={`Unit for ${routine.name}`}
+                    placeholder="Unit, e.g. pages"
+                    maxLength={20}
+                    value={list.amountEditing.unit}
+                    onChange={(event) =>
+                      list.amountEditing &&
+                      list.setAmountEditing({ ...list.amountEditing, unit: event.target.value })
+                    }
+                  />
+                  {list.amountEditing.unit.trim() && (
                     <Input
                       className="w-28"
                       type="number"
@@ -211,6 +206,10 @@ export function RoutineItems({
                   >
                     Cancel
                   </Button>
+                  <p className="w-full text-caption text-muted-foreground">
+                    Amounts already recorded keep their numbers and show the new unit. Removing the
+                    unit hides them; adding one again shows them.
+                  </p>
                 </form>
               )}
               {projects.length > 0 && (

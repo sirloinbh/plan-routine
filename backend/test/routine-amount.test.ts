@@ -55,27 +55,23 @@ test('a unit can be added to a routine that has none, with or without a target',
   assert.equal(update(queries).length, 3);
 });
 
-test('a unit that is set cannot change or go, and a target needs a unit', async () => {
-  const locked = fakePool({ unit: 'pages' });
-  await withApi(locked.pool, async (call) => {
-    for (const body of [{ unit: 'minutes' }, {}, { targetAmount: 5 }, { unit: null }]) {
-      const { status, data } = await call('/api/routines/1/amount', put(body));
-      assert.equal(status, 409);
-      assert.equal(
-        data.error,
-        'The unit cannot be changed once it is set. Archive the routine and add it again',
-      );
-    }
-  });
-  assert.equal(update(locked.queries).length, 0);
-
-  const bare = fakePool({ unit: null });
-  await withApi(bare.pool, async (call) => {
+test('a unit that is set can change or go, and a target needs a unit (#276)', async () => {
+  const { pool, queries } = fakePool({ unit: 'pages' });
+  await withApi(pool, async (call) => {
+    assert.equal((await call('/api/routines/1/amount', put({ unit: 'minutes' }))).status, 200);
+    // Removing the unit clears the target with it; the amounts on checks stay in the table.
+    assert.equal((await call('/api/routines/1/amount', put({}))).status, 200);
     const { status, data } = await call('/api/routines/1/amount', put({ targetAmount: 5 }));
     assert.equal(status, 400);
     assert.equal(data.error, 'Enter a unit for the target');
   });
-  assert.equal(update(bare.queries).length, 0);
+  assert.deepEqual(
+    update(queries).map((query) => query.params.slice(0, 2)),
+    [
+      ['minutes', null],
+      [null, null],
+    ],
+  );
 });
 
 test('bad values are English 400s before any query, and a missing routine is a 404', async () => {

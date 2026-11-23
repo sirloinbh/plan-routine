@@ -46,14 +46,13 @@ export const moveInput = z.object(
   badRequest,
 );
 
-// The whole amount setting of a routine at once, so repeating a request changes nothing. A routine's unit can be
-// added (or kept), not changed or removed: amounts already recorded on its checks would lose their meaning.
+// The whole amount setting of a routine at once, so repeating a request changes nothing. The unit may change or go
+// (decision on #276): amounts already recorded keep their numbers and show the new unit, and are hidden, not
+// deleted, while there is no unit.
 export const amountInput = z.object(
   { unit: routineUnit.nullish(), targetAmount: routineTarget.nullish() },
   badRequest,
 );
-const unitLocked =
-  'The unit cannot be changed once it is set. Archive the routine and add it again';
 
 export const projectLinkInput = z.object(
   {
@@ -162,13 +161,11 @@ export function routineRoutes(pool: Pool, today: () => string) {
     const { id } = idParam.parse(req.params);
     const { unit = null, targetAmount = null } = amountInput.parse(requestBody(req.body));
     const reply = await inTransaction(pool, async (client) => {
-      const current = await client.query<{ unit: string | null }>(
-        'SELECT unit FROM routines WHERE id = $1 AND archived_at IS NULL FOR UPDATE',
+      const current = await client.query(
+        'SELECT 1 FROM routines WHERE id = $1 AND archived_at IS NULL FOR UPDATE',
         [id],
       );
       if (!current.rows[0]) throw new HttpError(404, routineNotFound);
-      if (current.rows[0].unit !== null && unit !== current.rows[0].unit)
-        throw new HttpError(409, unitLocked);
       if (targetAmount !== null && unit === null)
         throw new HttpError(400, 'Enter a unit for the target');
       const { rows } = await client.query(

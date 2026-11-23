@@ -49,8 +49,6 @@ function routineApi(seed: Seed[] = []) {
       }
       if (!found) return notFound();
       if (path.endsWith('/amount')) {
-        if (found.unit && body.unit !== found.unit)
-          return reply(409, { error: 'The unit cannot be changed once it is set' });
         found.unit = body.unit;
         found.targetAmount = body.targetAmount;
         return reply(200, {});
@@ -659,7 +657,7 @@ test('a unit and target can be set when adding, and are shown in the list (#246)
   await waitFor(() => expect(within(reading).getByText('pages, target 20')).toBeInTheDocument());
 });
 
-test('a unit and target are added later; a set unit stays and only the target changes (#276)', async () => {
+test('a unit and target are added later and can then change (#276)', async () => {
   const api = routineApi([{ id: 5, name: 'Read', category: 'reading' }]);
   render(<DailyRoutines />);
   const reading = await screen.findByRole('region', { name: 'Reading routines' });
@@ -681,16 +679,19 @@ test('a unit and target are added later; a set unit stays and only the target ch
   });
   await waitFor(() => expect(within(reading).getByText('pages, target 20')).toBeInTheDocument());
 
-  // Now the unit is fixed text, and clearing the target keeps it.
+  // The unit can change; the form says what happens to recorded amounts.
   fireEvent.click(within(reading).getByRole('button', { name: 'Set the amount of Read' }));
-  expect(within(reading).getByText('Unit: pages')).toBeInTheDocument();
-  expect(within(reading).queryByRole('textbox', { name: 'Unit for Read' })).toBeNull();
+  expect(within(reading).getByText(/Removing the unit hides them/)).toBeInTheDocument();
+  expect(within(reading).getByRole('textbox', { name: 'Unit for Read' })).toHaveValue('pages');
+  fireEvent.change(within(reading).getByRole('textbox', { name: 'Unit for Read' }), {
+    target: { value: 'chapters' },
+  });
   fireEvent.change(within(reading).getByRole('spinbutton', { name: 'Target amount for Read' }), {
     target: { value: '' },
   });
   fireEvent.click(within(reading).getByRole('button', { name: 'Save' }));
-  await waitFor(() => expect(within(reading).getByText('pages')).toBeInTheDocument());
-  expect(api.writes[1].body).toEqual({ unit: 'pages', targetAmount: null });
+  await waitFor(() => expect(within(reading).getByText('chapters')).toBeInTheDocument());
+  expect(api.writes[1].body).toEqual({ unit: 'chapters', targetAmount: null });
 });
 
 test('saving the amount form with nothing set is allowed and cancel closes it (#276)', async () => {

@@ -204,9 +204,9 @@ export const operations: Record<string, Operation> = {
   },
   'PUT /api/routines/:id/amount': {
     summary:
-      'Set the target amount of an active routine, and its unit when it has none; sends the whole setting, so repeating it changes nothing. A unit that is set cannot change (409)',
+      'Set the unit and target amount of an active routine; sends the whole setting, so repeating it changes nothing. Amounts already recorded keep their numbers and are hidden while there is no unit',
     body: ['RoutineAmount', amountInput],
-    status: [200, 400, 404, 409],
+    status: [200, 400, 404],
   },
   'PUT /api/routines/:id/project-link': {
     summary: 'Link a routine to a project, or clear the link with null',

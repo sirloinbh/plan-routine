@@ -1939,7 +1939,7 @@
     },
     "/api/routines/{id}/amount": {
       "put": {
-        "summary": "Set the target amount of an active routine, and its unit when it has none; sends the whole setting, so repeating it changes nothing. A unit that is set cannot change (409)",
+        "summary": "Set the unit and target amount of an active routine; sends the whole setting, so repeating it changes nothing. Amounts already recorded keep their numbers and are hidden while there is no unit",
         "parameters": [
           {
             "name": "id",
@@ -1987,16 +1987,6 @@
           },
           "404": {
             "description": "No target",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Duplicate",
             "content": {
               "application/json": {
                 "schema": {
