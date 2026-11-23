@@ -1,5 +1,5 @@
 {
-  "centralSha": "ccae05a6686cc6faa233c5ba9c4b3afecde71cb1",
+  "centralSha": "56a5a9b6143ca8e8890a365f7d823e7ccebb3592",
   "profile": "app",
   "project": "plan-routine",
   "files": {
@@ -40,17 +40,17 @@
     },
     ".claude/settings.json": {
       "mode": "full",
-      "sha256": "e67554ab7dd656ab57a1690d5a0ef18df592c96c562f482f92beb78045286003",
+      "sha256": "8d51ea098eea6b5e39be4ff909bafb425fa9c5a75c91563770ad123d1db4ce15",
       "source": "templates/common/.claude/settings.json.tmpl"
     },
     ".claude/skills/orca-lanes/SKILL.md": {
       "mode": "full",
-      "sha256": "c82722c8e36622482062325abb0761deb43b7d5b23bc33f5f93d27e973c2612c",
+      "sha256": "ddb86c6a9f8925d93993a8d753b329f63a46d847036eb737fac4c2c5ff803135",
       "source": "templates/common/skills/orca-lanes/SKILL.md"
     },
     ".claude/skills/std-backlog/SKILL.md": {
       "mode": "full",
-      "sha256": "d78c85e0ab7e5cde745e013ab27d62b9cbcb8979012ee2dc5fc7b80f309fb6a4",
+      "sha256": "63535252af86e608e0c4de21ec9f14dbbc4d1133d438c43594829c046816ad46",
       "source": "templates/common/skills/std-backlog/SKILL.md"
     },
     ".claude/skills/std-code-review/SKILL.md": {
@@ -145,7 +145,7 @@
     },
     ".github/workflows/ci.yml": {
       "mode": "full",
-      "sha256": "12b9f18802963fa3821e8984aae1e60fbc849b68d80942d709eb57076ef6b1cb",
+      "sha256": "6bd9fef0b724568d8db83567eaeae7fdf5ef5805cf3da67d9be6936ce87a4976",
       "source": "templates/app/.github/workflows/ci.yml.tmpl"
     },
     ".gitignore": {
@@ -212,6 +212,11 @@
       "mode": "full",
       "sha256": "109f91dba8789a498bd342610e3ebda04662a74b420694efbf2beab8bdbd058d",
       "source": "scripts/lib/render.mjs"
+    },
+    ".standards/license-check.mjs": {
+      "mode": "full",
+      "sha256": "f7981069ea03e4bd0cd0babf366309fde2cc877521532cc18ebf2d3924c59230",
+      "source": "scripts/license-check.mjs"
     },
     ".standards/secret-scan.mjs": {
       "mode": "full",
@@ -1110,12 +1115,12 @@
     },
     "skills/orca-lanes/SKILL.md": {
       "mode": "full",
-      "sha256": "c82722c8e36622482062325abb0761deb43b7d5b23bc33f5f93d27e973c2612c",
+      "sha256": "ddb86c6a9f8925d93993a8d753b329f63a46d847036eb737fac4c2c5ff803135",
       "source": "templates/common/skills/orca-lanes/SKILL.md"
     },
     "skills/std-backlog/SKILL.md": {
       "mode": "full",
-      "sha256": "d78c85e0ab7e5cde745e013ab27d62b9cbcb8979012ee2dc5fc7b80f309fb6a4",
+      "sha256": "63535252af86e608e0c4de21ec9f14dbbc4d1133d438c43594829c046816ad46",
       "source": "templates/common/skills/std-backlog/SKILL.md"
     },
     "skills/std-code-review/SKILL.md": {
