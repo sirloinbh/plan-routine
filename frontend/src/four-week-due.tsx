@@ -41,9 +41,9 @@ export function FourWeekDue() {
               }}
               onSkip={(item, reason) => {
                 setCheckedHere((current) => new Set(current).add(keyOf(item)));
-                void skip(data.date, item, reason);
+                return skip(data.date, item, reason);
               }}
-              onUnskip={(item) => void unskip(data.date, item)}
+              onUnskip={(item) => unskip(data.date, item)}
               onAmount={(item, amount) => void saveAmount(data.date, item, amount)}
             />
           </div>
