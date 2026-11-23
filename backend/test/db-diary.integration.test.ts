@@ -181,7 +181,7 @@ test(
     }),
 );
 
-const scoresMigration = new URL('../../database/migrations/008_diary_scores.sql', import.meta.url);
+const scoresMigration = new URL('../../database/migrations/009_diary_scores.sql', import.meta.url);
 
 test(
   'diary scores migration re-runs safely and the table only accepts scores from 1 to 5',
