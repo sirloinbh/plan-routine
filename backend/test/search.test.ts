@@ -165,6 +165,21 @@ test('skip reasons come back as their own results with the routine name', async 
   );
 });
 
+test('skip reasons need a reason for a text search, but a routine lists every skip as Skipped', async () => {
+  const { pool, queries } = fakePool();
+  await withApi(
+    pool,
+    async (call) => {
+      await call('/api/search?q=knee');
+      assert.match(queries[0].sql, /s\.reason IS NOT NULL/);
+      await call('/api/search?routineId=7');
+      assert.doesNotMatch(queries[1].sql, /s\.reason IS NOT NULL/);
+      assert.match(queries[1].sql, /s\.routine_id = \$1/);
+    },
+    clock,
+  );
+});
+
 test('with a routine, skip reasons are of that routine and left out for the days it was done', async () => {
   const { pool, queries } = fakePool();
   await withApi(
@@ -213,11 +228,28 @@ test('a routine alone also lists its missed days without a diary entry', async (
       assert.deepEqual(queries[0].params, ['2026-10-01', 7, '2026-10-22', 20, 0]);
       assert.match(queries[0].sql, /generate_series/);
       assert.match(queries[0].sql, /NOT EXISTS \(SELECT 1 FROM diary_entries/);
-      // With text, or only the days it was done, the missed days are not asked for.
+      // The missed days follow Records and Stats (dailyRoutineOn: weekday schedule, created, archived) and leave out
+      // the days with a check or a skip.
+      assert.match(queries[0].sql, /routines\.weekdays IS NULL OR EXTRACT\(DOW FROM days\.date\)/);
+      assert.match(
+        queries[0].sql,
+        /NOT EXISTS \(SELECT 1 FROM routine_checks c WHERE c\.routine_id = routines\.id/,
+      );
+      assert.match(
+        queries[0].sql,
+        /NOT EXISTS \(SELECT 1 FROM routine_skips k WHERE k\.routine_id = routines\.id/,
+      );
+      // Diary results of a routine are the entries on those missed days.
+      assert.match(queries[0].sql, /d\.entry_date IN \(SELECT day FROM missed_days\)/);
+      // With text the days still decide the diary results, but no text-less missed-day rows are added.
       await call('/api/search?routineId=7&q=run');
+      assert.match(queries[1].sql, /missed_days/);
+      assert.doesNotMatch(queries[1].sql, /SELECT 'missed'/);
+      // Only the days it was done, or no routine at all: no missed days.
       await call('/api/search?routineId=7&result=done');
       await call('/api/search?q=run');
-      for (const query of queries.slice(1)) assert.doesNotMatch(query.sql, /generate_series/);
+      for (const query of queries.slice(2))
+        assert.doesNotMatch(query.sql, /missed_days|generate_series/);
     },
     clock,
   );
