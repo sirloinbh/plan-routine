@@ -530,9 +530,11 @@ describe('reviewing past periods', () => {
     type('New name for Read a book', 'Name being typed');
     vi.setSystemTime(new Date('2027-01-10T03:00:00Z'));
     api.startNextPeriod('2027-01-10');
+    // Two ticks, as flush() waits: the query layer reports a result one timer tick after it arrives.
     await act(async () => {
       vi.advanceTimersByTime(60_000);
-      await new Promise((resolve) => setTimeout(resolve));
+      await tick();
+      await tick();
     });
     expect(screen.getByText(/set new ones/)).toBeInTheDocument();
     expect(screen.getByRole('group', { name: 'Read a book' })).toBeInTheDocument();
