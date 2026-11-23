@@ -53,6 +53,7 @@ const emptyStats = {
   weekly: [],
   fourWeek: [],
   twelveWeek: [],
+  trend: { weeks: [], fourWeeks: [] },
   items: [],
 };
 

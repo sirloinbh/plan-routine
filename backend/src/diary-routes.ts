@@ -79,12 +79,16 @@ export function diaryRoutes(pool: Pool, today: () => string) {
     );
     // The routines of that day and their checks, to help write the feedback. Read here rather than
     // through /api/checklist, which only answers for recent dates.
-    const routines = await pool.query<{ checked: boolean }>(
+    const routines = await pool.query<{ checked: boolean; skipped: boolean }>(
       `SELECT routines.id, routines.name, routines.category,
          EXISTS (
            SELECT 1 FROM routine_checks
            WHERE routine_checks.routine_id = routines.id AND routine_checks.period_start = $1
-         ) AS checked
+         ) AS checked,
+         EXISTS (
+           SELECT 1 FROM routine_skips
+           WHERE routine_skips.routine_id = routines.id AND routine_skips.period_start = $1
+         ) AS skipped
        FROM routines
        WHERE ${dailyRoutineOn('routines', '$1::date')}
        ORDER BY routines.category, routines.sort_order, routines.id`,
@@ -94,14 +98,16 @@ export function diaryRoutes(pool: Pool, today: () => string) {
       const other = addDays(target, days);
       return dateRangeError(other, current) ? null : other;
     };
+    // A routine skipped that day (#243) is left out of the total, as on the records page and the stats.
+    const counted = routines.rows.filter((routine) => !routine.skipped);
     res.json({
       date: target,
       today: current,
       previousDate: neighbour(-1),
       nextDate: neighbour(1),
       progress: {
-        checked: routines.rows.filter((routine) => routine.checked).length,
-        total: routines.rows.length,
+        checked: counted.filter((routine) => routine.checked).length,
+        total: counted.length,
       },
       routines: routines.rows,
       entry: entry.rows[0] ?? null,

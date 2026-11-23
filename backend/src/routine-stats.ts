@@ -28,20 +28,9 @@ const recentPeriods: Record<Exclude<Cadence, 'daily'>, number> = {
   twelve_week: 4,
 };
 
-/** The earliest date buildStats looks at, so a caller can load no more checks than it needs. */
-export function statsStart(today: string, anchorDate: string) {
-  const longest = (cadence: Exclude<Cadence, 'daily'>) =>
-    previousPeriods(cadence, today, anchorDate, recentPeriods[cadence]).at(-1)!.start;
-  const firstMonth = `${shiftMonth(today.slice(0, 7), 1 - dailyMonths)}-01`;
-  return [
-    firstMonth,
-    addDays(weekStart(today), -7 * (dailyWeeks - 1)),
-    addDays(today, 1 - dailyHistoryDays),
-    longest('weekly'),
-    longest('four_week'),
-    longest('twelve_week'),
-  ].sort()[0];
-}
+// Trend lengths (confirmed on issue #244): 12 weeks and 6 four-week periods.
+const trendWeeks = 12;
+const trendFourWeeks = 6;
 
 // The same rule as "routines of that day" on the records page (day-records.ts), for any period: a
 // check always counts; otherwise the routine must have been there through the end of the period.
@@ -134,6 +123,57 @@ export function buildStats(input: {
       return tally;
     });
 
+  // Completion trend over all daily and weekly routines (and, per four-week period, four-week routines):
+  // a daily routine counts per day, a weekly one per week, so a week's rate is the weekly review's rate.
+  const trendTally = (period: Period, cadences: Cadence[]): PeriodTally => {
+    const tally = { ...period, checked: 0, total: 0 };
+    if (cadences.includes('daily')) {
+      const daily = dailyTally(period.start, period.end);
+      tally.checked += daily.checked;
+      tally.total += daily.total;
+    }
+    if (cadences.includes('weekly'))
+      for (let start = period.start; start <= period.end; start = addDays(start, 7))
+        for (const routine of byCadence('weekly'))
+          addStatus(tally, statusOf(routine, { start, end: addDays(start, 6) }));
+    if (cadences.includes('four_week'))
+      for (const routine of byCadence('four_week')) addStatus(tally, statusOf(routine, period));
+    return tally;
+  };
+  const trend = {
+    weeks: Array.from({ length: trendWeeks }, (_, index) => {
+      const start = addDays(thisWeek, -7 * index);
+      return trendTally({ start, end: addDays(start, 6) }, ['daily', 'weekly']);
+    }),
+    fourWeeks: previousPeriods('four_week', today, anchorDate, trendFourWeeks).map((period) =>
+      trendTally(period, ['daily', 'weekly', 'four_week']),
+    ),
+  };
+
+  // Streaks count periods of the routine's own cadence, oldest to newest, from its first record. Done adds
+  // one, a miss resets, and skipped, not-applicable and the still-open period change nothing (#244). The
+  // open period therefore never breaks a streak, and adds to it once done.
+  const firstRecord = new Map<number, string>();
+  for (const { routineId, periodStart } of [...checks, ...skips])
+    if (periodStart < (firstRecord.get(routineId) ?? '9999-12-31'))
+      firstRecord.set(routineId, periodStart);
+  const streakOf = (routine: StatsRoutine) => {
+    const first = firstRecord.get(routine.id);
+    const from = first && first < routine.createdOn ? first : routine.createdOn;
+    let current = 0;
+    let best = 0;
+    for (
+      let period = periodFor(routine.cadence, from, anchorDate);
+      period.start <= today;
+      period = periodFor(routine.cadence, addDays(period.end, 1), anchorDate)
+    ) {
+      const status = statusOf(routine, period);
+      if (status === 'done') best = Math.max(best, (current += 1));
+      else if (status === 'missed') current = 0;
+    }
+    return { current, best };
+  };
+
   const dailyHistory = days(addDays(today, 1 - dailyHistoryDays), today)
     .reverse()
     .map((date) => ({ start: date, end: date }));
@@ -152,6 +192,7 @@ export function buildStats(input: {
         sortOrder: routine.sortOrder,
         archived: routine.archivedOn !== null,
         ...tally,
+        streak: streakOf(routine),
         periods,
       };
     })
@@ -164,6 +205,7 @@ export function buildStats(input: {
     weekly: groupTally('weekly'),
     fourWeek: groupTally('four_week'),
     twelveWeek: groupTally('twelve_week'),
+    trend,
     items,
   };
 }

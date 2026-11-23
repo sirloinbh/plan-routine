@@ -1,19 +1,14 @@
 import { Router } from 'express';
 import type { Pool } from 'pg';
 
-import {
-  buildStats,
-  type StatsCheck,
-  type StatsRoutine,
-  type StatsSkip,
-  statsStart,
-} from './routine-stats.js';
+import { buildStats, type StatsCheck, type StatsRoutine, type StatsSkip } from './routine-stats.js';
 import { routineAnchorDate } from './routines.js';
 
 export function statsRoutes(pool: Pool, today: () => string) {
   const router = Router();
 
-  // Archived routines are included: their past periods still count (issue #11).
+  // Archived routines are included: their past periods still count (issue #11). All checks and skips are
+  // read, because a best streak can reach back to a routine's first record (#244).
   router.get('/', async (_req, res) => {
     const current = today();
     const anchorDate = await routineAnchorDate(pool, current);
@@ -26,13 +21,11 @@ export function statsRoutes(pool: Pool, today: () => string) {
     );
     const checks = await pool.query<StatsCheck>(
       `SELECT routine_id AS "routineId", period_start AS "periodStart"
-       FROM routine_checks WHERE period_start >= $1`,
-      [statsStart(current, anchorDate)],
+       FROM routine_checks`,
     );
     const skips = await pool.query<StatsSkip>(
       `SELECT routine_id AS "routineId", period_start AS "periodStart"
-       FROM routine_skips WHERE period_start >= $1`,
-      [statsStart(current, anchorDate)],
+       FROM routine_skips`,
     );
     res.json(
       buildStats({
