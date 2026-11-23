@@ -2,6 +2,8 @@
 
 This document is the instruction to hand as it is to the **AI agent that will set up a new web app project** (Claude Code, Codex, and so on). It is written from the development environment actually operated and verified in `sirloinbh/workout-memo`. The agent reads this document from start to end and then proceeds in the order of [11. Bootstrap checklist](#11-bootstrap-checklist).
 
+> **Note for plan-routine (2026-11-24, #289):** this handoff document was written from workout-memo. Its subtree sub-repository parts (section 4.1, the `create-repositories.ps1` and `push-repositories.ps1` scripts, per-sub-repository lock files and CI in sections 5.2 and 7.3 and the bootstrap steps) are **historical and do not apply here**. plan-routine is a single repository with one root `package-lock.json` (ADR-0022) and has no subtree sync.
+
 - Reference date: 2026-10-19 (Asia/Seoul). The version numbers are values whose real behavior was confirmed on that day. When you start a new project, check the official support status again, and record the reason if you change one.
 - Notation: **[Currently applied]** means installed and in use in workout-memo, and **[Recommended, not adopted]** means only reviewed and not yet installed. Do not treat a tool that is not adopted as if it were installed.
 
