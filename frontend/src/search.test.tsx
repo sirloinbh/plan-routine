@@ -159,6 +159,30 @@ test('a skip reason shows the routine and the reason, links to its day and has n
   expect(within(diary).getByText(/Show the whole entry/)).toBeVisible();
 });
 
+test('a skip without a reason reads only "Skipped <routine>" and links to its day', async () => {
+  api({
+    results: [
+      {
+        kind: 'skip',
+        date: '2026-10-21',
+        field: 'skipReason',
+        snippet: '',
+        routineId: 7,
+        routineName: 'Morning run',
+      },
+    ],
+  });
+  renderSearch();
+  await flush();
+  fireEvent.change(screen.getByLabelText('Daily routine'), { target: { value: '7' } });
+  submit();
+  await flush();
+  const [item] = screen.getAllByRole('listitem').filter((entry) => entry.querySelector('h3'));
+  expect(within(item).getByText('Skipped Morning run')).toBeVisible();
+  expect(item).not.toHaveTextContent('Skipped Morning run:');
+  expect(within(item).getByRole('link', { name: 'October 21, 2026' })).toBeVisible();
+});
+
 test('a missed day with no entry says which routine was missed and links to its day', async () => {
   api({
     results: [
