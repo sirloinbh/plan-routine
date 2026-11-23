@@ -1,5 +1,5 @@
 {
-  "centralSha": "6d9f613629d131a59f736aefdd02f80ec829817b",
+  "centralSha": "740b5e1d7ec66e943793aec58c40493d5ce0228e",
   "profile": "app",
   "project": "plan-routine",
   "files": {
@@ -180,7 +180,7 @@
     },
     ".standards/check.mjs": {
       "mode": "full",
-      "sha256": "173364dd454da9a5a772d7a597391b2e5a760d1f3907bf73d6b1c6faa486ee6a",
+      "sha256": "b0a0d20637413cf230985cd4d0e1a9f5088429ac1a74477885fc6b2667039704",
       "source": "scripts/standards-check.mjs"
     },
     ".standards/ci-migrate.sh": {
@@ -190,7 +190,7 @@
     },
     ".standards/ioc-scan.mjs": {
       "mode": "full",
-      "sha256": "1fdedfb197f82a9e97a6f2282d48b693f0a5bc8d20f6fb34c88075fd342b1ed0",
+      "sha256": "41549001c629ee094d306f236be2995f3beb8e8c79498bd1cd4ab25513125aca",
       "source": "scripts/ioc-scan.mjs"
     },
     ".standards/lib/env-tags.mjs": {
@@ -215,7 +215,7 @@
     },
     ".standards/secret-scan.mjs": {
       "mode": "full",
-      "sha256": "951b4e75e5515818717413a0ed03e94d8224a7f89ba4af7f2399a66860cd1b9e",
+      "sha256": "48f48ff10dea0e4f42518141e601e7d2d6f8f6dcfe7a4bd6192d01e1f37e9d30",
       "source": "scripts/secret-scan.mjs"
     },
     ".vscode/extensions.json": {
@@ -365,7 +365,7 @@
     },
     "deploy/backup.sh": {
       "mode": "full",
-      "sha256": "92ed5467984411aea03ba88859d9cc23c61a2d9cae72892868c2ddb6f8e654e3",
+      "sha256": "acaa45e4315af95105fcbf9d316a7bc036f0d9ce2b46104a2d380c51ac9f27d8",
       "source": "templates/deploy/deploy/backup.sh.tmpl"
     },
     "deploy/backup.timer": {
@@ -470,7 +470,7 @@
     },
     "frontend/nginx.conf": {
       "mode": "full",
-      "sha256": "24cd8efb685a82f5efbeacfc64ce3881ade112f05212f48fea91c870121ba054",
+      "sha256": "f38c812d50dbeeca255dd2f126c434682170df134c3504f6c91fc412a128d919",
       "source": "templates/app/frontend/nginx.conf.tmpl"
     },
     "frontend/package.json": {
