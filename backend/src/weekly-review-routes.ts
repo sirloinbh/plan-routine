@@ -8,7 +8,8 @@ import type { StatsCheck } from './routine-stats.js';
 import { HttpError } from './standard/http.js';
 import { buildWeeklyReview, type ReviewRoutine } from './weekly-review.js';
 
-const earliestDate = '2000-01-01';
+// The first week is the one holding 2000-01-01 (it starts on 1999-12-26), so every day of it has a place.
+const earliestWeek = weekStart('2000-01-01');
 const noteLimit = 1000;
 
 // A blank note is the same as no note. Not .min()/.max(): those also run on a non-string with a length.
@@ -42,7 +43,7 @@ export function weeklyReviewRoutes(pool: Pool, today: () => string) {
     const current = today();
     const thisWeek = weekStart(current);
     const start = weekStart(week ?? current);
-    if (start < earliestDate) throw new HttpError(400, `The week cannot be before ${earliestDate}`);
+    if (start < earliestWeek) throw new HttpError(400, `The week cannot be before ${earliestWeek}`);
     if (start > thisWeek)
       throw new HttpError(400, 'A week that has not started cannot be reviewed');
     const end = addDays(start, 6);
@@ -65,7 +66,7 @@ export function weeklyReviewRoutes(pool: Pool, today: () => string) {
     res.json({
       today: current,
       week: { start, end },
-      previousWeek: start > weekStart(earliestDate) ? addDays(start, -7) : null,
+      previousWeek: start > earliestWeek ? addDays(start, -7) : null,
       nextWeek: start < thisWeek ? addDays(start, 7) : null,
       ...buildWeeklyReview({
         weekStart: start,
@@ -81,7 +82,7 @@ export function weeklyReviewRoutes(pool: Pool, today: () => string) {
     const { week } = reviewParams.parse(req.params);
     const { wentWell, toChange } = reviewInput.parse(requestBody(req.body));
     if (weekStart(week) !== week) throw new HttpError(400, 'The week must start on a Sunday');
-    if (week < earliestDate) throw new HttpError(400, `The week cannot be before ${earliestDate}`);
+    if (week < earliestWeek) throw new HttpError(400, `The week cannot be before ${earliestWeek}`);
     if (week > weekStart(today()))
       throw new HttpError(400, 'A week that has not started cannot be reviewed');
     const { rows } = await pool.query(

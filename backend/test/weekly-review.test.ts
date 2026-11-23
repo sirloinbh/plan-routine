@@ -164,6 +164,11 @@ test('GET refuses a bad date, a future week and a week before 2000', async () =>
       assert.equal(future.status, 400);
       assert.equal(future.data.error, 'A week that has not started cannot be reviewed');
       assert.equal((await call('/api/weekly-review?week=1999-12-01')).status, 400);
+      // The week holding 2000-01-01 is the first one and has nothing before it.
+      const first = await call('/api/weekly-review?week=2000-01-01');
+      assert.equal(first.status, 200);
+      assert.deepEqual(first.data.week, { start: '1999-12-26', end: '2000-01-01' });
+      assert.equal(first.data.previousWeek, null);
     },
     clock,
   );
