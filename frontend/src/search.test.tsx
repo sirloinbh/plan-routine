@@ -6,9 +6,16 @@ import { Search } from './search';
 import { getLive } from './test/live';
 import { render } from './test/render';
 
-const result = (date: string, snippet: string, field = 'body') => ({ date, field, snippet });
+const result = (date: string, snippet: string, field = 'body') => ({
+  kind: 'diary',
+  date,
+  field,
+  snippet,
+});
 
-function api(options: { total?: number; fail?: boolean } = {}) {
+function api(
+  options: { total?: number; fail?: boolean; results?: Record<string, unknown>[] } = {},
+) {
   const urls: string[] = [];
   const reply = (status: number, value: unknown) =>
     Promise.resolve({ ok: status < 400, status, json: () => Promise.resolve(value) });
@@ -35,9 +42,10 @@ function api(options: { total?: number; fail?: boolean } = {}) {
         offset,
         total,
         results:
-          total === 0
+          options.results ??
+          (total === 0
             ? []
-            : [result('2026-10-20', '…late coffee…'), result('2026-10-10', 'Slept', 'goodNote')],
+            : [result('2026-10-20', '…late coffee…'), result('2026-10-10', 'Slept', 'goodNote')]),
       });
     }),
   );
@@ -82,7 +90,7 @@ test('a search sends the filters and lists dates, fields and snippets newest fir
   expect(searchCalls(urls)).toEqual([
     '/api/search?q=coffee&from=2026-10-01&to=2026-10-21&limit=20&offset=0',
   ]);
-  expect(screen.getByRole('heading', { name: '2 entries, newest first' })).toBeVisible();
+  expect(screen.getByRole('heading', { name: '2 results, newest first' })).toBeVisible();
   const items = screen.getAllByRole('listitem').filter((item) => item.querySelector('h3'));
   expect(items.map((item) => item.querySelector('h3')?.textContent)).toEqual([
     'October 20, 2026',
@@ -119,6 +127,36 @@ test('each result date links to that day on the Records page', async () => {
     'href',
     '/records?date=2026-10-10',
   );
+});
+
+test('a skip reason shows the routine and the reason, links to its day and has no entry panel', async () => {
+  api({
+    results: [
+      {
+        kind: 'skip',
+        date: '2026-10-21',
+        field: 'skipReason',
+        snippet: 'Knee hurts',
+        routineId: 7,
+        routineName: 'Morning run',
+      },
+      result('2026-10-21', 'Rested the knee'),
+    ],
+  });
+  renderSearch();
+  await flush();
+  fireEvent.change(screen.getByLabelText('Search text'), { target: { value: 'knee' } });
+  submit();
+  await flush();
+  const [skip, diary] = screen.getAllByRole('listitem').filter((item) => item.querySelector('h3'));
+  expect(within(skip).getByText('Skipped Morning run:')).toBeVisible();
+  expect(within(skip).getByText('Knee hurts')).toBeVisible();
+  expect(within(skip).getByRole('link', { name: 'October 21, 2026' })).toHaveAttribute(
+    'href',
+    '/records?date=2026-10-21',
+  );
+  expect(within(skip).queryByText(/Show the whole entry/)).not.toBeInTheDocument();
+  expect(within(diary).getByText(/Show the whole entry/)).toBeVisible();
 });
 
 test('a routine filter sends the routine and the chosen result', async () => {
