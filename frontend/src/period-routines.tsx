@@ -64,6 +64,8 @@ export function PeriodRoutines({
               title={periodName}
               items={data.items}
               onToggle={(item) => void checklist.toggle(data.date, item)}
+              onSkip={(item, reason) => void checklist.skip(data.date, item, reason)}
+              onUnskip={(item) => void checklist.unskip(data.date, item)}
             />
           )}
         </div>

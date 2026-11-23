@@ -12,7 +12,7 @@ function fakePool(routine: { cadence: string } | null = { cadence: 'daily' }) {
   const query = async (sql: string, params: unknown[] = []) => {
     queries.push({ sql, params });
     if (sql.includes('app_settings')) return { rows: [{ value: '2026-10-18' }] };
-    if (sql.includes('FOR SHARE')) return { rows: routine ? [routine] : [] };
+    if (sql.includes('FOR UPDATE')) return { rows: routine ? [routine] : [] };
     if (sql.includes('EXISTS')) return { rows: [wake] };
     return { rows: [] };
   };

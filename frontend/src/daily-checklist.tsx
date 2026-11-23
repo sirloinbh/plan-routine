@@ -12,7 +12,8 @@ import { useChecklist } from './use-checklist';
 type DailyItem = Routine & ChecklistItem;
 
 export function DailyChecklist() {
-  const { data, loadFailed, notice, toggle, moveTo, retry } = useChecklist<DailyItem>('daily');
+  const { data, loadFailed, notice, toggle, skip, unskip, moveTo, retry } =
+    useChecklist<DailyItem>('daily');
   const { heading, expectMove } = useDateHeading(data?.date);
 
   const go = (target: string | null) => {
@@ -81,6 +82,8 @@ export function DailyChecklist() {
               title={group.label}
               items={group.routines}
               onToggle={(item) => void toggle(data.date, item)}
+              onSkip={(item, reason) => void skip(data.date, item, reason)}
+              onUnskip={(item) => void unskip(data.date, item)}
             />
           ))}
         </div>

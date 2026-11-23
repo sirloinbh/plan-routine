@@ -1,7 +1,13 @@
 import { Router } from 'express';
 import type { Pool } from 'pg';
 
-import { buildStats, type StatsCheck, type StatsRoutine, statsStart } from './routine-stats.js';
+import {
+  buildStats,
+  type StatsCheck,
+  type StatsRoutine,
+  type StatsSkip,
+  statsStart,
+} from './routine-stats.js';
 import { routineAnchorDate } from './routines.js';
 
 export function statsRoutes(pool: Pool, today: () => string) {
@@ -23,12 +29,18 @@ export function statsRoutes(pool: Pool, today: () => string) {
        FROM routine_checks WHERE period_start >= $1`,
       [statsStart(current, anchorDate)],
     );
+    const skips = await pool.query<StatsSkip>(
+      `SELECT routine_id AS "routineId", period_start AS "periodStart"
+       FROM routine_skips WHERE period_start >= $1`,
+      [statsStart(current, anchorDate)],
+    );
     res.json(
       buildStats({
         today: current,
         anchorDate,
         routines: routines.rows,
         checks: checks.rows,
+        skips: skips.rows,
       }),
     );
   });

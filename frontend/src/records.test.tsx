@@ -39,6 +39,7 @@ function recordsApi() {
       routines: [
         routine('1', 'Wake at 6', 'wake', true),
         routine('2', 'Routine from then', 'exercise', false, true),
+        { ...routine('3', 'Squats', 'exercise', false), skipped: true, skipReason: 'Knee hurts' },
       ],
       diary: {
         body: 'A good day',
@@ -193,6 +194,10 @@ test('a chosen day shows its checks, archived routines and diary', async () => {
   expect(items[1]).toContain('Routine from then');
   expect(items[1]).toContain('Not done');
   expect(items[1]).toContain('Archived');
+  // A skipped routine is shown as skipped with its reason, and is not in the 1/2 above.
+  expect(items[2]).toContain('Squats');
+  expect(items[2]).toContain('Skipped');
+  expect(items[2]).toContain('Reason: Knee hurts');
   expect(within(record).getByText('A good day')).toBeInTheDocument();
   expect(within(record).getByText('Woke up early')).toBeInTheDocument();
   expect(within(record).queryByText('What could be better')).not.toBeInTheDocument();

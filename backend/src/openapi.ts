@@ -4,7 +4,7 @@
 import { z } from 'zod/v4';
 
 import { periodsQuery } from './app.js';
-import { checklistQuery } from './check-routes.js';
+import { checklistQuery, skipInput } from './check-routes.js';
 import { diaryInput, diaryQuery } from './diary-routes.js';
 import { goalInput, reviewsInput, routineLinksInput } from './goal-routes.js';
 import { projectInput } from './project-link-routes.js';
@@ -42,13 +42,27 @@ export const operations: Record<string, Operation> = {
   'PUT /api/routines/:id/checks/:date': {
     params: { date: z.iso.date() },
     summary:
-      'Check a routine for the period holding a date; repeating it changes nothing. Only today and the 7 days before it can change',
-    status: [200, 400, 404],
+      'Check a routine for the period holding a date; repeating it changes nothing. A skipped period cannot be checked (409). Only today and the 7 days before it can change',
+    status: [200, 400, 404, 409],
   },
   'DELETE /api/routines/:id/checks/:date': {
     params: { date: z.iso.date() },
     summary:
       'Uncheck a routine for the period holding a date; repeating it changes nothing. Only today and the 7 days before it can change',
+    status: [200, 400, 404],
+  },
+
+  'PUT /api/routines/:id/skips/:date': {
+    params: { date: z.iso.date() },
+    body: ['Skip', skipInput],
+    summary:
+      'Skip a routine for the period holding a date, with an optional reason of up to 200 characters; repeating it replaces the reason. A checked period cannot be skipped (409). Only today and the 7 days before it can change',
+    status: [200, 400, 404, 409],
+  },
+  'DELETE /api/routines/:id/skips/:date': {
+    params: { date: z.iso.date() },
+    summary:
+      'Remove the skip of a routine for the period holding a date; repeating it changes nothing. Only today and the 7 days before it can change',
     status: [200, 400, 404],
   },
 

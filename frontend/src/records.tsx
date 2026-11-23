@@ -23,7 +23,12 @@ type MonthData = {
   nextMonth: string | null;
   days: DaySummary[];
 };
-type DayRoutine = Routine & { checked: boolean; archived: boolean };
+type DayRoutine = Routine & {
+  checked: boolean;
+  archived: boolean;
+  skipped?: boolean;
+  skipReason?: string | null;
+};
 type DayData = {
   date: string;
   today: string;
@@ -161,15 +166,20 @@ function DayDetail({ day }: { day: DayData }) {
                           className="flex flex-wrap items-center gap-2 text-body-sm"
                         >
                           <span aria-hidden className="shrink-0">
-                            {routine.checked ? '✓' : '·'}
+                            {routine.checked ? '✓' : routine.skipped ? '–' : '·'}
                           </span>
                           <span className="min-w-0 flex-1 basis-40 wrap-anywhere">
                             {routine.name}
                           </span>
                           <span className="text-caption text-muted-foreground">
-                            {routine.checked ? 'Done' : 'Not done'}
+                            {routine.checked ? 'Done' : routine.skipped ? 'Skipped' : 'Not done'}
                           </span>
                           {routine.archived && <Badge variant="secondary">Archived</Badge>}
+                          {routine.skipped && routine.skipReason && (
+                            <span className="basis-full pl-5 text-caption wrap-anywhere text-muted-foreground">
+                              Reason: {routine.skipReason}
+                            </span>
+                          )}
                         </li>
                       ))}
                     </ul>
