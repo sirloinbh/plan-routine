@@ -424,7 +424,7 @@
     },
     "/api/diary": {
       "get": {
-        "summary": "Get the diary entry of a day (or null) with the routine progress of that day",
+        "summary": "Get the diary entry of a day (or null) with the daily routines of that day and whether each was checked",
         "parameters": [
           {
             "name": "date",
@@ -610,6 +610,36 @@
           },
           "503": {
             "description": "The shared sign-in service is unavailable or not configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mood-stats": {
+      "get": {
+        "summary": "Get the weekly average mood and energy scores of the last 12 weeks next to the daily routine completion of the same weeks",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Sign-in required (no session from the shared sign-in)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests",
             "content": {
               "application/json": {
                 "schema": {
@@ -1671,6 +1701,18 @@
           "tomorrowNote": {
             "type": [
               "string",
+              "null"
+            ]
+          },
+          "mood": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "energy": {
+            "type": [
+              "number",
               "null"
             ]
           }

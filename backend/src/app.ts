@@ -8,6 +8,7 @@ import { tools } from './ai-tools.js';
 import { checkRoutes } from './check-routes.js';
 import { diaryRoutes } from './diary-routes.js';
 import { goalRoutes } from './goal-routes.js';
+import { moodStatsRoutes } from './mood-stats-routes.js';
 import { calendarDate, periodsFor } from './periods.js';
 import { projectLinkRoutes } from './project-link-routes.js';
 import { recordRoutes } from './record-routes.js';
@@ -54,6 +55,7 @@ export function createApp(
   app.use('/api', checkRoutes(pool, today));
   app.use('/api/diary', diaryRoutes(pool, today));
   app.use('/api/goals', goalRoutes(pool, today));
+  app.use('/api/mood-stats', moodStatsRoutes(pool, today));
   app.use('/api/project-links', projectLinkRoutes(pool));
   app.use('/api/records', recordRoutes(pool, today));
   app.use('/api/stats', statsRoutes(pool, today));

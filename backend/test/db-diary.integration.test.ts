@@ -163,3 +163,36 @@ test(
       }
     }),
 );
+
+const scoresMigration = new URL('../../database/migrations/008_diary_scores.sql', import.meta.url);
+
+test(
+  'diary scores migration re-runs safely and the table only accepts scores from 1 to 5',
+  { skip: !url, timeout: 30_000 },
+  () =>
+    withClient(async (client) => {
+      await client.query(readFileSync(scoresMigration, 'utf8'));
+      await client.query(readFileSync(scoresMigration, 'utf8'));
+      const insert = (mood: string, energy: string) =>
+        client.query(
+          `INSERT INTO diary_entries (entry_date, body, mood, energy) VALUES ('2001-02-03', 'a', ${mood}, ${energy})`,
+        );
+      for (const [mood, energy] of [
+        ['0', 'NULL'],
+        ['NULL', '6'],
+      ]) {
+        await client.query('BEGIN');
+        try {
+          await assert.rejects(insert(mood, energy), { code: '23514' });
+        } finally {
+          await client.query('ROLLBACK');
+        }
+      }
+      await client.query('BEGIN');
+      try {
+        await insert('1', '5');
+      } finally {
+        await client.query('ROLLBACK');
+      }
+    }),
+);

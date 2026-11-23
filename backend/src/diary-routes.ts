@@ -12,7 +12,7 @@ import { HttpError } from './standard/http.js';
 const earliestDate = '2000-01-01';
 
 export const entryColumns = `entry_date AS date, body, good_note AS "goodNote",
-  regret_note AS "regretNote", tomorrow_note AS "tomorrowNote"`;
+  regret_note AS "regretNote", tomorrow_note AS "tomorrowNote", mood, energy`;
 
 export const diaryQuery = z.object({ date: calendarDate.optional() });
 const diaryParams = z.object({ date: calendarDate });
@@ -28,6 +28,15 @@ const diaryNote = (label: string) =>
     .nullish()
     .transform((value) => value || null);
 
+// A score is a whole number from 1 to 5, or none. Checked in steps so each case has its own message.
+const diaryScore = (label: string) =>
+  z
+    .number({ error: `${label} must be a number from 1 to 5` })
+    .refine(Number.isInteger, `${label} must be a whole number from 1 to 5`)
+    .refine((value) => value >= 1 && value <= 5, `${label} must be from 1 to 5`)
+    .nullish()
+    .transform((value) => value ?? null);
+
 export const diaryInput = z.object(
   {
     body: z
@@ -42,6 +51,8 @@ export const diaryInput = z.object(
     goodNote: diaryNote('Good points'),
     regretNote: diaryNote('Regrets'),
     tomorrowNote: diaryNote("Tomorrow's tasks"),
+    mood: diaryScore('Mood'),
+    energy: diaryScore('Energy'),
   },
   badRequest,
 );
@@ -66,14 +77,17 @@ export function diaryRoutes(pool: Pool, today: () => string) {
       `SELECT ${entryColumns} FROM diary_entries WHERE entry_date = $1`,
       [target],
     );
-    // The routines of that day and their checks, to help write the feedback. Counted here rather
-    // than through /api/checklist, which only answers for recent dates.
-    const progress = await pool.query<{ checked: number; total: number }>(
-      `SELECT count(routine_checks.routine_id)::int AS checked, count(*)::int AS total
+    // The routines of that day and their checks, to help write the feedback. Read here rather than
+    // through /api/checklist, which only answers for recent dates.
+    const routines = await pool.query<{ checked: boolean }>(
+      `SELECT routines.id, routines.name, routines.category,
+         EXISTS (
+           SELECT 1 FROM routine_checks
+           WHERE routine_checks.routine_id = routines.id AND routine_checks.period_start = $1
+         ) AS checked
        FROM routines
-       LEFT JOIN routine_checks
-         ON routine_checks.routine_id = routines.id AND routine_checks.period_start = $1
-       WHERE ${dailyRoutineOn('routines', '$1::date')}`,
+       WHERE ${dailyRoutineOn('routines', '$1::date')}
+       ORDER BY routines.category, routines.sort_order, routines.id`,
       [target],
     );
     const neighbour = (days: number) => {
@@ -85,7 +99,11 @@ export function diaryRoutes(pool: Pool, today: () => string) {
       today: current,
       previousDate: neighbour(-1),
       nextDate: neighbour(1),
-      progress: progress.rows[0],
+      progress: {
+        checked: routines.rows.filter((routine) => routine.checked).length,
+        total: routines.rows.length,
+      },
+      routines: routines.rows,
       entry: entry.rows[0] ?? null,
     });
   });
@@ -97,16 +115,26 @@ export function diaryRoutes(pool: Pool, today: () => string) {
     if (rangeError) throw new HttpError(400, rangeError);
     const input = diaryInput.parse(requestBody(req.body));
     const { rows } = await pool.query(
-      `INSERT INTO diary_entries (entry_date, body, good_note, regret_note, tomorrow_note)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO diary_entries (entry_date, body, good_note, regret_note, tomorrow_note, mood, energy)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        ON CONFLICT (entry_date) DO UPDATE SET
          body = EXCLUDED.body,
          good_note = EXCLUDED.good_note,
          regret_note = EXCLUDED.regret_note,
          tomorrow_note = EXCLUDED.tomorrow_note,
+         mood = EXCLUDED.mood,
+         energy = EXCLUDED.energy,
          updated_at = now()
        RETURNING ${entryColumns}`,
-      [date, input.body, input.goodNote, input.regretNote, input.tomorrowNote],
+      [
+        date,
+        input.body,
+        input.goodNote,
+        input.regretNote,
+        input.tomorrowNote,
+        input.mood,
+        input.energy,
+      ],
     );
     res.json({ entry: rows[0] });
   });

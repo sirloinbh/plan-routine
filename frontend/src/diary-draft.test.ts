@@ -3,7 +3,14 @@ import { afterEach, expect, test, vi } from 'vitest';
 
 import { type DiaryDraft, type DiaryForm, draftKey, readDraft, useDiaryDraft } from './diary-draft';
 
-const empty: DiaryForm = { body: '', goodNote: '', regretNote: '', tomorrowNote: '' };
+const empty: DiaryForm = {
+  body: '',
+  goodNote: '',
+  regretNote: '',
+  tomorrowNote: '',
+  mood: null,
+  energy: null,
+};
 const typed: DiaryForm = { ...empty, body: 'Unsaved text' };
 const day = '2026-10-22';
 
@@ -89,4 +96,20 @@ test('leaving is warned about only when unsaved text could not be kept', () => {
   });
   setup({ date: day, form: { ...typed, body: 'Refused' }, savedForm: empty });
   expect(unload()).toBe(true);
+});
+
+test('a draft stored before the scores existed reads as having no score', () => {
+  const old = { body: 'Old', goodNote: '', regretNote: '', tomorrowNote: '' };
+  localStorage.setItem(draftKey, JSON.stringify({ date: day, form: old, base: old }));
+  expect(readDraft()).toEqual({
+    date: day,
+    form: { ...old, mood: null, energy: null },
+    base: { ...old, mood: null, energy: null },
+  });
+});
+
+test('a draft with a score outside 1 to 5 is ignored', () => {
+  const form = { ...empty, mood: 9 };
+  localStorage.setItem(draftKey, JSON.stringify({ date: day, form, base: empty }));
+  expect(readDraft()).toBeNull();
 });
