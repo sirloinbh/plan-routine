@@ -13,6 +13,8 @@ type Entry = {
   goodNote: string | null;
   regretNote: string | null;
   tomorrowNote: string | null;
+  mood?: number | null;
+  energy?: number | null;
 };
 
 const today = '2026-10-22';
@@ -26,10 +28,14 @@ const refused = (path: string, message: string) => ({
 
 function diaryApi(seed: Entry[] = []) {
   const entries = new Map(seed.map((entry) => [entry.date, entry]));
-  const writes: { path: string; body: Record<string, string> }[] = [];
+  const writes: { path: string; body: Record<string, string | number | null> }[] = [];
   let failNextLoad = false;
   let failNextSave = false;
   let progress = { checked: 2, total: 5 };
+  let routines = [
+    { id: 1, name: 'Wake at 6', category: 'wake', checked: true },
+    { id: 2, name: 'Stretch', category: 'evening', checked: false },
+  ];
   let heldLoad: (() => void) | null = null;
   let holdNextLoad = false;
   let heldSave: (() => void) | null = null;
@@ -57,6 +63,7 @@ function diaryApi(seed: Entry[] = []) {
           previousDate: shift(date, -1),
           nextDate: date < today ? shift(date, 1) : null,
           progress,
+          routines,
           entry: entries.get(date) ?? null,
         });
         if (!holdNextLoad) return response;
@@ -65,7 +72,10 @@ function diaryApi(seed: Entry[] = []) {
           heldLoad = () => resolve(response);
         });
       }
-      const body = JSON.parse(String(init?.body)) as Record<string, string>;
+      const body = JSON.parse(String(init?.body)) as Record<string, string> & {
+        mood: number | null;
+        energy: number | null;
+      };
       writes.push({ path: url, body });
       if (failNextSave) {
         failNextSave = false;
@@ -93,6 +103,8 @@ function diaryApi(seed: Entry[] = []) {
         goodNote: body.goodNote.trim() || null,
         regretNote: body.regretNote.trim() || null,
         tomorrowNote: body.tomorrowNote.trim() || null,
+        mood: body.mood,
+        energy: body.energy,
       };
       entries.set(date, entry);
       const response = reply(200, { entry });
@@ -107,6 +119,7 @@ function diaryApi(seed: Entry[] = []) {
     writes,
     failNextLoad: () => (failNextLoad = true),
     failNextSave: () => (failNextSave = true),
+    setRoutines: (value: typeof routines) => (routines = value),
     setProgress: (value: { checked: number; total: number }) => (progress = value),
     holdNextLoad: () => (holdNextLoad = true),
     releaseLoad: () => heldLoad?.(),
@@ -195,6 +208,60 @@ describe('showing and saving an entry', () => {
     expect(screen.getByText(/Daily routines/i)).toHaveTextContent('Daily routines 1/3 done');
   });
 
+  test("lists the day's routines as done or not done, read-only", async () => {
+    diaryApi();
+    render(<Diary />);
+    await field('Looking back on the day');
+    const region = screen.getByRole('region', { name: 'Checks for this day' });
+    const items = within(region).getAllByRole('listitem');
+    expect(items[0]).toHaveTextContent('Wake at 6');
+    expect(items[0]).toHaveTextContent('Done');
+    expect(items[1]).toHaveTextContent('Stretch');
+    expect(items[1]).toHaveTextContent('Not done');
+    expect(within(region).queryByRole('button')).not.toBeInTheDocument();
+  });
+
+  test('a day without routines shows no checks section', async () => {
+    const api = diaryApi();
+    api.setRoutines([]);
+    render(<Diary />);
+    await field('Looking back on the day');
+    expect(screen.queryByRole('region', { name: 'Checks for this day' })).not.toBeInTheDocument();
+  });
+
+  test('mood and energy scores are saved, reload with the day and can be cleared', async () => {
+    const api = diaryApi();
+    render(<Diary />);
+    await type('Looking back on the day', 'Text');
+    const mood = screen.getByRole('group', { name: 'Mood (optional)' });
+    const energy = screen.getByRole('group', { name: 'Energy (optional)' });
+    expect(within(mood).getAllByRole('radio')).toHaveLength(5);
+    fireEvent.click(within(mood).getByRole('radio', { name: '4' }));
+    fireEvent.click(within(energy).getByRole('radio', { name: '2' }));
+    expect(screen.getByText('You have unsaved changes')).toBeInTheDocument();
+    press('Save');
+    await flush();
+    expect(api.writes[0].body).toMatchObject({ mood: 4, energy: 2 });
+    expect(within(mood).getByRole('radio', { name: '4' })).toBeChecked();
+    fireEvent.click(within(mood).getByRole('button', { name: /Clear/ }));
+    expect(within(mood).getByRole('radio', { name: '4' })).not.toBeChecked();
+    press('Save');
+    await flush();
+    expect(api.writes[1].body).toMatchObject({ mood: null, energy: 2 });
+  });
+
+  test('discarding puts the saved scores back', async () => {
+    diaryApi([{ ...saved, mood: 3, energy: null }]);
+    render(<Diary />);
+    await field('Looking back on the day');
+    const mood = screen.getByRole('group', { name: 'Mood (optional)' });
+    expect(within(mood).getByRole('radio', { name: '3' })).toBeChecked();
+    fireEvent.click(within(mood).getByRole('radio', { name: '5' }));
+    press('Discard');
+    press('Confirm discard');
+    expect(within(mood).getByRole('radio', { name: '3' })).toBeChecked();
+  });
+
   test('saving sends every field and keeps the text after a reload', async () => {
     const api = diaryApi();
     const { unmount } = render(<Diary />);
@@ -211,6 +278,8 @@ describe('showing and saving an entry', () => {
           goodNote: 'Woke up early',
           regretNote: '',
           tomorrowNote: '',
+          mood: null,
+          energy: null,
         },
       },
     ]);

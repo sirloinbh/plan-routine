@@ -55,7 +55,8 @@ export const operations: Record<string, Operation> = {
   },
 
   'GET /api/diary': {
-    summary: 'Get the diary entry of a day (or null) with the routine progress of that day',
+    summary:
+      'Get the diary entry of a day (or null) with the daily routines of that day and whether each was checked',
     query: diaryQuery,
     status: [200, 400],
   },
@@ -124,6 +125,11 @@ export const operations: Record<string, Operation> = {
     status: [200],
   },
 
+  'GET /api/mood-stats': {
+    summary:
+      'Get the weekly average mood and energy scores of the last 12 weeks next to the daily routine completion of the same weeks',
+    status: [200],
+  },
   'GET /api/weekly-review': {
     summary:
       'Get the completion rate of daily and weekly routines for a week, its most-missed routines and the two notes; the week is the one holding the date, this week when omitted',

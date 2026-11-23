@@ -64,7 +64,24 @@ test(
               goodNote: 'Good points',
               regretNote: null,
               tomorrowNote: null,
+              mood: null,
+              energy: null,
             });
+
+            // Scores save and reload, and saving without them clears them.
+            const scored = await call(path, {
+              method: 'PUT',
+              body: { body: 'Scored', mood: 4, energy: 1 },
+            });
+            assert.equal(scored.status, 200);
+            const scoredAgain = await call('/api/diary?date=2026-10-22');
+            assert.deepEqual(
+              [
+                (scoredAgain.data.entry as { mood: number }).mood,
+                (scoredAgain.data.entry as { energy: number }).energy,
+              ],
+              [4, 1],
+            );
 
             const second = await call(path, { method: 'PUT', body: { body: 'Edited text' } });
             assert.equal(second.status, 200);
@@ -160,6 +177,39 @@ test(
             anchorSettingKey,
             original.rows[0].value,
           ]);
+      }
+    }),
+);
+
+const scoresMigration = new URL('../../database/migrations/009_diary_scores.sql', import.meta.url);
+
+test(
+  'diary scores migration re-runs safely and the table only accepts scores from 1 to 5',
+  { skip: !url, timeout: 30_000 },
+  () =>
+    withClient(async (client) => {
+      await client.query(readFileSync(scoresMigration, 'utf8'));
+      await client.query(readFileSync(scoresMigration, 'utf8'));
+      const insert = (mood: string, energy: string) =>
+        client.query(
+          `INSERT INTO diary_entries (entry_date, body, mood, energy) VALUES ('2001-02-03', 'a', ${mood}, ${energy})`,
+        );
+      for (const [mood, energy] of [
+        ['0', 'NULL'],
+        ['NULL', '6'],
+      ]) {
+        await client.query('BEGIN');
+        try {
+          await assert.rejects(insert(mood, energy), { code: '23514' });
+        } finally {
+          await client.query('ROLLBACK');
+        }
+      }
+      await client.query('BEGIN');
+      try {
+        await insert('1', '5');
+      } finally {
+        await client.query('ROLLBACK');
       }
     }),
 );
