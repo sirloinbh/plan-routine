@@ -10,6 +10,7 @@ import { goalInput, reviewsInput, routineLinksInput } from './goal-routes.js';
 import { projectInput } from './project-link-routes.js';
 import { monthQuery } from './record-routes.js';
 import {
+  amountInput,
   listQuery as routineListQuery,
   moveInput,
   projectLinkInput,
@@ -200,6 +201,12 @@ export const operations: Record<string, Operation> = {
     summary: 'Move a routine one place up or down within its group; returns the group',
     body: ['RoutineMove', moveInput],
     status: [200, 400, 404],
+  },
+  'PUT /api/routines/:id/amount': {
+    summary:
+      'Set the target amount of an active routine, and its unit when it has none; sends the whole setting, so repeating it changes nothing. A unit that is set cannot change (409)',
+    body: ['RoutineAmount', amountInput],
+    status: [200, 400, 404, 409],
   },
   'PUT /api/routines/:id/project-link': {
     summary: 'Link a routine to a project, or clear the link with null',

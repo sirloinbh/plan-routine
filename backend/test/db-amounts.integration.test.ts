@@ -105,3 +105,39 @@ test(
       }
     }),
 );
+
+test(
+  'the target of a routine can be changed and cleared, a unit added once and then kept',
+  { skip: !url, timeout: 30_000 },
+  () =>
+    withClient(async (client, pool) => {
+      const created: number[] = [];
+      try {
+        await withApi(pool, async (call) => {
+          const { data } = await call('/api/routines', {
+            method: 'POST',
+            body: { name: 'Amount edit', cadence: 'daily', category: 'study' },
+          });
+          const id = (data.routine as { id: number }).id;
+          created.push(id);
+          const put = (body: unknown) =>
+            call(`/api/routines/${id}/amount`, { method: 'PUT', body });
+          assert.equal((await put({ targetAmount: 5 })).status, 400);
+          const added = await put({ unit: 'minutes', targetAmount: 60 });
+          assert.deepEqual(
+            [
+              (added.data.routine as { unit: string }).unit,
+              (added.data.routine as { targetAmount: number }).targetAmount,
+            ],
+            ['minutes', 60],
+          );
+          const cleared = await put({ unit: 'minutes' });
+          assert.equal((cleared.data.routine as { targetAmount: unknown }).targetAmount, null);
+          assert.equal((await put({ unit: 'hours' })).status, 409);
+          assert.equal((await put({})).status, 409);
+        });
+      } finally {
+        await client.query('DELETE FROM routines WHERE id = ANY($1::bigint[])', [created]);
+      }
+    }),
+);

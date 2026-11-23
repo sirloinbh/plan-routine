@@ -10,6 +10,8 @@ import {
   routineCadence,
   routineInput,
   routineName,
+  routineTarget,
+  routineUnit,
 } from './routines.js';
 import { HttpError } from './standard/http.js';
 import { inTransaction } from './transaction.js';
@@ -43,6 +45,15 @@ export const moveInput = z.object(
   { direction: z.enum(['up', 'down'], { error: 'Direction must be up or down' }) },
   badRequest,
 );
+
+// The whole amount setting of a routine at once, so repeating a request changes nothing. A routine's unit can be
+// added (or kept), not changed or removed: amounts already recorded on its checks would lose their meaning.
+export const amountInput = z.object(
+  { unit: routineUnit.nullish(), targetAmount: routineTarget.nullish() },
+  badRequest,
+);
+const unitLocked =
+  'The unit cannot be changed once it is set. Archive the routine and add it again';
 
 export const projectLinkInput = z.object(
   {
@@ -147,6 +158,29 @@ export function routineRoutes(pool: Pool, today: () => string) {
   });
 
   // Null clears the link. A project removed meanwhile answers 404, not a database error.
+  router.put('/:id/amount', async (req, res) => {
+    const { id } = idParam.parse(req.params);
+    const { unit = null, targetAmount = null } = amountInput.parse(requestBody(req.body));
+    const reply = await inTransaction(pool, async (client) => {
+      const current = await client.query<{ unit: string | null }>(
+        'SELECT unit FROM routines WHERE id = $1 AND archived_at IS NULL FOR UPDATE',
+        [id],
+      );
+      if (!current.rows[0]) throw new HttpError(404, routineNotFound);
+      if (current.rows[0].unit !== null && unit !== current.rows[0].unit)
+        throw new HttpError(409, unitLocked);
+      if (targetAmount !== null && unit === null)
+        throw new HttpError(400, 'Enter a unit for the target');
+      const { rows } = await client.query(
+        `UPDATE routines SET unit = $1, target_amount = $2, updated_at = now()
+         WHERE id = $3 RETURNING ${routineColumns}`,
+        [unit, targetAmount, id],
+      );
+      return { status: 200, body: { routine: rows[0] } };
+    });
+    res.status(reply.status).json(reply.body);
+  });
+
   router.put('/:id/project-link', async (req, res) => {
     const { id } = idParam.parse(req.params);
     const { projectLinkId } = projectLinkInput.parse(requestBody(req.body));

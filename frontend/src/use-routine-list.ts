@@ -25,6 +25,7 @@ const focusKeys = {
   up: (id: number) => `up-${id}`,
   down: (id: number) => `down-${id}`,
   edit: (id: number) => `edit-${id}`,
+  amount: (id: number) => `amount-${id}`,
   renameInput: 'rename-input',
   add: (draftKey: string) => `add-${draftKey}`,
 };
@@ -38,6 +39,12 @@ export function useRoutineList(cadence: string) {
   // The schedule chosen in each add form (#245): weekdays of a daily routine, times per week of a weekly one.
   const [schedules, setSchedules] = useState<Record<string, Schedule>>({});
   const [editing, setEditing] = useState<{ id: number; name: string } | null>(null);
+  // The unit and target amount being edited on one routine (#276); the target is text until it is sent.
+  const [amountEditing, setAmountEditing] = useState<{
+    id: number;
+    unit: string;
+    target: string;
+  } | null>(null);
   const [confirmArchive, setConfirmArchive] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   // Which button started the change: busy disables them all, only this one shows it is working.
@@ -212,6 +219,41 @@ export function useRoutineList(cadence: string) {
   const setDraft = (draftKey: string, value: string) =>
     setDrafts((current) => ({ ...current, [draftKey]: value }));
 
+  const startAmountEditing = (routine: Routine) => {
+    setConfirmArchive(null);
+    setEditing(null);
+    setAmountEditing({
+      id: routine.id,
+      unit: routine.unit ?? '',
+      target: routine.targetAmount ? String(routine.targetAmount) : '',
+    });
+  };
+
+  const saveAmount = async (routine: Routine) => {
+    if (!amountEditing || amountEditing.id !== routine.id) return;
+    const unit = amountEditing.unit.trim();
+    const target = amountEditing.target.trim();
+    if (target !== '' && !unit) {
+      setNotice({ kind: 'alert', text: 'Enter a unit for the target' });
+      return;
+    }
+    if (target !== '' && !(Number(target) > 0)) {
+      setNotice({ kind: 'alert', text: 'The target must be a number above 0' });
+      return;
+    }
+    const ok = await run(
+      () =>
+        requestJson(`/api/routines/${routine.id}/amount`, {
+          method: 'PUT',
+          body: { unit: unit || null, targetAmount: target === '' ? null : Number(target) },
+        }),
+      `Saved the amount of the routine '${routine.name}'`,
+      'amount',
+    );
+    requestFocus([...(ok ? [] : [focusKeys.amount(routine.id)]), focusKeys.edit(routine.id)]);
+    if (ok) setAmountEditing((current) => (current?.id === routine.id ? null : current));
+  };
+
   const setProjectLink = async (routine: Routine, projectLinkId: number | null) => {
     if (busy) return;
     await run(
@@ -233,6 +275,10 @@ export function useRoutineList(cadence: string) {
     pending,
     projects,
     setProjectLink,
+    amountEditing,
+    setAmountEditing,
+    startAmountEditing,
+    saveAmount,
     loadFailed,
     refresh,
     drafts,

@@ -105,10 +105,22 @@ export function RoutineItems({
                   disabled={busy}
                   onClick={() => {
                     list.setConfirmArchive(null);
+                    list.setAmountEditing(null);
                     list.setEditing({ id: routine.id, name: routine.name });
                   }}
                 >
                   Rename
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  aria-label={`Set the amount of ${routine.name}`}
+                  data-focus-key={`amount-${routine.id}`}
+                  disabled={busy}
+                  onClick={() => list.startAmountEditing(routine)}
+                >
+                  Amount
                 </Button>
                 {confirmArchive === routine.id ? (
                   <Button
@@ -145,6 +157,62 @@ export function RoutineItems({
                   </Button>
                 )}
               </span>
+              {list.amountEditing?.id === routine.id && (
+                <form
+                  className="flex w-full flex-wrap items-center gap-2"
+                  aria-label={`Amount of ${routine.name}`}
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    void list.saveAmount(routine);
+                  }}
+                >
+                  {routine.unit ? (
+                    // A unit that is set cannot change: amounts already recorded would lose their meaning.
+                    <span className="text-body-sm text-muted-foreground">Unit: {routine.unit}</span>
+                  ) : (
+                    <Input
+                      className="w-32"
+                      aria-label={`Unit for ${routine.name}`}
+                      placeholder="Unit, e.g. pages"
+                      maxLength={20}
+                      value={list.amountEditing.unit}
+                      onChange={(event) =>
+                        list.amountEditing &&
+                        list.setAmountEditing({ ...list.amountEditing, unit: event.target.value })
+                      }
+                    />
+                  )}
+                  {(routine.unit || list.amountEditing.unit.trim()) && (
+                    <Input
+                      className="w-28"
+                      type="number"
+                      inputMode="decimal"
+                      min={0}
+                      step="any"
+                      aria-label={`Target amount for ${routine.name}`}
+                      placeholder="Target"
+                      value={list.amountEditing.target}
+                      onChange={(event) =>
+                        list.amountEditing &&
+                        list.setAmountEditing({ ...list.amountEditing, target: event.target.value })
+                      }
+                    />
+                  )}
+                  <Button type="submit" disabled={busy}>
+                    {list.pending === 'amount' && <Spinner size="sm" label="Saving" />}
+                    Save
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => {
+                      list.setAmountEditing(null);
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </form>
+              )}
               {projects.length > 0 && (
                 <label className="flex w-full min-w-0 items-center gap-2 text-body-sm text-muted-foreground">
                   Link
