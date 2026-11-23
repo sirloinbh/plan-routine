@@ -12,9 +12,10 @@ Decisions (user, 2026-11-23): a skip is allowed for today and the 7 days before 
 
 ## Changes
 
-- `database/migrations/008_routine_skips.sql`: table `routine_skips (routine_id, period_start, reason, skipped_at)`, one row per routine and period, reason 1–200 characters or NULL.
+- `database/migrations/009_routine_skips.sql`: table `routine_skips (routine_id, period_start, reason, skipped_at)`, one row per routine and period, reason 1–200 characters or NULL.
 - `backend/src/check-routes.ts`: `PUT/DELETE /api/routines/:id/skips/:date` (PUT again replaces the reason; blank reason is stored as none). The checklist items carry `skipped` and `skipReason`. Checking a skipped period and skipping a checked period answer 409. Check and skip now lock the routine row with `FOR UPDATE` (was `FOR SHARE`) so the two cannot race.
 - `backend/src/routine-stats.ts`, `stats-routes.ts`: new `skipped` period status; it counts as neither done nor missed, in every tally and per item.
+- `backend/src/weekly-review.ts`, `weekly-review-routes.ts`: the weekly review reads skips too, so its rate keeps matching the stats page (test added).
 - `backend/src/day-records.ts`, `record-routes.ts`: a skipped routine belongs to its day; the day record lists `skipped` and `skipReason`; skipped routines are left out of the day's total and the calendar's totals.
 - `backend/src/openapi.ts`, `docs/openapi.json`: the new routes, and 409 on checking.
 - Frontend: skip control (optional reason, 200 character limit, cancel) and "Remove skip" in the shared checklist (daily, weekly, 4-week, 12-week, 4-week-due); skipped items are left out of the progress; the records page shows "Skipped" and the reason; the stats page has a "Skipped" mark and legend entry.

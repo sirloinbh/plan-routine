@@ -17,6 +17,7 @@ import {
 } from './routine-routes.js';
 import { routineInput } from './routines.js';
 import { buildOpenApi, type Operation } from './standard/openapi.js';
+import { reviewInput, reviewQuery } from './weekly-review-routes.js';
 
 // Every registered route must appear here exactly once (checked when building).
 // Every route that reads an id, a date, a body or a query also answers 400 when validation fails.
@@ -134,6 +135,20 @@ export const operations: Record<string, Operation> = {
   'GET /api/stats': {
     summary: 'Get routine achievement statistics, including archived routines',
     status: [200],
+  },
+
+  'GET /api/weekly-review': {
+    summary:
+      'Get the completion rate of daily and weekly routines for a week, its most-missed routines and the two notes; the week is the one holding the date, this week when omitted',
+    query: reviewQuery,
+    status: [200, 400],
+  },
+  'PUT /api/weekly-review/:week': {
+    params: { week: z.iso.date() },
+    summary:
+      'Save the notes of a week (its Sunday), replacing the existing ones; a blank note clears it; no weeks that have not started',
+    body: ['WeeklyReviewNotes', reviewInput],
+    status: [200, 400],
   },
 
   'GET /api/routines': {

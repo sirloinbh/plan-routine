@@ -55,8 +55,19 @@ const emptyStats = {
   items: [],
 };
 
+const emptyReview = {
+  today: '2026-10-26',
+  week: { start: '2026-10-25', end: '2026-10-31' },
+  previousWeek: '2026-10-18',
+  nextWeek: null,
+  rate: { checked: 0, total: 0 },
+  mostMissed: [],
+  notes: { wentWell: null, toChange: null },
+};
+
 const pageData = (url: string) => {
   if (url.startsWith('/api/stats')) return emptyStats;
+  if (url.startsWith('/api/weekly-review')) return emptyReview;
   if (url.startsWith('/api/records/')) return emptyDay;
   if (url.startsWith('/api/records')) return emptyMonth;
   if (url.startsWith('/api/goals')) return emptyGoals;
@@ -245,6 +256,19 @@ test('the main menu opens the stats page', async () => {
     await screen.findByRole('heading', { level: 1, name: 'Completion rates' }),
   ).toBeInTheDocument();
   expect(await screen.findByText('No history yet')).toBeInTheDocument();
+  window.history.replaceState(null, '', '/');
+});
+
+test('the main menu opens the weekly review page', async () => {
+  health({ today: '2026-10-26' });
+  render(<App />);
+  const menu = screen.getByRole('navigation', { name: 'Main menu' });
+  fireEvent.click(within(menu).getByRole('link', { name: 'Weekly review' }));
+  expect(window.location.pathname).toBe('/review');
+  expect(
+    await screen.findByRole('heading', { level: 1, name: 'Weekly review' }),
+  ).toBeInTheDocument();
+  expect(await screen.findByText('No records this week')).toBeInTheDocument();
   window.history.replaceState(null, '', '/');
 });
 
