@@ -169,8 +169,8 @@ function SkipControl({
         : item.skipped
           ? removeButton.current
           : skipButton.current;
-    if (!target) return;
-    target.focus();
+    // Asked for once: with no such control now (the item was checked elsewhere), nothing is focused later.
+    target?.focus();
     setFocusNext(null);
   }, [focusNext, item.skipped, editing]);
 
