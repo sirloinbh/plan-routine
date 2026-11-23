@@ -88,7 +88,9 @@ export function diaryRoutes(pool: Pool, today: () => string) {
          EXISTS (
            SELECT 1 FROM routine_skips
            WHERE routine_skips.routine_id = routines.id AND routine_skips.period_start = $1
-         ) AS skipped
+         ) AS skipped,
+         (SELECT s.reason FROM routine_skips s
+          WHERE s.routine_id = routines.id AND s.period_start = $1) AS "skipReason"
        FROM routines
        WHERE ${dailyRoutineOn('routines', '$1::date')}
        ORDER BY routines.category, routines.sort_order, routines.id`,

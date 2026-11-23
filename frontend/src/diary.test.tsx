@@ -32,9 +32,23 @@ function diaryApi(seed: Entry[] = []) {
   let failNextLoad = false;
   let failNextSave = false;
   let progress = { checked: 2, total: 5 };
-  let routines = [
-    { id: 1, name: 'Wake at 6', category: 'wake', checked: true },
-    { id: 2, name: 'Stretch', category: 'evening', checked: false },
+  let routines: {
+    id: number;
+    name: string;
+    category: string;
+    checked: boolean;
+    skipped: boolean;
+    skipReason: string | null;
+  }[] = [
+    { id: 1, name: 'Wake at 6', category: 'wake', checked: true, skipped: false, skipReason: null },
+    {
+      id: 2,
+      name: 'Stretch',
+      category: 'evening',
+      checked: false,
+      skipped: false,
+      skipReason: null,
+    },
   ];
   let heldLoad: (() => void) | null = null;
   let holdNextLoad = false;
@@ -219,6 +233,31 @@ describe('showing and saving an entry', () => {
     expect(items[1]).toHaveTextContent('Stretch');
     expect(items[1]).toHaveTextContent('Not done');
     expect(within(region).queryByRole('button')).not.toBeInTheDocument();
+  });
+
+  test('a skipped routine is listed as skipped with its reason, not as not done', async () => {
+    const api = diaryApi();
+    api.setRoutines([
+      {
+        id: 1,
+        name: 'Wake at 6',
+        category: 'wake',
+        checked: false,
+        skipped: true,
+        skipReason: 'Sick in bed',
+      },
+      { id: 2, name: 'Read', category: 'evening', checked: false, skipped: true, skipReason: null },
+    ]);
+    render(<Diary />);
+    await field('Looking back on the day');
+    const items = within(screen.getByRole('region', { name: 'Checks for this day' })).getAllByRole(
+      'listitem',
+    );
+    expect(items[0]).toHaveTextContent('Skipped');
+    expect(items[0]).not.toHaveTextContent('Not done');
+    expect(items[0]).toHaveTextContent('Reason: Sick in bed');
+    expect(items[1]).toHaveTextContent('Skipped');
+    expect(items[1]).not.toHaveTextContent('Reason');
   });
 
   test('a day without routines shows no checks section', async () => {

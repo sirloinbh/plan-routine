@@ -275,3 +275,13 @@ test('a routine skipped that day is left out of the progress total', async () =>
     { today },
   );
 });
+
+test('the routine query returns whether each routine was skipped and why', async () => {
+  const { pool, queries } = fakePool();
+  await withApi(pool, async (call) => assert.equal((await call('/api/diary')).status, 200), {
+    today,
+  });
+  const sql = queries.find(({ sql }) => sql.includes('FROM routines'))!.sql;
+  assert.match(sql, /AS skipped/);
+  assert.match(sql, /AS "skipReason"/);
+});
