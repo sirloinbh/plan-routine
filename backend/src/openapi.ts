@@ -119,6 +119,20 @@ export const operations: Record<string, Operation> = {
     status: [200, 400],
   },
 
+  'GET /api/export': {
+    summary:
+      'Download every table (found at request time, migration bookkeeping left out) as one versioned JSON file; real data, never cached',
+    status: [200],
+  },
+  'GET /api/export/checks.csv': {
+    summary: 'Download the routine checks as UTF-8 CSV, formula-like cells neutralized',
+    status: [200],
+  },
+  'GET /api/export/diary.csv': {
+    summary: 'Download the diary entries and scores as UTF-8 CSV, formula-like cells neutralized',
+    status: [200],
+  },
+
   'GET /api/stats': {
     summary: 'Get routine achievement statistics, including archived routines',
     status: [200],

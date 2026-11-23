@@ -19,6 +19,7 @@ import { Button } from './components/ui/button';
 import { Toaster } from './components/ui/sonner';
 import { DailyChecklist } from './daily-checklist';
 import { Diary } from './diary';
+import { ExportSection } from './export-section';
 import { FourWeekDue } from './four-week-due';
 import { type Health, healthText } from './health';
 import { createQueryClient } from './lib/query';
@@ -248,7 +249,10 @@ export function App() {
                     description="Manage the other apps your routines can open"
                     health={health}
                   >
-                    <ProjectLinks />
+                    <div className="flex flex-col gap-6">
+                      <ProjectLinks />
+                      <ExportSection />
+                    </div>
                   </Page>
                 }
               />

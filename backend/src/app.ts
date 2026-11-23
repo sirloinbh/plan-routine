@@ -7,6 +7,7 @@ import { z } from 'zod/v4';
 import { tools } from './ai-tools.js';
 import { checkRoutes } from './check-routes.js';
 import { diaryRoutes } from './diary-routes.js';
+import { exportRoutes } from './export-routes.js';
 import { goalRoutes } from './goal-routes.js';
 import { moodStatsRoutes } from './mood-stats-routes.js';
 import { calendarDate, periodsFor } from './periods.js';
@@ -55,6 +56,7 @@ export function createApp(
   });
   app.use('/api', checkRoutes(pool, today));
   app.use('/api/diary', diaryRoutes(pool, today));
+  app.use('/api/export', exportRoutes(pool, today));
   app.use('/api/goals', goalRoutes(pool, today));
   app.use('/api/mood-stats', moodStatsRoutes(pool, today));
   app.use('/api/project-links', projectLinkRoutes(pool));
