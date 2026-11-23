@@ -170,6 +170,36 @@ test('opens on this month and today, with each day summarised', async () => {
   expect(screen.getByRole('button', { name: 'Next month' })).toBeDisabled();
 });
 
+// The search results link to /records?date=YYYY-MM-DD; Records reads it once, when it opens.
+async function openAt(search: string) {
+  window.history.replaceState(null, '', `/records${search}`);
+  try {
+    const api = recordsApi();
+    render(<Records />);
+    await flush();
+    return api;
+  } finally {
+    window.history.replaceState(null, '', '/');
+  }
+}
+
+test('?date= opens that day in its month', async () => {
+  const { calls } = await openAt('?date=2026-09-05');
+  expect(calls.map((call) => call.url)).toEqual([
+    '/api/records?month=2026-09',
+    '/api/records/2026-09-05',
+  ]);
+  expect(screen.getByRole('region', { name: 'Records for September 5, 2026' })).toBeInTheDocument();
+});
+
+test.each(['?date=nope', '?date=2026-02-30', '?date=2999-01-01', '?date=1999-12-31', ''])(
+  'a missing or unusable date (%s) opens this month and today as usual',
+  async (search) => {
+    const { calls } = await openAt(search);
+    expect(calls.map((call) => call.url)).toEqual(['/api/records', '/api/records/2026-10-22']);
+  },
+);
+
 test('the first day sits under its weekday', async () => {
   recordsApi();
   render(<Records />);

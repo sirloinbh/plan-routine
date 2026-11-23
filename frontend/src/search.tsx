@@ -1,4 +1,5 @@
 import { type FormEvent, useState } from 'react';
+import { Link } from 'react-router';
 
 import { Button } from './components/ui/button';
 import { Card, CardContent } from './components/ui/card';
@@ -231,7 +232,14 @@ export function Search() {
                 <li key={result.date}>
                   <Card>
                     <CardContent className="flex flex-col gap-2">
-                      <h3 className="text-body-sm font-semibold">{formatDate(result.date)}</h3>
+                      <h3 className="text-body-sm font-semibold">
+                        <Link
+                          to={`/records?date=${result.date}`}
+                          className="underline-offset-4 hover:underline"
+                        >
+                          {formatDate(result.date)}
+                        </Link>
+                      </h3>
                       <p className="text-body-sm wrap-anywhere">
                         <span className="text-muted-foreground">
                           {fieldLabel[result.field] ?? result.field}:{' '}
