@@ -210,7 +210,7 @@ export function Search() {
           notice={formError ? { kind: 'error', text: formError } : undefined}
           className="md:col-span-2"
         />
-        <Button type="submit" className="self-start">
+        <Button type="submit" className="self-start justify-self-start">
           Search
         </Button>
       </form>
@@ -242,7 +242,7 @@ export function Search() {
                       <h3 className="text-body-sm font-semibold">
                         <Link
                           to={`/records?date=${result.date}`}
-                          className="underline-offset-4 hover:underline"
+                          className="underline underline-offset-4 hover:decoration-2"
                         >
                           {formatDate(result.date)}
                         </Link>
