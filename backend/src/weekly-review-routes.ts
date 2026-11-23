@@ -50,7 +50,8 @@ export function weeklyReviewRoutes(pool: Pool, today: () => string) {
     const routines = await pool.query<ReviewRoutine>(
       `SELECT id, name, cadence, category, sort_order AS "sortOrder",
          (created_at AT TIME ZONE 'Asia/Seoul')::date AS "createdOn",
-         (archived_at AT TIME ZONE 'Asia/Seoul')::date AS "archivedOn"
+         (archived_at AT TIME ZONE 'Asia/Seoul')::date AS "archivedOn",
+         weekdays, times_per_week AS "timesPerWeek"
        FROM routines WHERE cadence IN ('daily', 'weekly')
        ORDER BY cadence, category, sort_order, routines.id`,
     );

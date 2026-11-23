@@ -26,3 +26,12 @@ test('a caller cannot pass an arbitrary string', () => {
   // @ts-expect-error `day` only accepts the allowed expressions; this line fails typecheck if the union is widened.
   assert.throws(() => dailyRoutineOn('routines', 'now()'));
 });
+
+test('a routine on chosen weekdays belongs only to those days, unless it was checked or skipped', () => {
+  const sql = dailyRoutineOn('routines', '$1::date');
+  assert.match(
+    sql,
+    /routines\.weekdays IS NULL OR EXTRACT\(DOW FROM \$1::date\)::int = ANY\(routines\.weekdays\)/,
+  );
+  assert.match(sql, /routine_skips\.period_start = \$1::date/);
+});

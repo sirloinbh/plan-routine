@@ -58,7 +58,12 @@ test('the checklist defaults to today and links only to dates in the editable ra
     },
     { today },
   );
-  assert.deepEqual(issued(queries, 'EXISTS')[0].params, ['daily', '2026-10-22']);
+  assert.deepEqual(issued(queries, 'EXISTS')[0].params, [
+    'daily',
+    '2026-10-22',
+    '2026-10-22',
+    '2026-10-22',
+  ]);
 });
 
 test('the checklist finds checks of longer cadences by their period start', async () => {
@@ -71,7 +76,12 @@ test('the checklist finds checks of longer cadences by their period start', asyn
     },
     { today },
   );
-  assert.deepEqual(issued(queries, 'EXISTS')[0].params, ['weekly', '2026-10-18']);
+  assert.deepEqual(issued(queries, 'EXISTS')[0].params, [
+    'weekly',
+    '2026-10-18',
+    '2026-10-22',
+    '2026-10-24',
+  ]);
 });
 
 test('a four-week period reports the days left and its last 7 days', async () => {

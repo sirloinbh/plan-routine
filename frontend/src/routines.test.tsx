@@ -594,3 +594,32 @@ test('a failed project list says so instead of looking like no projects', async 
   );
   expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
 });
+
+test('a daily routine can be added on chosen weekdays, which the list then shows', async () => {
+  const api = routineApi();
+  render(<DailyRoutines />);
+  const exercise = await screen.findByRole('region', { name: 'Exercise routines' });
+  fireEvent.change(within(exercise).getByRole('textbox', { name: 'New exercise routine name' }), {
+    target: { value: 'Run' },
+  });
+  for (const day of ['Wednesday', 'Monday', 'Friday'])
+    fireEvent.click(within(exercise).getByRole('button', { name: day }));
+  expect(within(exercise).getByRole('button', { name: 'Monday' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  fireEvent.click(within(exercise).getByRole('button', { name: 'Add' }));
+  expect(await screen.findByText("Added the routine 'Run' to Exercise")).toBeInTheDocument();
+  expect(api.writes[0].body).toEqual({
+    name: 'Run',
+    cadence: 'daily',
+    category: 'exercise',
+    weekdays: [1, 3, 5],
+  });
+  // The choice is cleared for the next routine.
+  expect(within(exercise).getByRole('button', { name: 'Monday' })).toHaveAttribute(
+    'aria-pressed',
+    'false',
+  );
+  await waitFor(() => expect(within(exercise).getByText('Mon, Wed, Fri')).toBeInTheDocument());
+});

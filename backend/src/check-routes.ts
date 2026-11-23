@@ -48,14 +48,17 @@ function dateRangeError(date: string, today: string) {
 // Locks the active routine row (so a concurrent archive, check or skip of it waits, and a period is never
 // both checked and skipped) and returns the period holding the date.
 async function lockRoutinePeriod(client: PoolClient, id: number, date: string, current: string) {
-  const target = await client.query<{ cadence: Cadence }>(
-    'SELECT cadence FROM routines WHERE id = $1 AND archived_at IS NULL FOR UPDATE',
+  const target = await client.query<{ cadence: Cadence; timesPerWeek: number | null }>(
+    `SELECT cadence, times_per_week AS "timesPerWeek"
+     FROM routines WHERE id = $1 AND archived_at IS NULL FOR UPDATE`,
     [id],
   );
   if (!target.rows[0]) throw new HttpError(404, routineNotFound);
   // After the existence check, so a 404 does not store the first-use date (#153).
   const anchorDate = await routineAnchorDate(client, current);
-  return { period: periodFor(target.rows[0].cadence, date, anchorDate) };
+  const period = periodFor(target.rows[0].cadence, date, anchorDate);
+  // An N-per-week routine checks single days of its week; the skip still covers the whole week (#245).
+  return { period, checkStart: target.rows[0].timesPerWeek ? date : period.start };
 }
 
 export function checkRoutes(pool: Pool, today: () => string) {
@@ -73,8 +76,14 @@ export function checkRoutes(pool: Pool, today: () => string) {
     const { rows } = await pool.query(
       `SELECT ${routineColumns}, EXISTS (
          SELECT 1 FROM routine_checks
-         WHERE routine_checks.routine_id = routines.id AND routine_checks.period_start = $2
+         WHERE routine_checks.routine_id = routines.id
+           AND routine_checks.period_start = CASE WHEN routines.times_per_week IS NULL THEN $2::date ELSE $3::date END
        ) AS checked,
+       CASE WHEN routines.times_per_week IS NULL THEN NULL ELSE (
+         SELECT count(*)::int FROM routine_checks
+         WHERE routine_checks.routine_id = routines.id
+           AND routine_checks.period_start BETWEEN $2::date AND $4::date
+       ) END AS "weekChecks",
        EXISTS (
          SELECT 1 FROM routine_skips
          WHERE routine_skips.routine_id = routines.id AND routine_skips.period_start = $2
@@ -85,8 +94,19 @@ export function checkRoutes(pool: Pool, today: () => string) {
        (SELECT p.url FROM project_links p WHERE p.id = routines.project_link_id) AS "linkUrl"
        FROM routines
        WHERE archived_at IS NULL AND cadence = $1
+         AND (
+           weekdays IS NULL OR EXTRACT(DOW FROM $2::date)::int = ANY(weekdays)
+           OR EXISTS (
+             SELECT 1 FROM routine_checks
+             WHERE routine_checks.routine_id = routines.id AND routine_checks.period_start = $2::date
+           )
+           OR EXISTS (
+             SELECT 1 FROM routine_skips
+             WHERE routine_skips.routine_id = routines.id AND routine_skips.period_start = $2::date
+           )
+         )
        ORDER BY category, sort_order, routines.id`,
-      [cadence, period.start],
+      [cadence, period.start, target, period.end],
     );
     // From today, not from the requested date; a period already over has none left.
     const daysLeft = daysBetween(current, period.end);
@@ -113,7 +133,7 @@ export function checkRoutes(pool: Pool, today: () => string) {
     const rangeError = dateRangeError(date, current);
     if (rangeError) throw new HttpError(400, rangeError);
     const reply = await inTransaction(pool, async (client) => {
-      const { period } = await lockRoutinePeriod(client, id, date, current);
+      const { period, checkStart } = await lockRoutinePeriod(client, id, date, current);
       if (checked) {
         const skipped = await client.query(
           'SELECT 1 FROM routine_skips WHERE routine_id = $1 AND period_start = $2',
@@ -126,7 +146,7 @@ export function checkRoutes(pool: Pool, today: () => string) {
           ? `INSERT INTO routine_checks (routine_id, period_start) VALUES ($1, $2)
              ON CONFLICT (routine_id, period_start) DO NOTHING`
           : 'DELETE FROM routine_checks WHERE routine_id = $1 AND period_start = $2',
-        [id, period.start],
+        [id, checkStart],
       );
       return { status: 200, body: { routineId: id, date, period, checked } };
     });
@@ -147,8 +167,9 @@ export function checkRoutes(pool: Pool, today: () => string) {
     const reply = await inTransaction(pool, async (client) => {
       const { period } = await lockRoutinePeriod(client, id, date, current);
       const checked = await client.query(
-        'SELECT 1 FROM routine_checks WHERE routine_id = $1 AND period_start = $2',
-        [id, period.start],
+        `SELECT 1 FROM routine_checks
+         WHERE routine_id = $1 AND period_start BETWEEN $2 AND $3`,
+        [id, period.start, period.end],
       );
       if (checked.rows[0]) throw new HttpError(409, checkedAlready);
       await client.query(

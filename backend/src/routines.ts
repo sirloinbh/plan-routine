@@ -24,6 +24,8 @@ export const routineCategoryLabels: Record<(typeof routineCategories)[number], s
   reading: 'Reading',
 };
 
+const weekdayMessage = 'Weekdays must be numbers from 0 to 6';
+
 export const routineCadence = z.enum(cadences, {
   error: 'Routine cadence must be daily, weekly, four-week, or twelve-week',
 });
@@ -46,6 +48,24 @@ export const routineInput = z
       name: routineName,
       cadence: routineCadence,
       category: z.enum(routineCategories, { error: 'Invalid daily routine category' }).nullish(),
+      // Daily routines only: the days of the week it applies to (0 = Sunday ... 6 = Saturday).
+      weekdays: z
+        .array(
+          z
+            .number({ error: weekdayMessage })
+            .int(weekdayMessage)
+            .min(0, weekdayMessage)
+            .max(6, weekdayMessage),
+          { error: weekdayMessage },
+        )
+        .nullish(),
+      // Weekly routines only: how many days of the week it is done on (2 to 7).
+      timesPerWeek: z
+        .number({ error: 'Times per week must be a number from 2 to 7' })
+        .int('Times per week must be a number from 2 to 7')
+        .min(2, 'Times per week must be a number from 2 to 7')
+        .max(7, 'Times per week must be a number from 2 to 7')
+        .nullish(),
     },
     badRequest,
   )
@@ -56,6 +76,26 @@ export const routineInput = z
         path: ['category'],
         message: 'Choose a category for a daily routine',
       });
+    if (value.weekdays) {
+      if (value.cadence !== 'daily')
+        ctx.addIssue({
+          code: 'custom',
+          path: ['weekdays'],
+          message: 'Only daily routines can have weekdays',
+        });
+      else if (value.weekdays.length === 0)
+        ctx.addIssue({
+          code: 'custom',
+          path: ['weekdays'],
+          message: 'Choose at least one weekday',
+        });
+    }
+    if (value.timesPerWeek && value.cadence !== 'weekly')
+      ctx.addIssue({
+        code: 'custom',
+        path: ['timesPerWeek'],
+        message: 'Only weekly routines can have times per week',
+      });
     if (value.cadence !== 'daily' && value.category)
       ctx.addIssue({
         code: 'custom',
@@ -63,6 +103,15 @@ export const routineInput = z
         message: 'Only daily routines can have a category',
       });
   });
+
+export const weekdayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
+
+/** Sorted and without duplicates; every day of the week means no restriction (null). */
+export function normalizeWeekdays(weekdays: number[] | null | undefined) {
+  if (!weekdays) return null;
+  const sorted = [...new Set(weekdays)].sort((a, b) => a - b);
+  return sorted.length === 7 ? null : sorted;
+}
 
 export const anchorSettingKey = 'routine_anchor_date';
 

@@ -41,6 +41,8 @@ test('creating a routine records first use, then appends it to its category', as
     'wake',
     'routine_anchor_date',
     '2026-10-22',
+    null,
+    null,
   ]);
 });
 
@@ -139,4 +141,82 @@ test('a project deleted while the link is saved answers 404, not 500', async () 
     assert.equal(status, 404);
     assert.equal(data.error, 'Routine or project not found');
   });
+});
+
+test('a weekday or times-per-week schedule is stored sorted, and every day means none', async () => {
+  const { pool, queries } = scriptedPool({ rows: [wake] }, { rows: [wake] }, { rows: [wake] });
+  await withApi(
+    pool,
+    async (call) => {
+      const post = (body: unknown) => call('/api/routines', { method: 'POST', body });
+      assert.equal(
+        (
+          await post({
+            name: 'Run',
+            cadence: 'daily',
+            category: 'exercise',
+            weekdays: [5, 1, 3, 1],
+          })
+        ).status,
+        201,
+      );
+      assert.equal(
+        (
+          await post({
+            name: 'Run',
+            cadence: 'daily',
+            category: 'exercise',
+            weekdays: [0, 1, 2, 3, 4, 5, 6],
+          })
+        ).status,
+        201,
+      );
+      assert.equal((await post({ name: 'Read', cadence: 'weekly', timesPerWeek: 3 })).status, 201);
+    },
+    { today: () => '2026-10-22' },
+  );
+  assert.deepEqual(
+    queries.map((query) => query.params.slice(5)),
+    [
+      [[1, 3, 5], null],
+      [null, null],
+      [null, 3],
+    ],
+  );
+});
+
+test('a schedule on the wrong cadence or with bad values is an English 400 before any query', async () => {
+  const { pool, queries } = scriptedPool();
+  await withApi(pool, async (call) => {
+    const post = (body: unknown) => call('/api/routines', { method: 'POST', body });
+    const cases: [unknown, string][] = [
+      [{ name: 'A', cadence: 'weekly', weekdays: [1] }, 'Only daily routines can have weekdays'],
+      [
+        { name: 'A', cadence: 'daily', category: 'wake', weekdays: [] },
+        'Choose at least one weekday',
+      ],
+      [
+        { name: 'A', cadence: 'daily', category: 'wake', weekdays: [7] },
+        'Weekdays must be numbers from 0 to 6',
+      ],
+      [
+        { name: 'A', cadence: 'daily', category: 'wake', timesPerWeek: 3 },
+        'Only weekly routines can have times per week',
+      ],
+      [
+        { name: 'A', cadence: 'weekly', timesPerWeek: 1 },
+        'Times per week must be a number from 2 to 7',
+      ],
+      [
+        { name: 'A', cadence: 'weekly', timesPerWeek: 8 },
+        'Times per week must be a number from 2 to 7',
+      ],
+    ];
+    for (const [body, message] of cases) {
+      const { status, data } = await post(body);
+      assert.equal(status, 400, message);
+      assert.equal(data.error, message);
+    }
+  });
+  assert.equal(queries.length, 0);
 });
