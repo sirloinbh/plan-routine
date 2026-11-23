@@ -35,9 +35,28 @@ const percent = ({ checked, total }: { checked: number; total: number }) => {
   return value;
 };
 
-function NotesForm({ data }: { data: ReviewData }) {
-  const [wentWell, setWentWell] = useState(data.notes.wentWell ?? '');
-  const [toChange, setToChange] = useState(data.notes.toChange ?? '');
+type Drafts = Record<string, { wentWell: string; toChange: string }>;
+
+// `draft` is what was typed in this week and not saved yet; the page keeps it while another week is shown.
+function NotesForm({
+  data,
+  draft,
+  onDraft,
+}: {
+  data: ReviewData;
+  draft: Drafts[string] | undefined;
+  onDraft: (week: string, notes: Drafts[string] | null) => void;
+}) {
+  const [wentWell, setWentWellText] = useState(draft?.wentWell ?? data.notes.wentWell ?? '');
+  const [toChange, setToChangeText] = useState(draft?.toChange ?? data.notes.toChange ?? '');
+  const setWentWell = (value: string) => {
+    setWentWellText(value);
+    onDraft(data.week.start, { wentWell: value, toChange });
+  };
+  const setToChange = (value: string) => {
+    setToChangeText(value);
+    onDraft(data.week.start, { wentWell, toChange: value });
+  };
   const { notice, status, error, clear } = useNotice();
   const save = useApiMutation<{ notes: Notes }, Notes>(
     (body) => ({ path: `${path}/${data.week.start}`, method: 'PUT', body }),
@@ -52,7 +71,10 @@ function NotesForm({ data }: { data: ReviewData }) {
     save.mutate(
       { wentWell, toChange },
       {
-        onSuccess: () => status('Saved the notes'),
+        onSuccess: () => {
+          onDraft(data.week.start, null);
+          status('Saved the notes');
+        },
         onError: (cause) => error(cause),
       },
     );
@@ -91,6 +113,9 @@ function NotesForm({ data }: { data: ReviewData }) {
 export function WeeklyReview() {
   // null is this week; moving back and forth asks the server for the neighbour it named.
   const [week, setWeek] = useState<string | null>(null);
+  const [drafts, setDrafts] = useState<Drafts>({});
+  const keepDraft = (start: string, notes: Drafts[string] | null) =>
+    setDrafts(({ [start]: _old, ...rest }) => (notes ? { ...rest, [start]: notes } : rest));
   const query = useApiQuery<ReviewData>(
     apiKey(path, week ?? 'current'),
     week ? `${path}?week=${week}` : path,
@@ -176,8 +201,13 @@ export function WeeklyReview() {
           </CardContent>
         </Card>
       </div>
-      {/* Keyed by week, so a different week starts with its own notes rather than the old drafts. */}
-      <NotesForm key={data.week.start} data={data} />
+      {/* Keyed by week, so a different week starts with its own notes (or its own unsaved draft). */}
+      <NotesForm
+        key={data.week.start}
+        data={data}
+        draft={drafts[data.week.start]}
+        onDraft={keepDraft}
+      />
     </div>
   );
 }
