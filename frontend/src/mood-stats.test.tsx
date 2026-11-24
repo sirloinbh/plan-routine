@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { act, screen, within } from '@testing-library/react';
 import { expect, test, vi } from 'vitest';
 
 import { MoodStats } from './mood-stats';
@@ -61,4 +61,28 @@ test('a failed load shows the error and a retry button', async () => {
   answer({ error: 'A server error occurred' }, 500);
   render(<MoodStats />);
   expect(await screen.findByRole('button', { name: 'Try again' }, { timeout: 5000 })).toBeVisible();
+});
+
+test('loads again when the page is shown again (#290)', async () => {
+  const fetchMock = vi.fn(() =>
+    Promise.resolve({
+      ok: true,
+      status: 200,
+      json: () =>
+        Promise.resolve({
+          today: '2026-10-22',
+          weeks: [week('2026-10-18', '2026-10-24', { mood: fetchMock.mock.calls.length })],
+        }),
+    }),
+  );
+  vi.stubGlobal('fetch', fetchMock);
+  render(<MoodStats />);
+  expect(await screen.findByText('1.0')).toBeInTheDocument();
+
+  await act(async () => {
+    document.dispatchEvent(new Event('visibilitychange'));
+    await new Promise((resolve) => setTimeout(resolve));
+    await new Promise((resolve) => setTimeout(resolve));
+  });
+  expect(await screen.findByText('2.0')).toBeInTheDocument();
 });
