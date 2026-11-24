@@ -56,21 +56,54 @@ export function exportRoutes(pool: Pool, today: () => string) {
     }
   });
 
+  // One row per check (status done) and one per skipped period (status skipped, with its reason). The amount shows
+  // only while the routine has a unit (an amount is hidden, not deleted, without one: decision on #276).
   router.get('/checks.csv', async (_req, res) => {
     const { rows } = await pool.query(
-      `SELECT routine_checks.period_start AS date, routines.name AS routine, routines.cadence,
-         routines.category, routine_checks.checked_at AS "checkedAt"
-       FROM routine_checks
-       JOIN routines ON routines.id = routine_checks.routine_id
-       ORDER BY routine_checks.period_start, routines.cadence, routines.id`,
+      `SELECT date, routine, cadence, category, "checkedAt", status, amount, unit, reason
+       FROM (
+         SELECT routine_checks.period_start AS date, routines.name AS routine, routines.cadence,
+           routines.category, routine_checks.checked_at AS "checkedAt", 'done' AS status,
+           CASE WHEN routines.unit IS NULL THEN NULL ELSE routine_checks.amount END AS amount,
+           routines.unit, NULL::text AS reason, routines.id AS "routineId"
+         FROM routine_checks
+         JOIN routines ON routines.id = routine_checks.routine_id
+         UNION ALL
+         SELECT routine_skips.period_start, routines.name, routines.cadence, routines.category,
+           NULL::timestamptz, 'skipped', NULL::double precision, routines.unit,
+           routine_skips.reason, routines.id
+         FROM routine_skips
+         JOIN routines ON routines.id = routine_skips.routine_id
+       ) AS entries
+       ORDER BY date, cadence, "routineId"`,
     );
     download(
       res,
       `plan-routine-checks-${today()}.csv`,
       'text/csv',
       toCsv(
-        ['date', 'routine', 'cadence', 'category', 'checked_at'],
-        rows.map((row) => [row.date, row.routine, row.cadence, row.category, row.checkedAt]),
+        [
+          'date',
+          'routine',
+          'cadence',
+          'category',
+          'checked_at',
+          'status',
+          'amount',
+          'unit',
+          'skip_reason',
+        ],
+        rows.map((row) => [
+          row.date,
+          row.routine,
+          row.cadence,
+          row.category,
+          row.checkedAt,
+          row.status,
+          row.amount,
+          row.unit,
+          row.reason,
+        ]),
       ),
     );
   });

@@ -28,6 +28,21 @@ function fakePool(tables: Record<string, unknown[]>) {
             cadence: 'daily',
             category: 'care',
             checkedAt: new Date('2026-10-21T10:00:00Z'),
+            status: 'done',
+            amount: 12.5,
+            unit: 'pages',
+            reason: null,
+          },
+          {
+            date: '2026-10-22',
+            routine: 'Read',
+            cadence: 'daily',
+            category: 'study',
+            checkedAt: null,
+            status: 'skipped',
+            amount: null,
+            unit: 'pages',
+            reason: 'Sick, again',
           },
         ],
       };
@@ -108,7 +123,9 @@ test('the CSV exports are UTF-8 with a byte order mark and neutralize formula ce
     const checkText = Buffer.from(await checks.arrayBuffer()).toString('utf8');
     assert.equal(
       checkText,
-      '﻿date,routine,cadence,category,checked_at\r\n2026-10-21,"\'=HYPERLINK(""x"")",daily,care,2026-10-21T10:00:00.000Z\r\n',
+      '﻿date,routine,cadence,category,checked_at,status,amount,unit,skip_reason\r\n' +
+        '2026-10-21,"\'=HYPERLINK(""x"")",daily,care,2026-10-21T10:00:00.000Z,done,12.5,pages,\r\n' +
+        '2026-10-22,Read,daily,study,,skipped,,pages,"Sick, again"\r\n',
     );
 
     const diary = await fetch(`${base}/diary.csv`);

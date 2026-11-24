@@ -6,11 +6,11 @@ Your data lives only in the PostgreSQL volume (`plan-routine-data`). **`docker c
 
 Open **Settings**, section **Download your data**:
 
-| Button          | File                                  | Content                                                                                                                                                                                                             |
-| --------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| All data (JSON) | `plan-routine-export-YYYY-MM-DD.json` | `{ version, exportedOn, tables }`: every row of every table in the database, found at download time (so tables added by later migrations are included). Only the migration runner's `schema_migrations` is left out |
-| Checks (CSV)    | `plan-routine-checks-YYYY-MM-DD.csv`  | One row per check: date, routine, cadence, category, checked_at (UTC)                                                                                                                                               |
-| Diary (CSV)     | `plan-routine-diary-YYYY-MM-DD.csv`   | One row per entry: date, entry, went_well, could_be_better, tomorrow, mood, energy, updated_at (UTC)                                                                                                                |
+| Button          | File                                  | Content                                                                                                                                                                                                                                      |
+| --------------- | ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| All data (JSON) | `plan-routine-export-YYYY-MM-DD.json` | `{ version, exportedOn, tables }`: every row of every table in the database, found at download time (so tables added by later migrations are included). Only the migration runner's `schema_migrations` is left out                          |
+| Checks (CSV)    | `plan-routine-checks-YYYY-MM-DD.csv`  | One row per check (`status` done) and per skipped period (`status` skipped): date, routine, cadence, category, checked_at (UTC, empty for a skip), status, amount and unit (the amount shows only while the routine has a unit), skip_reason |
+| Diary (CSV)     | `plan-routine-diary-YYYY-MM-DD.csv`   | One row per entry: date, entry, went_well, could_be_better, tomorrow, mood, energy, updated_at (UTC)                                                                                                                                         |
 
 The same files come from `GET /api/export`, `GET /api/export/checks.csv` and `GET /api/export/diary.csv`. They need the shared sign-in like every other `/api` route.
 
