@@ -82,8 +82,8 @@ export function DailyChecklist() {
               title={group.label}
               items={group.routines}
               onToggle={(item) => void toggle(data.date, item)}
-              onSkip={(item, reason) => void skip(data.date, item, reason)}
-              onUnskip={(item) => void unskip(data.date, item)}
+              onSkip={(item, reason) => skip(data.date, item, reason)}
+              onUnskip={(item) => unskip(data.date, item)}
               onAmount={(item, amount) => void saveAmount(data.date, item, amount)}
             />
           ))}

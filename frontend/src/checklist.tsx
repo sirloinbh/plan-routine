@@ -1,5 +1,5 @@
 import { ExternalLink } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { progressText } from './checklist-progress';
 import { Badge } from './components/ui/badge';
@@ -71,8 +71,8 @@ export function Checklist({
   items: ChecklistItem[];
   onToggle: (item: ChecklistItem) => void;
   /** Without both skip handlers the list has no skip controls. */
-  onSkip?: (item: ChecklistItem, reason: string) => void;
-  onUnskip?: (item: ChecklistItem) => void;
+  onSkip?: (item: ChecklistItem, reason: string) => void | Promise<void>;
+  onUnskip?: (item: ChecklistItem) => void | Promise<void>;
   /** Saves the amount of a checked routine that has a unit; null clears it. */
   onAmount?: (item: ChecklistItem, amount: number | null) => void;
 }) {
@@ -141,17 +141,54 @@ export function Checklist({
 export const skipReasonLimit = 200;
 
 // "Skip" opens a one-line reason (optional); a skipped item shows its reason and can be restored.
+// Each step swaps the control that had focus for another, so focus is moved by hand (#288).
 function SkipControl({
   item,
   onSkip,
   onUnskip,
 }: {
   item: ChecklistItem;
-  onSkip: (item: ChecklistItem, reason: string) => void;
-  onUnskip: (item: ChecklistItem) => void;
+  onSkip: (item: ChecklistItem, reason: string) => void | Promise<void>;
+  onUnskip: (item: ChecklistItem) => void | Promise<void>;
 }) {
   const [editing, setEditing] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [reason, setReason] = useState('');
+  // Where focus goes once the next control is drawn.
+  const [focusNext, setFocusNext] = useState<'input' | 'skip' | 'remove' | null>(null);
+  const input = useRef<HTMLInputElement>(null);
+  const skipButton = useRef<HTMLButtonElement>(null);
+  const removeButton = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!focusNext) return;
+    // A save that failed leaves the item as it was, so focus goes back to the control that is still there.
+    const target =
+      focusNext === 'input'
+        ? input.current
+        : item.skipped
+          ? removeButton.current
+          : skipButton.current;
+    // Asked for once: with no such control now (the item was checked elsewhere), nothing is focused later.
+    target?.focus();
+    setFocusNext(null);
+  }, [focusNext, item.skipped, editing]);
+
+  const removeSkip = async () => {
+    setBusy(true);
+    await onUnskip(item);
+    setBusy(false);
+    setFocusNext('skip');
+  };
+  const saveSkip = async () => {
+    if (busy) return;
+    setBusy(true);
+    await onSkip(item, reason.trim());
+    setBusy(false);
+    setEditing(false);
+    setReason('');
+    setFocusNext('remove');
+  };
 
   if (item.skipped)
     return (
@@ -160,11 +197,13 @@ function SkipControl({
           Skipped{item.skipReason ? `: ${item.skipReason}` : ''}
         </span>
         <Button
+          ref={removeButton}
           type="button"
           variant="ghost"
           size="sm"
           aria-label={`Remove skip: ${item.name}`}
-          onClick={() => onUnskip(item)}
+          disabled={busy}
+          onClick={() => void removeSkip()}
         >
           Remove skip
         </Button>
@@ -175,11 +214,15 @@ function SkipControl({
     return (
       <div className="pl-7">
         <Button
+          ref={skipButton}
           type="button"
           variant="ghost"
           size="sm"
           aria-label={`Skip: ${item.name}`}
-          onClick={() => setEditing(true)}
+          onClick={() => {
+            setEditing(true);
+            setFocusNext('input');
+          }}
         >
           Skip
         </Button>
@@ -190,12 +233,11 @@ function SkipControl({
       className="flex flex-wrap items-center gap-2 pl-7"
       onSubmit={(event) => {
         event.preventDefault();
-        onSkip(item, reason.trim());
-        setEditing(false);
-        setReason('');
+        void saveSkip();
       }}
     >
       <Input
+        ref={input}
         className="min-w-0 flex-1 basis-48"
         aria-label={`Reason for skipping ${item.name} (optional)`}
         placeholder="Reason (optional)"
@@ -203,10 +245,18 @@ function SkipControl({
         value={reason}
         onChange={(event) => setReason(event.target.value)}
       />
-      <Button type="submit" size="sm">
+      <Button type="submit" size="sm" disabled={busy}>
         Skip
       </Button>
-      <Button type="button" variant="ghost" size="sm" onClick={() => setEditing(false)}>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        onClick={() => {
+          setEditing(false);
+          setFocusNext('skip');
+        }}
+      >
         Cancel
       </Button>
     </form>

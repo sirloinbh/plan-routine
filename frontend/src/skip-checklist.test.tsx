@@ -120,3 +120,35 @@ test('a refused skip shows the server message and leaves the item unskipped', as
   ).toBeInTheDocument();
   expect(screen.getByRole('checkbox', { name: 'Squats' })).toBeEnabled();
 });
+
+test('focus stays on a visible control through skip, cancel and remove skip (#288)', async () => {
+  skipApi();
+  render(<DailyChecklist />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Skip: Squats' }));
+  await flush();
+  expect(screen.getByLabelText('Reason for skipping Squats (optional)')).toHaveFocus();
+
+  fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+  await flush();
+  expect(screen.getByRole('button', { name: 'Skip: Squats' })).toHaveFocus();
+
+  fireEvent.click(screen.getByRole('button', { name: 'Skip: Squats' }));
+  await flush();
+  fireEvent.click(screen.getByRole('button', { name: 'Skip' }));
+  await flush();
+  expect(screen.getByRole('button', { name: 'Remove skip: Squats' })).toHaveFocus();
+
+  fireEvent.click(screen.getByRole('button', { name: 'Remove skip: Squats' }));
+  await flush();
+  expect(screen.getByRole('button', { name: 'Skip: Squats' })).toHaveFocus();
+});
+
+test('after a refused skip focus is on the Skip button, not lost (#288)', async () => {
+  skipApi({ checkedElsewhere: true });
+  render(<DailyChecklist />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Skip: Squats' }));
+  await flush();
+  fireEvent.click(screen.getByRole('button', { name: 'Skip' }));
+  await flush();
+  expect(screen.getByRole('button', { name: 'Skip: Squats' })).toHaveFocus();
+});

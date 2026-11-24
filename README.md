@@ -34,7 +34,7 @@ Vite is at http://localhost:5207, the API is at http://localhost:3107/api/health
 
 ## Repository layout
 
-This repository is an umbrella monorepo that holds the whole source. `frontend`, `backend`, and `database` are synced with `git subtree split` to the private deployment repositories `plan-routine-frontend`, `plan-routine-backend`, and `plan-routine-db` (`scripts/push-repositories.ps1`, only on request). AWS infrastructure is managed in the shared repository `shared-aws-infrastructure`.
+This repository is the only source and the only deploy repository (ADR-0022): `frontend`, `backend` and `database` live here as npm workspaces and folders, and there is no subtree sync to other repositories. Changes reach `main` only through pull requests. AWS infrastructure is managed in the shared repository `shared-aws-infrastructure`.
 
 ## Documents
 
