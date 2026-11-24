@@ -5,6 +5,7 @@ import { apiKey, useApiQuery } from './lib/query';
 import { errorText } from './lib/use-notice';
 import { LoadingRegion } from './loading-region';
 import { RetryButton } from './retry-button';
+import { useReloadWhenCurrent } from './use-date-change';
 
 type MoodWeek = {
   start: string;
@@ -33,6 +34,8 @@ export function MoodStats() {
   const query = useApiQuery<{ weeks: MoodWeek[] }>(apiKey('/api/mood-stats'), '/api/mood-stats', {
     staleTime: 0,
   });
+  // Like the rates above it: a page left open loads again after midnight or when it is shown again.
+  useReloadWhenCurrent(query, '/api/mood-stats');
   const weeks = query.data?.weeks;
 
   if (!weeks)
