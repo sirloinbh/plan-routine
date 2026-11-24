@@ -10,7 +10,7 @@ Open **Settings**, section **Download your data**:
 | --------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | All data (JSON) | `plan-routine-export-YYYY-MM-DD.json` | `{ version, exportedOn, tables }`: every row of every table in the database, found at download time (so tables added by later migrations are included). Only the migration runner's `schema_migrations` is left out |
 | Checks (CSV)    | `plan-routine-checks-YYYY-MM-DD.csv`  | One row per check: date, routine, cadence, category, checked_at (UTC)                                                                                                                                               |
-| Diary (CSV)     | `plan-routine-diary-YYYY-MM-DD.csv`   | One row per entry: date, entry, notes, mood, energy, updated_at (UTC)                                                                                                                                               |
+| Diary (CSV)     | `plan-routine-diary-YYYY-MM-DD.csv`   | One row per entry: date, entry, went_well, could_be_better, tomorrow, mood, energy, updated_at (UTC)                                                                                                                |
 
 The same files come from `GET /api/export`, `GET /api/export/checks.csv` and `GET /api/export/diary.csv`. They need the shared sign-in like every other `/api` route.
 
