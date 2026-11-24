@@ -1,6 +1,6 @@
 # Plan, Practice, Routine, Feedback
 
-A personal service for making plans, recording practice and routines, and improving through feedback. The only user is the owner, and it runs locally without a login.
+A personal service for making plans, recording practice and routines, and improving through feedback. The only user is the owner. The deployed app sits behind the shared sign-in (`sirloinbh/shared-auth`); a local development run can switch the sign-in off.
 
 ## Development standards
 
@@ -10,17 +10,24 @@ Changes go in this order: **GitHub issue → branch with the issue number → im
 
 ## Run
 
+Full stack in Docker (the same shape as the server):
+
 ```powershell
 Copy-Item .env.example .env
+docker network create shared-auth   # once; skip if the shared-auth project already created it
+docker network create shared-ai     # once
+$env:NODE_AUTH_TOKEN = "<a GitHub Packages read token>"   # the image build reads it as a BuildKit secret; never commit it
 docker compose up --build -d
 ```
 
-Open http://localhost:8107 . Change the password in `.env` before you run it. Data is stored in the `plan-routine-data` volume, and `docker compose down -v` deletes the data. See [docs/data-export.md](docs/data-export.md) for downloading a copy first.
+Open http://localhost:8107 . Change the password in `.env` before you run it. The API checks every `/api` session with the shared sign-in at `AUTH_INTERNAL_URL` (default `http://shared-auth-api:3110` on the `shared-auth` network), so without the shared-auth project running, `/api` calls are rejected. Data is stored in the `plan-routine-data` volume, and `docker compose down -v` deletes the data. See [docs/data-export.md](docs/data-export.md) for downloading a copy first.
 
-Development run:
+Development run (sign-in off; the API refuses to start without `AUTH_INTERNAL_URL` unless `NODE_ENV=development` or `AUTH_DISABLED=1` is set, and then it listens on 127.0.0.1 only):
 
 ```powershell
 docker compose up -d db
+$env:AUTH_DISABLED = "1"
+npm run db:migrate   # first run on an empty volume
 npm run dev
 ```
 
