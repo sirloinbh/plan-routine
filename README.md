@@ -18,9 +18,12 @@ docker network create shared-auth   # once; skip if the shared-auth project alre
 docker network create shared-ai     # once
 $env:NODE_AUTH_TOKEN = "<a GitHub Packages read token>"   # the image build reads it as a BuildKit secret; never commit it
 docker compose up --build -d
+npm run db:migrate   # reads DATABASE_URL from .env; on a new volume the API is healthy with no tables until this runs
 ```
 
-Open http://localhost:8107 . Change the password in `.env` before you run it. The API checks every `/api` session with the shared sign-in at `AUTH_INTERNAL_URL` (default `http://shared-auth-api:3110` on the `shared-auth` network), so without the shared-auth project running, `/api` calls are rejected. Data is stored in the `plan-routine-data` volume, and `docker compose down -v` deletes the data. See [docs/data-export.md](docs/data-export.md) for downloading a copy first.
+Compose names the project after the folder. Outside a folder called `plan-routine` (a worktree, for example) add `-p plan-routine` to reuse the existing containers and the `plan-routine_plan-routine-data` volume.
+
+Open http://localhost:8107 . Change the password in `.env` before you run it. The API checks every `/api` session with the shared sign-in at `AUTH_INTERNAL_URL` (default `http://shared-auth-api:3110` on the `shared-auth` network), so without the shared-auth project running, `/api` calls are rejected (401) and the screens stay empty. For a local look without shared-auth, use the development run below. Data is stored in the `plan-routine-data` volume, and `docker compose down -v` deletes the data. See [docs/data-export.md](docs/data-export.md) for downloading a copy first.
 
 Development run (sign-in off; the API refuses to start without `AUTH_INTERNAL_URL` unless `NODE_ENV=development` or `AUTH_DISABLED=1` is set, and then it listens on 127.0.0.1 only):
 
