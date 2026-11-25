@@ -41,7 +41,7 @@ export async function withApi(
       text: string;
     }>,
   ) => Promise<void>,
-  options: { today?: () => string } = {},
+  options: NonNullable<Parameters<typeof createApp>[1]> = {},
 ) {
   const { server, port } = await listen(createApp(pool, options));
   try {
