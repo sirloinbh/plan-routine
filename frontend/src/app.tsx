@@ -28,6 +28,7 @@ import { MoodStats } from './mood-stats';
 import { FourWeekRoutines, WeeklyRoutines } from './period-routines';
 import { ProjectLinks } from './project-links';
 import { Records } from './records';
+import { ReminderSection } from './reminder-section';
 import { DailyRoutines } from './routines';
 import { Search } from './search';
 import { AccountActions, SignInGate } from './sign-in';
@@ -262,11 +263,12 @@ export function App() {
                 element={
                   <Page
                     title="Settings"
-                    description="Manage the other apps your routines can open"
+                    description="Manage the other apps your routines can open, the evening reminder, and your data"
                     health={health}
                   >
                     <div className="flex flex-col gap-6">
                       <ProjectLinks />
+                      <ReminderSection />
                       <ExportSection />
                     </div>
                   </Page>
