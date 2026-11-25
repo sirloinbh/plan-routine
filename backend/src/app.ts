@@ -12,7 +12,9 @@ import { goalRoutes } from './goal-routes.js';
 import { moodStatsRoutes } from './mood-stats-routes.js';
 import { calendarDate, periodsFor } from './periods.js';
 import { projectLinkRoutes } from './project-link-routes.js';
+import { pushRoutes } from './push-routes.js';
 import { recordRoutes } from './record-routes.js';
+import type { VapidConfig } from './reminder.js';
 import { routineRoutes } from './routine-routes.js';
 import { routineAnchorDate } from './routines.js';
 import { searchRoutes } from './search-routes.js';
@@ -32,7 +34,13 @@ export const periodsQuery = z.object({ date: calendarDate.optional() });
 
 export function createApp(
   pool: Pool,
-  options: { today?: () => string; auth?: express.RequestHandler; toolsPublicKey?: string } = {},
+  options: {
+    today?: () => string;
+    auth?: express.RequestHandler;
+    toolsPublicKey?: string;
+    /** The VAPID keys of Web Push (#308); without them the reminder endpoints answer "not set up". */
+    vapid?: VapidConfig;
+  } = {},
 ) {
   const today = options.today ?? (() => serviceDate());
   const app = express();
@@ -61,6 +69,7 @@ export function createApp(
   app.use('/api/goals', goalRoutes(pool, today));
   app.use('/api/mood-stats', moodStatsRoutes(pool, today));
   app.use('/api/project-links', projectLinkRoutes(pool));
+  app.use('/api/push', pushRoutes(pool, options.vapid));
   app.use('/api/records', recordRoutes(pool, today));
   app.use('/api/search', searchRoutes(pool, today));
   app.use('/api/stats', statsRoutes(pool, today));

@@ -32,6 +32,10 @@ services:
       AUTH_INTERNAL_URL: ${AUTH_INTERNAL_URL:-http://shared-auth-api:3110}
       # shared-ai's public key; /internal/tools is served only when it is set (project-standards docs/ai-tools.md).
       AI_TOOLS_PUBLIC_KEY: ${AI_TOOLS_PUBLIC_KEY:-}
+      # Web Push reminders (#249): empty keys leave the sender off. The server deploy reads them from SSM.
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-}
     networks:
       default: {}
       shared-auth: {}
