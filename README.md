@@ -36,7 +36,7 @@ Vite is at http://localhost:5207, the API is at http://localhost:3107/api/health
 ## Verification
 
 - `npm run check`: format, lint, types, tests, skill sync check, and build.
-- The DB integration tests need `TEST_DATABASE_URL` for a dedicated test DB that has the migrations applied. They are skipped without it.
+- The DB integration tests need `TEST_DATABASE_URL` for a dedicated test DB that has the migrations applied (how to create the local one: [database/README.md](database/README.md)). They are skipped without it.
 - GitHub Actions runs the full checks with a PostgreSQL service and builds the Docker image.
 
 ## Repository layout
