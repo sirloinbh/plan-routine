@@ -8,6 +8,7 @@ import { checkInput, checklistQuery, skipInput } from './check-routes.js';
 import { diaryInput, diaryQuery } from './diary-routes.js';
 import { goalInput, reviewsInput, routineLinksInput } from './goal-routes.js';
 import { projectInput } from './project-link-routes.js';
+import { settingsInput, subscriptionInput, unsubscribeInput } from './push-routes.js';
 import { monthQuery } from './record-routes.js';
 import {
   amountInput,
@@ -124,6 +125,33 @@ export const operations: Record<string, Operation> = {
   'DELETE /api/project-links/:id': {
     summary: 'Delete a project link; routines linked to it lose the link',
     status: [200, 400, 404],
+  },
+
+  'GET /api/push/public-key': {
+    summary:
+      'Get the VAPID public key for PushManager.subscribe, or enabled false (publicKey null) while the server has no keys',
+    status: [200],
+  },
+  'GET /api/push/settings': {
+    summary:
+      'Get the evening reminder setting (on or off, time in Asia/Seoul, default off at 21:00), whether the server can send pushes, and how many devices are subscribed',
+    status: [200],
+  },
+  'PUT /api/push/settings': {
+    summary: 'Set the evening reminder on or off and its time (HH:MM); sends the whole setting',
+    body: ['ReminderSetting', settingsInput],
+    status: [200, 400],
+  },
+  'PUT /api/push/subscription': {
+    summary:
+      "Subscribe a device: the browser's subscription JSON (endpoint and keys); the same endpoint again refreshes its keys. 409 while the server has no VAPID keys",
+    body: ['PushSubscription', subscriptionInput],
+    status: [200, 400, 409],
+  },
+  'DELETE /api/push/subscription': {
+    summary: 'Unsubscribe a device by its endpoint; an unknown endpoint changes nothing',
+    body: ['PushUnsubscribe', unsubscribeInput],
+    status: [200, 400],
   },
 
   'GET /api/records': {
