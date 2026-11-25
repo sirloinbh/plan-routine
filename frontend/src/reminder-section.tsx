@@ -115,6 +115,7 @@ export function ReminderSection() {
     );
   };
 
+  // The buttons are not disabled while working (a disabled button loses keyboard focus); repeat presses are ignored.
   const turnOn = async () => {
     if (deviceBusy) return;
     setDeviceBusy(true);
@@ -219,7 +220,7 @@ export function ReminderSection() {
               <p className="text-caption font-semibold text-destructive">Choose a time</p>
             )}
           </div>
-          <Button type="submit" className="self-start" disabled={!timeValid || save.isPending}>
+          <Button type="submit" className="self-start" disabled={!timeValid}>
             {save.isPending && <Spinner size="sm" label="Saving" />}
             Save reminder
           </Button>
@@ -244,7 +245,7 @@ export function ReminderSection() {
               <Button
                 type="button"
                 variant="outline"
-                disabled={deviceBusy}
+                aria-busy={deviceBusy}
                 onClick={() => void turnOff()}
               >
                 {deviceBusy && <Spinner size="sm" label="Working" />}
@@ -261,7 +262,8 @@ export function ReminderSection() {
               <Button
                 type="button"
                 variant="outline"
-                disabled={deviceBusy || endpoint === undefined}
+                disabled={endpoint === undefined}
+                aria-busy={deviceBusy}
                 onClick={() => void turnOn()}
               >
                 {deviceBusy && <Spinner size="sm" label="Working" />}

@@ -250,3 +250,18 @@ test('a failed load shows the error and a retry button', async () => {
   render(<ReminderSection />);
   expect(await screen.findByRole('button', { name: 'Try again' }, { timeout: 5000 })).toBeVisible();
 });
+
+test('focus stays on the device button when notifications are turned on and off', async () => {
+  browser();
+  pushApi();
+  render(<ReminderSection />);
+  const on = await screen.findByRole('button', { name: 'Turn on notifications' });
+  on.focus();
+  fireEvent.click(on);
+  const off = await screen.findByRole('button', { name: 'Turn off notifications' });
+  await waitFor(() => expect(off).toHaveFocus());
+
+  fireEvent.click(off);
+  const again = await screen.findByRole('button', { name: 'Turn on notifications' });
+  await waitFor(() => expect(again).toHaveFocus());
+});
