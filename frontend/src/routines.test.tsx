@@ -17,6 +17,7 @@ type Seed = {
   category: string | null;
   cadence?: string;
   weekdays?: number[] | null;
+  unit?: string | null;
 };
 
 // A fake routine API with state, like the server: add, move, rename, archive, and 404 for
@@ -537,7 +538,7 @@ test('with no projects registered a routine offers no link', async () => {
   render(<DailyRoutines />);
   await screen.findByText('Wake at 6');
   await flush();
-  expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+  expect(screen.queryByRole('combobox', { name: /^Project to link/ })).not.toBeInTheDocument();
 });
 
 // Writes wait until released, as on a slow connection.
@@ -622,7 +623,7 @@ test('a failed project list says so instead of looking like no projects', async 
   expect(getLive('alert')).toHaveTextContent(
     'Could not load the projects a routine can link to. A server error occurred',
   );
-  expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+  expect(screen.queryByRole('combobox', { name: /^Project to link/ })).not.toBeInTheDocument();
 });
 
 test('a daily routine can be added on chosen weekdays, which the list then shows', async () => {
@@ -663,7 +664,7 @@ test('a unit and target can be set when adding, and are shown in the list (#246)
   });
   // The target appears only once there is a unit.
   expect(within(reading).queryByRole('spinbutton')).toBeNull();
-  fireEvent.change(within(reading).getByRole('textbox', { name: /^Unit for the new Reading/ }), {
+  fireEvent.change(within(reading).getByRole('combobox', { name: /^Unit for the new Reading/ }), {
     target: { value: ' pages ' },
   });
   fireEvent.change(within(reading).getByRole('spinbutton', { name: /^Target amount/ }), {
@@ -681,6 +682,16 @@ test('a unit and target can be set when adding, and are shown in the list (#246)
   await waitFor(() => expect(within(reading).getByText('pages, target 20')).toBeInTheDocument());
 });
 
+test('a unit already used is picked from a list when adding (#330)', async () => {
+  routineApi([{ id: 5, name: 'Read', category: 'reading', unit: 'chapters' }]);
+  render(<DailyRoutines />);
+  const reading = await screen.findByRole('region', { name: 'Reading routines' });
+  const unit = within(reading).getByRole('combobox', { name: /^Unit for the new Reading/ });
+  fireEvent.keyDown(unit, { key: 'ArrowDown' });
+  fireEvent.click(await within(reading).findByRole('option', { name: 'chapters' }));
+  expect(unit).toHaveValue('chapters');
+});
+
 test('a unit and target are added later and can then change (#276)', async () => {
   const api = routineApi([{ id: 5, name: 'Read', category: 'reading' }]);
   render(<DailyRoutines />);
@@ -688,7 +699,7 @@ test('a unit and target are added later and can then change (#276)', async () =>
   fireEvent.click(within(reading).getByRole('button', { name: 'Set the amount of Read' }));
   // The target box appears once there is a unit.
   expect(within(reading).queryByRole('spinbutton')).toBeNull();
-  fireEvent.change(within(reading).getByRole('textbox', { name: 'Unit for Read' }), {
+  fireEvent.change(within(reading).getByRole('combobox', { name: 'Unit for Read' }), {
     target: { value: ' pages ' },
   });
   fireEvent.change(within(reading).getByRole('spinbutton', { name: 'Target amount for Read' }), {
@@ -706,8 +717,8 @@ test('a unit and target are added later and can then change (#276)', async () =>
   // The unit can change; the form says what happens to recorded amounts.
   fireEvent.click(within(reading).getByRole('button', { name: 'Set the amount of Read' }));
   expect(within(reading).getByText(/Removing the unit hides them/)).toBeInTheDocument();
-  expect(within(reading).getByRole('textbox', { name: 'Unit for Read' })).toHaveValue('pages');
-  fireEvent.change(within(reading).getByRole('textbox', { name: 'Unit for Read' }), {
+  expect(within(reading).getByRole('combobox', { name: 'Unit for Read' })).toHaveValue('pages');
+  fireEvent.change(within(reading).getByRole('combobox', { name: 'Unit for Read' }), {
     target: { value: 'chapters' },
   });
   fireEvent.change(within(reading).getByRole('spinbutton', { name: 'Target amount for Read' }), {
