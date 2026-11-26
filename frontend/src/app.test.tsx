@@ -168,6 +168,29 @@ test('the diary opens from the main menu and from the daily checklist page', asy
   window.history.replaceState(null, '', '/');
 });
 
+test('the main menu follows the shared order: day log, Week, 12 weeks, other pages, dashboard, Settings (#328)', () => {
+  health({ today: '2026-10-26' });
+  render(<App />);
+  const menu = screen.getByRole('navigation', { name: 'Main menu' });
+  expect(
+    within(menu)
+      .getAllByRole('link')
+      .map((link) => link.textContent),
+  ).toEqual([
+    'Today',
+    'Weekly routines',
+    '12-week routines',
+    'Diary',
+    'Daily routines',
+    '4-week routines',
+    'Records',
+    'Weekly review',
+    'Search',
+    'Completion rates',
+    'Settings',
+  ]);
+});
+
 test('the main menu opens the weekly routine page', async () => {
   health({ today: '2026-10-26' });
   render(<App />);

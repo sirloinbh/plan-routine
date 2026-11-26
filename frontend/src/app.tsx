@@ -52,18 +52,19 @@ const pages = {
   settings: '/settings',
 } as const;
 
-// Main menu (LNB) items, in display order.
+// Main menu (LNB) items, in display order (project-standards#1128, plan-routine#328): the day log,
+// the Week and 12-week views, the other pages, the dashboard (completion rates), Settings.
 const nav: NavItem[] = [
   { to: pages.today, label: 'Today', icon: CalendarCheck },
+  { to: pages.weekly, label: 'Weekly routines', icon: CalendarRange },
+  { to: pages.twelveWeek, label: '12-week routines', icon: Target },
   { to: pages.diary, label: 'Diary', icon: NotebookPen },
   { to: pages.routines, label: 'Daily routines', icon: ListChecks },
-  { to: pages.weekly, label: 'Weekly routines', icon: CalendarRange },
   { to: pages.fourWeek, label: '4-week routines', icon: CalendarDays },
-  { to: pages.twelveWeek, label: '12-week routines', icon: Target },
   { to: pages.records, label: 'Records', icon: History },
-  { to: pages.stats, label: 'Completion rates', icon: ChartNoAxesColumn },
   { to: pages.review, label: 'Weekly review', icon: ClipboardCheck },
   { to: pages.search, label: 'Search', icon: SearchIcon },
+  { to: pages.stats, label: 'Completion rates', icon: ChartNoAxesColumn },
   { to: pages.settings, label: 'Settings', icon: Settings2 },
 ];
 
