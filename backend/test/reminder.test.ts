@@ -48,6 +48,7 @@ test('the time of day is read in Asia/Seoul, not the server zone', () => {
 function fakePool(options: {
   on?: boolean;
   time?: string;
+  lastSent?: string;
   claim?: boolean;
   names?: string[];
   devices?: string[];
@@ -56,6 +57,8 @@ function fakePool(options: {
   const pool = {
     query: async (sql: string, params: unknown[] = []) => {
       statements.push({ sql, params });
+      if (sql.includes('FROM app_settings WHERE key = $1'))
+        return { rows: options.lastSent ? [{ value: options.lastSent }] : [] };
       if (sql.includes('FROM app_settings'))
         return {
           rows: [
@@ -96,6 +99,17 @@ test('nothing happens while the reminder is off or before its time', async () =>
 });
 
 test('a day already handled is not sent again', async () => {
+  const handled = fakePool({ lastSent: '2026-11-26' });
+  assert.deepEqual(await runReminder(handled.pool, async () => assert.fail('no send'), evening), {
+    status: 'already-handled',
+  });
+  assert.ok(!handled.statements.some((s) => s.sql.includes('FROM routines')));
+  // Yesterday's mark does not count for today.
+  const yesterday = fakePool({ lastSent: '2026-11-25' });
+  assert.equal((await runReminder(yesterday.pool, async () => {}, evening)).status, 'sent');
+});
+
+test('a tick that loses the claim to another tick does not send', async () => {
   const { pool, statements } = fakePool({ claim: false });
   const result = await runReminder(pool, async () => assert.fail('no send'), evening);
   assert.deepEqual(result, { status: 'already-handled' });
@@ -106,14 +120,19 @@ test('a day already handled is not sent again', async () => {
   ]);
 });
 
-test('no push when every due routine is checked or skipped, or no device is subscribed', async () => {
+test('no push when every due routine is checked or skipped, or no device is subscribed, and the day stays open', async () => {
   const send = async () => assert.fail('no send');
-  assert.deepEqual(await runReminder(fakePool({ names: [] }).pool, send, evening), {
+  const allDone = fakePool({ names: [] });
+  assert.deepEqual(await runReminder(allDone.pool, send, evening), {
     status: 'nothing-to-remind',
   });
-  assert.deepEqual(await runReminder(fakePool({ devices: [] }).pool, send, evening), {
+  const noDevice = fakePool({ devices: [] });
+  assert.deepEqual(await runReminder(noDevice.pool, send, evening), {
     status: 'no-devices',
   });
+  // #322: neither claims the day, so a device subscribed later that evening still gets the reminder.
+  for (const { statements } of [allDone, noDevice])
+    assert.ok(!statements.some((s) => s.sql.includes('INSERT INTO app_settings')));
 });
 
 test('a push goes to every device; gone ones are removed and other failures are counted without the endpoint in the log', async () => {

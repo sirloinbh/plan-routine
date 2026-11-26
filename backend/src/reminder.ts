@@ -105,10 +105,11 @@ export type ReminderResult =
   | { status: 'sent'; sent: number; removed: number; failed: number };
 
 /**
- * One scheduler tick. Once the reminder time of a day has passed (also after a restart later that day), it handles that
- * day exactly once: the day is claimed first, so two ticks or two servers cannot both send. Nothing is sent when every
- * due routine is checked or skipped, or when no device is subscribed. A send that fails for a reason other than "gone"
- * is logged and not retried that day, so a broken push service cannot repeat a notification every minute.
+ * One scheduler tick. Once the reminder time of a day has passed (also after a restart later that day), it sends that
+ * day's reminder exactly once: the day is claimed right before sending, so two ticks or two servers cannot both send.
+ * While every due routine is checked or skipped, or no device is subscribed, nothing is sent and the day stays open, so
+ * a later tick that evening can still send (#322). A send that fails for a reason other than "gone" is logged and not
+ * retried that day, so a broken push service cannot repeat a notification every minute.
  */
 export async function runReminder(
   pool: Pool,
@@ -120,6 +121,21 @@ export async function runReminder(
   if (!setting.reminderOn) return { status: 'off' };
   if (serviceTime(now) < setting.reminderTime) return { status: 'early' };
   const today = serviceDate(now);
+  const { rows: handled } = await pool.query<{ value: string }>(
+    'SELECT value FROM app_settings WHERE key = $1',
+    [lastSentKey],
+  );
+  if (handled[0]?.value === today) return { status: 'already-handled' };
+  // #322: the day is claimed only when there is something to send to someone. A device subscribed or a routine left
+  // open later that evening (the reminder was turned on after its time) still gets the reminder.
+  const names = await uncheckedToday(pool, today);
+  if (names.length === 0) return { status: 'nothing-to-remind' };
+  const { rows: devices } = await pool.query<{
+    endpoint: string;
+    p256dh: string;
+    auth: string;
+  }>('SELECT endpoint, p256dh, auth FROM push_subscriptions ORDER BY created_at');
+  if (devices.length === 0) return { status: 'no-devices' };
   // The row only changes when the day differs, so exactly one caller gets it back.
   const claimed = await pool.query(
     `INSERT INTO app_settings (key, value) VALUES ($1, $2)
@@ -129,14 +145,6 @@ export async function runReminder(
     [lastSentKey, today],
   );
   if (!claimed.rows[0]) return { status: 'already-handled' };
-  const names = await uncheckedToday(pool, today);
-  if (names.length === 0) return { status: 'nothing-to-remind' };
-  const { rows: devices } = await pool.query<{
-    endpoint: string;
-    p256dh: string;
-    auth: string;
-  }>('SELECT endpoint, p256dh, auth FROM push_subscriptions ORDER BY created_at');
-  if (devices.length === 0) return { status: 'no-devices' };
   const payload = reminderPayload(names);
   let sent = 0;
   let failed = 0;

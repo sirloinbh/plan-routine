@@ -56,10 +56,6 @@ test(
 
         await client.query('DELETE FROM push_subscriptions');
         await client.query(`DELETE FROM app_settings WHERE key = ANY($1::text[])`, [settingKeys]);
-        await client.query(
-          `INSERT INTO push_subscriptions (endpoint, p256dh, auth)
-           VALUES ('https://push.example/ok', 'p', 'a'), ('https://push.example/gone', 'p', 'a')`,
-        );
         const sent: { target: PushTarget; payload: string }[] = [];
         const send = async (target: PushTarget, payload: string) => {
           if (target.endpoint.endsWith('/gone'))
@@ -75,7 +71,18 @@ test(
         assert.deepEqual(await runReminder(pool, send, new Date('2026-11-26T11:59:00Z')), {
           status: 'early',
         });
-        const result = await runReminder(pool, send, evening);
+        // #322: turned on after the time with no device yet. Nothing is sent and the day stays open.
+        assert.deepEqual(await runReminder(pool, send, evening), { status: 'no-devices' });
+        const mark = await client.query(
+          `SELECT 1 FROM app_settings WHERE key = 'reminder_last_sent'`,
+        );
+        assert.equal(mark.rowCount, 0);
+        // The devices subscribe a few minutes later; the next tick sends that evening.
+        await client.query(
+          `INSERT INTO push_subscriptions (endpoint, p256dh, auth)
+           VALUES ('https://push.example/ok', 'p', 'a'), ('https://push.example/gone', 'p', 'a')`,
+        );
+        const result = await runReminder(pool, send, new Date('2026-11-26T12:10:00Z'));
         assert.deepEqual(result, { status: 'sent', sent: 1, removed: 1, failed: 0 });
         assert.equal(sent[0].target.endpoint, 'https://push.example/ok');
         const payload = JSON.parse(sent[0].payload);
