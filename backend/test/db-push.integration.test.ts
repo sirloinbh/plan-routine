@@ -169,6 +169,36 @@ test(
           },
           { vapid },
         );
+
+        // #323: the test button sends to every device at once, drops gone ones, and leaves the daily state alone.
+        await client.query('DELETE FROM push_subscriptions');
+        await client.query(
+          `INSERT INTO push_subscriptions (endpoint, p256dh, auth)
+           VALUES ('https://push.example/ok', 'p', 'a'), ('https://push.example/gone', 'p', 'a')`,
+        );
+        const sent: { target: PushTarget; payload: string }[] = [];
+        const sendPush = async (target: PushTarget, payload: string) => {
+          if (target.endpoint.endsWith('/gone'))
+            throw Object.assign(new Error('gone'), { statusCode: 410 });
+          sent.push({ target, payload });
+        };
+        await withApi(
+          pool,
+          async (call) => {
+            const { status, data } = await call('/api/push/test', { method: 'POST' });
+            assert.equal(status, 200);
+            assert.deepEqual(data, { sent: 1, removed: 1, failed: 0 });
+          },
+          { vapid, sendPush },
+        );
+        assert.equal(sent.length, 1);
+        assert.equal(JSON.parse(sent[0].payload).title, 'Test notification');
+        const left = await client.query('SELECT endpoint FROM push_subscriptions');
+        assert.deepEqual(left.rows, [{ endpoint: 'https://push.example/ok' }]);
+        const mark = await client.query(
+          `SELECT 1 FROM app_settings WHERE key = 'reminder_last_sent'`,
+        );
+        assert.equal(mark.rowCount, 0);
       } finally {
         await client.query('DELETE FROM push_subscriptions');
         await client.query(`DELETE FROM app_settings WHERE key = ANY($1::text[])`, [settingKeys]);

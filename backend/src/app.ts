@@ -14,7 +14,7 @@ import { calendarDate, periodsFor } from './periods.js';
 import { projectLinkRoutes } from './project-link-routes.js';
 import { pushRoutes } from './push-routes.js';
 import { recordRoutes } from './record-routes.js';
-import type { VapidConfig } from './reminder.js';
+import type { SendPush, VapidConfig } from './reminder.js';
 import { routineRoutes } from './routine-routes.js';
 import { routineAnchorDate } from './routines.js';
 import { searchRoutes } from './search-routes.js';
@@ -40,6 +40,8 @@ export function createApp(
     toolsPublicKey?: string;
     /** The VAPID keys of Web Push (#308); without them the reminder endpoints answer "not set up". */
     vapid?: VapidConfig;
+    /** Sends one push (#323 test button); set together with `vapid`. */
+    sendPush?: SendPush;
   } = {},
 ) {
   const today = options.today ?? (() => serviceDate());
@@ -69,7 +71,7 @@ export function createApp(
   app.use('/api/goals', goalRoutes(pool, today));
   app.use('/api/mood-stats', moodStatsRoutes(pool, today));
   app.use('/api/project-links', projectLinkRoutes(pool));
-  app.use('/api/push', pushRoutes(pool, options.vapid));
+  app.use('/api/push', pushRoutes(pool, options.vapid, options.sendPush));
   app.use('/api/records', recordRoutes(pool, today));
   app.use('/api/search', searchRoutes(pool, today));
   app.use('/api/stats', statsRoutes(pool, today));

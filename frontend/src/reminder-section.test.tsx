@@ -16,7 +16,14 @@ const reply = (status: number, body: unknown) =>
   Promise.resolve({ ok: status < 400, status, json: () => Promise.resolve(body) } as Response);
 
 // A fake server with the contract of backend #308.
-function pushApi(initial: Partial<Settings> = {}, publicKey: string | null = 'AQAB') {
+function pushApi(
+  initial: Partial<Settings> = {},
+  publicKey: string | null = 'AQAB',
+  test: { status: number; body: unknown } = {
+    status: 200,
+    body: { sent: 1, removed: 0, failed: 0 },
+  },
+) {
   let settings: Settings = {
     pushEnabled: true,
     reminderOn: false,
@@ -49,6 +56,7 @@ function pushApi(initial: Partial<Settings> = {}, publicKey: string | null = 'AQ
         settings = { ...settings, subscriptionCount: Math.max(settings.subscriptionCount - 1, 0) };
         return reply(200, { subscribed: false, subscriptionCount: settings.subscriptionCount });
       }
+      if (pathname === '/api/push/test' && method === 'POST') return reply(test.status, test.body);
       throw new Error(`Unexpected request ${method} ${url}`);
     }),
   );
@@ -264,4 +272,40 @@ test('focus stays on the device button when notifications are turned on and off'
   fireEvent.click(off);
   const again = await screen.findByRole('button', { name: 'Turn on notifications' });
   await waitFor(() => expect(again).toHaveFocus());
+});
+
+test('a subscribed device can send itself a test notification', async () => {
+  browser({ permission: 'granted', subscribed: true });
+  const api = pushApi({ subscriptionCount: 1 });
+  render(<ReminderSection />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Send a test notification' }));
+  expect(
+    await screen.findByText('Test notification sent. It should appear in a few seconds'),
+  ).toBeInTheDocument();
+  expect(api.calls).toContainEqual({ method: 'POST', path: '/api/push/test', body: undefined });
+});
+
+test('a test that reaches no device says how to fix it', async () => {
+  browser({ permission: 'granted', subscribed: true });
+  pushApi({ subscriptionCount: 1 }, 'AQAB', {
+    status: 200,
+    body: { sent: 0, removed: 1, failed: 0 },
+  });
+  render(<ReminderSection />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Send a test notification' }));
+  await waitFor(() =>
+    expect(getLive('alert')).toHaveTextContent(
+      'Turn notifications off and on again on this device',
+    ),
+  );
+});
+
+test('the test button is only offered on a subscribed device', async () => {
+  browser();
+  pushApi();
+  render(<ReminderSection />);
+  await screen.findByRole('button', { name: 'Turn on notifications' });
+  expect(
+    screen.queryByRole('button', { name: 'Send a test notification' }),
+  ).not.toBeInTheDocument();
 });
