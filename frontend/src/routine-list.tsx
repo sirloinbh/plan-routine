@@ -1,7 +1,9 @@
 import { Button } from './components/ui/button';
+import { Combobox } from './components/ui/combobox';
 import { Input } from './components/ui/input';
 import { NativeSelect } from './components/ui/native-select';
 import { Spinner } from './components/ui/spinner';
+import { usedValues } from './lib/used-values';
 import { amountText, fullWeekdayNames, scheduleText, weekdayNames } from './routine-schedule';
 import type { Routine } from './routines';
 import { noSchedule, type RoutineList, type RoutineNotice } from './use-routine-list';
@@ -22,6 +24,10 @@ export function RoutineNotices({ notice }: { notice: RoutineNotice }) {
   );
 }
 
+/** Units already used on this cadence's routines, then a few common ones, to pick from (#330). */
+const unitChoices = (list: RoutineList) =>
+  usedValues(list.routines?.map((routine) => routine.unit) ?? [], ['pages', 'minutes', 'times']);
+
 export function RoutineItems({
   list,
   routines,
@@ -32,6 +38,7 @@ export function RoutineItems({
   draftKey: string;
 }) {
   const { editing, confirmArchive, busy, projects } = list;
+  const units = unitChoices(list);
   return (
     <ol className="flex flex-col divide-y">
       {routines.map((routine, index) => (
@@ -271,16 +278,18 @@ export function RoutineItems({
                     void list.saveAmount(routine);
                   }}
                 >
-                  <Input
+                  <Combobox
                     className="w-32"
                     aria-label={`Unit for ${routine.name}`}
                     placeholder="Unit, e.g. pages"
                     maxLength={20}
+                    autoComplete="off"
                     value={list.amountEditing.unit}
-                    onChange={(event) =>
-                      list.amountEditing &&
-                      list.setAmountEditing({ ...list.amountEditing, unit: event.target.value })
+                    onValueChange={(unit) =>
+                      list.amountEditing && list.setAmountEditing({ ...list.amountEditing, unit })
                     }
+                    options={units}
+                    listLabel="Units already used"
                   />
                   {list.amountEditing.unit.trim() && (
                     <Input
@@ -371,6 +380,7 @@ export function RoutineAddForm({
   placeholder?: string;
 }) {
   const schedule = list.schedules[draftKey] ?? noSchedule;
+  const units = unitChoices(list);
   const toggleDay = (day: number) =>
     list.setSchedule(draftKey, {
       ...schedule,
@@ -429,15 +439,16 @@ export function RoutineAddForm({
         <span aria-hidden className="text-body-sm text-muted-foreground">
           Amount
         </span>
-        <Input
+        <Combobox
           className="w-28"
           aria-label={`Unit for the new ${addedTo} routine (optional)`}
           placeholder="Unit, e.g. pages"
           maxLength={20}
+          autoComplete="off"
           value={schedule.unit}
-          onChange={(event) =>
-            list.setSchedule(draftKey, { ...schedule, unit: event.target.value })
-          }
+          onValueChange={(unit) => list.setSchedule(draftKey, { ...schedule, unit })}
+          options={units}
+          listLabel="Units already used"
         />
         {schedule.unit.trim() && (
           <Input
