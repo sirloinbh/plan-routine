@@ -10,7 +10,7 @@ Fixes a gap in #308 (part of #249). Found on 2026-11-26: the user turned the rem
 
 - `backend/src/reminder.ts`: a tick first reads the day mark and stops when today is already handled. Then it looks for unchecked routines and subscribed devices, and claims the day (the same atomic upsert as before) only when it is about to send. With nothing unchecked or no device, the day stays open and a later tick that evening can still send.
 - Once a day still holds: the claim is still a conditional upsert that only one caller gets back, so two ticks or two servers cannot both send.
-- A side effect worth knowing: when every routine is checked at 21:00 and one is unchecked again later that evening, the reminder now goes out then. A day without devices costs two small queries a minute after the reminder time, as the setting read already did.
+- A side effect worth knowing: when every routine is checked at 21:00 and one is unchecked again later that evening, the reminder now goes out then. Until the day is sent, each tick after the reminder time runs up to four small queries (setting, day mark, open routines, devices) once a minute; before it ran two.
 
 ## Verification
 
