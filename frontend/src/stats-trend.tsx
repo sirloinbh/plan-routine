@@ -6,7 +6,7 @@ export type Streak = { current: number; best: number };
 
 const width = 300;
 const height = 120;
-const pad = { left: 30, right: 8, top: 8, bottom: 8 };
+const pad = { left: 40, right: 8, top: 8, bottom: 8 };
 const rate = ({ checked, total }: TrendPoint) =>
   total === 0 ? null : Math.round((checked / total) * 100);
 
@@ -61,7 +61,7 @@ function TrendChart({ title, points }: { title: string; points: TrendPoint[] }) 
                 y={y(value)}
                 textAnchor="end"
                 dominantBaseline="middle"
-                className="fill-muted-foreground text-[8px]"
+                className="fill-muted-foreground text-xs"
               >
                 {value}%
               </text>
