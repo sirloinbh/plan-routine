@@ -1818,6 +1818,46 @@
         }
       }
     },
+    "/api/push/test": {
+      "post": {
+        "summary": "Send one test notification to every subscribed device now; answers how many were sent, removed as gone, and failed. 409 while the server has no VAPID keys or no device is subscribed",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Sign-in required (no session from the shared sign-in)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Duplicate",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/routines/{id}/archive": {
       "post": {
         "summary": "Archive a routine: it leaves the lists but its past checks stay",

@@ -130,11 +130,7 @@ export async function runReminder(
   // open later that evening (the reminder was turned on after its time) still gets the reminder.
   const names = await uncheckedToday(pool, today);
   if (names.length === 0) return { status: 'nothing-to-remind' };
-  const { rows: devices } = await pool.query<{
-    endpoint: string;
-    p256dh: string;
-    auth: string;
-  }>('SELECT endpoint, p256dh, auth FROM push_subscriptions ORDER BY created_at');
+  const devices = await subscribedDevices(pool);
   if (devices.length === 0) return { status: 'no-devices' };
   // The row only changes when the day differs, so exactly one caller gets it back.
   const claimed = await pool.query(
@@ -145,7 +141,32 @@ export async function runReminder(
     [lastSentKey, today],
   );
   if (!claimed.rows[0]) return { status: 'already-handled' };
-  const payload = reminderPayload(names);
+  return {
+    status: 'sent',
+    ...(await sendToDevices(pool, send, devices, reminderPayload(names), log)),
+  };
+}
+
+export type Device = { endpoint: string; p256dh: string; auth: string };
+
+export async function subscribedDevices(pool: Pick<Pool, 'query'>) {
+  const { rows } = await pool.query<Device>(
+    'SELECT endpoint, p256dh, auth FROM push_subscriptions ORDER BY created_at',
+  );
+  return rows;
+}
+
+/**
+ * Sends one payload to each device. A device the push service reports gone (404 or 410) is deleted; any other failure
+ * is counted and logged by status only, because the push service's answer can echo the endpoint, a secret capability URL.
+ */
+export async function sendToDevices(
+  pool: Pick<Pool, 'query'>,
+  send: SendPush,
+  devices: Device[],
+  payload: string,
+  log: (message: string) => void = console.error,
+) {
   let sent = 0;
   let failed = 0;
   const gone: string[] = [];
@@ -161,14 +182,22 @@ export async function runReminder(
       if (code === 404 || code === 410) gone.push(device.endpoint);
       else {
         failed += 1;
-        // The push service's answer can echo the endpoint, which is a secret capability URL: log the status only.
         log(`reminder: a push failed (status ${code ?? 'none'})`);
       }
     }
   }
   if (gone.length > 0)
     await pool.query('DELETE FROM push_subscriptions WHERE endpoint = ANY($1::text[])', [gone]);
-  return { status: 'sent', sent, removed: gone.length, failed };
+  return { sent, removed: gone.length, failed };
+}
+
+/** The notification of the Settings test button (#323): it opens Settings again. */
+export function testPayload() {
+  return JSON.stringify({
+    title: 'Test notification',
+    body: 'Notifications work on this device. The evening reminder will look like this.',
+    url: '/settings',
+  });
 }
 
 /** Runs `runReminder` every minute (and once now); a tick still running or failing never stops the next one. */

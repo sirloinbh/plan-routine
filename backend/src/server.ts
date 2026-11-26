@@ -30,6 +30,7 @@ const server = createApp(pool, {
   auth,
   toolsPublicKey: process.env.AI_TOOLS_PUBLIC_KEY,
   vapid,
+  sendPush: send,
 }).listen(port, listenHost(auth !== undefined), () => console.log(`API http://localhost:${port}`));
 closeOnSignals(server, pool);
 

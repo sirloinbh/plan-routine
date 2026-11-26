@@ -5,6 +5,10 @@ import { z } from 'zod/v4';
 import {
   readReminderSetting,
   reminderTimePattern,
+  type SendPush,
+  sendToDevices,
+  subscribedDevices,
+  testPayload,
   type VapidConfig,
   writeReminderSetting,
 } from './reminder.js';
@@ -14,6 +18,7 @@ import { HttpError } from './standard/http.js';
 export const notSetUp = 'Push reminders are not set up on the server';
 const maxSubscriptions = 20;
 const tooMany = `At most ${maxSubscriptions} devices can be subscribed`;
+export const noDevices = 'No device has notifications turned on';
 
 export const settingsInput = z.object(
   {
@@ -53,7 +58,7 @@ export const subscriptionInput = z.object(
 );
 export const unsubscribeInput = z.object({ endpoint }, badRequest);
 
-export function pushRoutes(pool: Pool, vapid: VapidConfig | undefined) {
+export function pushRoutes(pool: Pool, vapid: VapidConfig | undefined, send?: SendPush) {
   const router = Router();
 
   const settings = async () => {
@@ -107,6 +112,14 @@ export function pushRoutes(pool: Pool, vapid: VapidConfig | undefined) {
     const { endpoint: target } = unsubscribeInput.parse(requestBody(req.body));
     await pool.query('DELETE FROM push_subscriptions WHERE endpoint = $1', [target]);
     res.json({ subscribed: false, subscriptionCount: await count() });
+  });
+
+  // #323: one test push to every subscribed device, now. It does not touch the daily reminder state.
+  router.post('/test', async (_req, res) => {
+    if (!vapid || !send) throw new HttpError(409, notSetUp);
+    const devices = await subscribedDevices(pool);
+    if (devices.length === 0) throw new HttpError(409, noDevices);
+    res.json(await sendToDevices(pool, send, devices, testPayload()));
   });
 
   return router;

@@ -153,6 +153,11 @@ export const operations: Record<string, Operation> = {
     body: ['PushUnsubscribe', unsubscribeInput],
     status: [200, 400],
   },
+  'POST /api/push/test': {
+    summary:
+      'Send one test notification to every subscribed device now; answers how many were sent, removed as gone, and failed. 409 while the server has no VAPID keys or no device is subscribed',
+    status: [200, 409],
+  },
 
   'GET /api/records': {
     summary: 'Get the daily routine progress and diary marks of each day of a month',

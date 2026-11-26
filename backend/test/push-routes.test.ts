@@ -155,3 +155,21 @@ test('unsubscribing removes the endpoint and repeating it is fine', async () => 
     );
   });
 });
+
+test('the test push is refused without keys or devices', async () => {
+  const send = async () => assert.fail('no send');
+  await withApi(fakePool().pool, async (call) => {
+    const { status, data } = await call('/api/push/test', { method: 'POST' });
+    assert.equal(status, 409);
+    assert.equal(data.error, 'Push reminders are not set up on the server');
+  });
+  await withApi(
+    fakePool().pool,
+    async (call) => {
+      const { status, data } = await call('/api/push/test', { method: 'POST' });
+      assert.equal(status, 409);
+      assert.equal(data.error, 'No device has notifications turned on');
+    },
+    { vapid, sendPush: send },
+  );
+});

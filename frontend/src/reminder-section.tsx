@@ -21,10 +21,12 @@ type PushSettings = {
 };
 type PublicKey = { enabled: boolean; publicKey: string | null };
 type Saved = { subscribed: boolean; subscriptionCount: number };
+type TestResult = { sent: number; removed: number; failed: number };
 
 const settingsPath = '/api/push/settings';
 const keyPath = '/api/push/public-key';
 const subscriptionPath = '/api/push/subscription';
+const testPath = '/api/push/test';
 const timePattern = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 // What this browser can do. iPhone Safari only has these once the app is added to the home screen.
@@ -73,6 +75,8 @@ export function ReminderSection() {
   // undefined while looking; null when this device has no subscription.
   const [endpoint, setEndpoint] = useState<string | null | undefined>(undefined);
   const [deviceBusy, setDeviceBusy] = useState(false);
+  // Which device button shows the spinner; deviceBusy still blocks all of them.
+  const [testing, setTesting] = useState(false);
   const supported = canPush();
 
   useEffect(() => {
@@ -180,6 +184,33 @@ export function ReminderSection() {
     }
   };
 
+  // #323: one push to every subscribed device now, so the whole path can be checked without waiting for the evening.
+  const sendTest = async () => {
+    if (deviceBusy) return;
+    setDeviceBusy(true);
+    setTesting(true);
+    clear();
+    try {
+      const result = await requestJson<TestResult>(testPath, { method: 'POST' });
+      if (result.removed > 0) await settingsQuery.refetch();
+      if (result.sent > 0)
+        status(
+          result.sent === 1
+            ? 'Test notification sent. It should appear in a few seconds'
+            : `Test notification sent to ${result.sent} devices. It should appear in a few seconds`,
+        );
+      else
+        error(
+          'The test notification could not be delivered. Turn notifications off and on again on this device',
+        );
+    } catch (cause) {
+      error(cause, 'Could not send a test notification');
+    } finally {
+      setDeviceBusy(false);
+      setTesting(false);
+    }
+  };
+
   let body;
   if (!settings) {
     body = settingsQuery.isError ? (
@@ -242,15 +273,27 @@ export function ReminderSection() {
               <p className="text-body-sm text-muted-foreground">
                 Notifications are on for this device.
               </p>
-              <Button
-                type="button"
-                variant="outline"
-                aria-busy={deviceBusy}
-                onClick={() => void turnOff()}
-              >
-                {deviceBusy && <Spinner size="sm" label="Working" />}
-                Turn off notifications
-              </Button>
+              {/* The same shape as the "off" branch below, so the toggle button stays one element and keeps focus. */}
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  aria-busy={deviceBusy}
+                  onClick={() => void turnOff()}
+                >
+                  {deviceBusy && !testing && <Spinner size="sm" label="Working" />}
+                  Turn off notifications
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  aria-busy={deviceBusy}
+                  onClick={() => void sendTest()}
+                >
+                  {testing && <Spinner size="sm" label="Sending" />}
+                  Send a test notification
+                </Button>
+              </div>
             </>
           ) : (
             <>
@@ -259,16 +302,18 @@ export function ReminderSection() {
                   ? 'Checking this device…'
                   : 'Notifications are off for this device, so no reminder will reach it.'}
               </p>
-              <Button
-                type="button"
-                variant="outline"
-                disabled={endpoint === undefined}
-                aria-busy={deviceBusy}
-                onClick={() => void turnOn()}
-              >
-                {deviceBusy && <Spinner size="sm" label="Working" />}
-                Turn on notifications
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={endpoint === undefined}
+                  aria-busy={deviceBusy}
+                  onClick={() => void turnOn()}
+                >
+                  {deviceBusy && <Spinner size="sm" label="Working" />}
+                  Turn on notifications
+                </Button>
+              </div>
             </>
           )}
           <p className="text-caption text-muted-foreground">
