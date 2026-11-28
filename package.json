@@ -13,7 +13,7 @@
     "test:e2e": "playwright test",
     "skills:sync": "node scripts/claude-skills.mjs sync",
     "skills:check": "node scripts/claude-skills.mjs",
-    "check": "npm run format:check && npm run lint && npm run contract:check && npm run typecheck && npm test && npm run test:skills && npm run build",
+    "check": "npm run format:check && npm run lint && npm run standards:check && npm run contract:check && npm run typecheck && npm test && npm run test:skills && npm run build",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint . --max-warnings 0",
