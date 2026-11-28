@@ -7,6 +7,7 @@ import {
   type PushTarget,
   reminderPayload,
   runReminder,
+  sendToDevices,
   serviceTime,
   vapidFromEnv,
 } from '../src/reminder.js';
@@ -158,4 +159,30 @@ test('a push goes to every device; gone ones are removed and other failures are 
   const removal = statements.find((s) => s.sql.startsWith('DELETE FROM push_subscriptions'));
   assert.deepEqual(removal?.params, [['https://push.example/gone']]);
   assert.deepEqual(logs, ['reminder: a push failed (status 500)']);
+});
+
+test('a push service that never answers counts as failed and the next device is still sent (#352)', async () => {
+  const reached: string[] = [];
+  const send = (target: PushTarget) => {
+    reached.push(target.endpoint);
+    // The first device never answers; the second answers at once.
+    return target.endpoint.endsWith('/stuck') ? new Promise<void>(() => {}) : Promise.resolve();
+  };
+  const devices = ['https://push.example/stuck', 'https://push.example/ok'].map((endpoint) => ({
+    endpoint,
+    p256dh: 'p',
+    auth: 'a',
+  }));
+  const logs: string[] = [];
+  const result = await sendToDevices(
+    fakePool({}).pool,
+    send,
+    devices,
+    '{}',
+    (m) => logs.push(m),
+    20,
+  );
+  assert.deepEqual(result, { sent: 1, removed: 0, failed: 1 });
+  assert.deepEqual(reached, ['https://push.example/stuck', 'https://push.example/ok']);
+  assert.deepEqual(logs, ['reminder: a push failed (status none)']);
 });

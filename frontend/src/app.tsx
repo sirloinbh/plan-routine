@@ -5,6 +5,7 @@ import {
   CalendarRange,
   ChartNoAxesColumn,
   ClipboardCheck,
+  Flag,
   Grid3x3,
   History,
   ListChecks,
@@ -27,6 +28,7 @@ import { createQueryClient } from './lib/query';
 import { Mandalarts, MandalartView } from './mandalarts';
 import { MoodStats } from './mood-stats';
 import { FourWeekRoutines, WeeklyRoutines } from './period-routines';
+import { Plans } from './plans';
 import { ProjectLinks } from './project-links';
 import { Records } from './records';
 import { ReminderSection } from './reminder-section';
@@ -46,6 +48,7 @@ const pages = {
   fourWeek: '/four-week',
   twelveWeek: '/twelve-week',
   mandalarts: '/mandalarts',
+  plans: '/plans',
   records: '/records',
   stats: '/stats',
   review: '/review',
@@ -58,6 +61,7 @@ const nav: NavItem[] = [
   { to: pages.today, label: 'Today', icon: CalendarCheck },
   { to: pages.weekly, label: 'Weekly routines', icon: CalendarRange },
   { to: pages.twelveWeek, label: '12-week routines', icon: Target },
+  { to: pages.plans, label: 'Plans', icon: Flag },
   { to: pages.mandalarts, label: 'Mandalart', icon: Grid3x3 },
   { to: pages.diary, label: 'Diary', icon: NotebookPen },
   { to: pages.routines, label: 'Daily routines', icon: ListChecks },
@@ -225,6 +229,18 @@ export function App() {
                 element={
                   <Page title="Mandalart" description="A 9x9 goal chart" health={health}>
                     <MandalartView />
+                  </Page>
+                }
+              />
+              <Route
+                path={pages.plans}
+                element={
+                  <Page
+                    title="Plans"
+                    description="See your plans for this week, these 12 weeks, this year and the next 10 years"
+                    health={health}
+                  >
+                    <Plans />
                   </Page>
                 }
               />

@@ -74,6 +74,8 @@ const pageData = (url: string) => {
   if (url.startsWith('/api/records/')) return emptyDay;
   if (url.startsWith('/api/records')) return emptyMonth;
   if (url.startsWith('/api/goals')) return emptyGoals;
+  if (url.startsWith('/api/plans'))
+    return { horizon: 'week', period: { start: '2026-10-25', end: '2026-10-31' }, plans: [] };
   if (url.startsWith('/api/checklist')) return emptyChecklist;
   if (url.startsWith('/api/diary')) return emptyDiary;
   if (url.startsWith('/api/project-links')) return { projects: [] };
@@ -182,6 +184,7 @@ test('the main menu follows the shared order: day log, Week, 12 weeks, other pag
     'Today',
     'Weekly routines',
     '12-week routines',
+    'Plans',
     'Mandalart',
     'Diary',
     'Daily routines',
@@ -274,8 +277,9 @@ test('the main menu opens the Mandalart page and keeps it marked on a Mandalart'
   expect(await screen.findByText('No Mandalarts yet')).toBeInTheDocument();
   window.history.replaceState(null, '', '/mandalarts/7');
   window.dispatchEvent(new PopStateEvent('popstate'));
+  // A full run loads many files at once, so allow more than the default second.
   expect(
-    await screen.findByRole('link', { name: 'Back to the Mandalart list' }),
+    await screen.findByRole('link', { name: 'Back to the Mandalart list' }, { timeout: 5000 }),
   ).toBeInTheDocument();
   expect(within(menu).getByRole('link', { name: 'Mandalart' })).toHaveAttribute(
     'aria-current',
@@ -353,5 +357,18 @@ test('the real page is an area a retry button can hand focus to', async () => {
   fireEvent.click(retry);
   await screen.findByRole('textbox', { name: 'Looking back on the day' });
   expect(screen.getByRole('region', { name: 'Diary' })).toHaveFocus();
+  window.history.replaceState(null, '', '/');
+});
+
+test('the main menu opens the Plans page with four tabs', async () => {
+  health({ today: '2026-10-26' });
+  render(<App />);
+  const menu = screen.getByRole('navigation', { name: 'Main menu' });
+  fireEvent.click(within(menu).getByRole('link', { name: 'Plans' }));
+  expect(window.location.pathname).toBe('/plans');
+  expect(await screen.findByRole('heading', { level: 1, name: 'Plans' })).toBeInTheDocument();
+  expect(within(menu).getByRole('link', { name: 'Plans' })).toHaveAttribute('aria-current', 'page');
+  const tabs = screen.getByRole('radiogroup', { name: 'Plan horizon' });
+  expect(within(tabs).getAllByRole('radio')).toHaveLength(4);
   window.history.replaceState(null, '', '/');
 });
