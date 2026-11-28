@@ -171,7 +171,7 @@ test('opens on this month and today, with each day summarised', async () => {
   expect(screen.getByRole('button', { name: 'Next month' })).toBeDisabled();
 });
 
-// The search results link to /records?date=YYYY-MM-DD; Records reads it once, when it opens.
+// Records reads ?date=YYYY-MM-DD once, when it opens.
 async function openAt(search: string) {
   window.history.replaceState(null, '', `/records${search}`);
   try {
