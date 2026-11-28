@@ -1,5 +1,6 @@
 import { type FormEvent, useEffect, useState } from 'react';
 
+import { LoadingRegion, RetryButton } from './components/load-state/load-state';
 import { Button } from './components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './components/ui/card';
 import { Input } from './components/ui/input';
@@ -10,8 +11,6 @@ import { Switch } from './components/ui/switch';
 import { requestJson } from './lib/api';
 import { apiKey, useApiMutation, useApiQuery } from './lib/query';
 import { errorText, useNotice } from './lib/use-notice';
-import { LoadingRegion } from './loading-region';
-import { RetryButton } from './retry-button';
 
 type PushSettings = {
   pushEnabled: boolean;
@@ -216,7 +215,7 @@ export function ReminderSection() {
     body = settingsQuery.isError ? (
       <div className="flex flex-col items-start gap-3">
         <Notice notice={{ kind: 'error', text: errorText(settingsQuery.error) }} />
-        <RetryButton onClick={() => void settingsQuery.refetch()}>Try again</RetryButton>
+        <RetryButton onRetry={() => void settingsQuery.refetch()}>Try again</RetryButton>
       </div>
     ) : (
       <LoadingRegion label="Loading reminder settings" />

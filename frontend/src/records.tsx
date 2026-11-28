@@ -1,19 +1,18 @@
 import { useCallback, useRef, useState } from 'react';
 
+import { LoadingRegion, RetryButton } from './components/load-state/load-state';
 import { Badge } from './components/ui/badge';
 import { Button } from './components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
 import { EmptyState } from './components/ui/empty-state';
 import { Notice } from './components/ui/notice';
-import { dateHeading, formatDate } from './format-date';
+import { dateHeading, weekdayDate } from './format-date';
+import { formatDate, serviceToday } from './lib/format';
 import { apiKey, useApiQuery } from './lib/query';
 import { errorText } from './lib/use-notice';
 import { cn } from './lib/utils';
-import { LoadingRegion } from './loading-region';
-import { RetryButton } from './retry-button';
 import { groupByCategory } from './routine-groups';
 import type { Routine } from './routines';
-import { serviceDate } from './service-date';
 import { useReloadWhenCurrent } from './use-date-change';
 
 type DaySummary = { date: string; checked: number; total: number; hasDiary: boolean };
@@ -60,7 +59,7 @@ const monthLabel = (month: string) => {
 const weekdayIndex = (date: string) => new Date(`${date}T00:00:00Z`).getUTCDay();
 
 const dayLabel = ({ date, checked, total, hasDiary }: DaySummary) =>
-  `${formatDate(date, 'weekday')}: daily routines ${checked}/${total} done, diary ${hasDiary ? 'written' : 'not written'}`;
+  `${weekdayDate(date)}: daily routines ${checked}/${total} done, diary ${hasDiary ? 'written' : 'not written'}`;
 
 function Calendar({
   data,
@@ -227,7 +226,7 @@ function dateFromAddress() {
   // An impossible day such as 02-30 rolls over, so it no longer reads back as the same date.
   const parsed = new Date(`${date}T00:00:00Z`);
   const real = !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === date;
-  return real && date >= '2000-01-01' && date <= serviceDate() ? date : null;
+  return real && date >= '2000-01-01' && date <= serviceToday() ? date : null;
 }
 
 // Read-only on purpose: checks and the diary change on their own pages, under their own rules.
@@ -296,7 +295,7 @@ export function Records() {
     return monthFailed ? (
       <div className="flex flex-col items-start gap-3">
         <Notice notice={monthNotice} />
-        <RetryButton onClick={reloadMonth}>Try again</RetryButton>
+        <RetryButton onRetry={reloadMonth}>Try again</RetryButton>
       </div>
     ) : (
       <LoadingRegion label="Loading records" shape="card" />
@@ -331,7 +330,7 @@ export function Records() {
         <CardContent className="flex flex-col gap-3">
           <Notice notice={monthNotice} />
           {monthFailed && (
-            <RetryButton className="self-start" onClick={reloadMonth}>
+            <RetryButton className="self-start" onRetry={reloadMonth}>
               Try again
             </RetryButton>
           )}
@@ -340,7 +339,7 @@ export function Records() {
       </Card>
       <Notice notice={dayNotice} />
       {dayFailed && (
-        <RetryButton className="self-start" onClick={reloadDay}>
+        <RetryButton className="self-start" onRetry={reloadDay}>
           Reload this day's records
         </RetryButton>
       )}

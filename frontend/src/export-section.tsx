@@ -1,5 +1,6 @@
 import { useState } from 'react';
 
+import { downloadBlob } from './components/file-field/download-blob';
 import { Button } from './components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './components/ui/card';
 import { Notice } from './components/ui/notice';
@@ -58,13 +59,9 @@ export function ExportSection() {
         return;
       }
       const blob = await response.blob();
-      const link = document.createElement('a');
-      const href = URL.createObjectURL(blob);
-      link.href = href;
-      link.download = fileName(response, file.fallback);
-      link.click();
-      URL.revokeObjectURL(href);
-      status(`Downloaded ${link.download}`);
+      const name = fileName(response, file.fallback);
+      downloadBlob(name, blob.type, blob);
+      status(`Downloaded ${name}`);
     } catch {
       error('Cannot reach the server');
     } finally {

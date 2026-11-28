@@ -1,10 +1,9 @@
+import { LoadingRegion, RetryButton } from './components/load-state/load-state';
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
 import { Notice } from './components/ui/notice';
-import { formatDate } from './format-date';
+import { formatDate } from './lib/format';
 import { apiKey, useApiQuery } from './lib/query';
 import { errorText } from './lib/use-notice';
-import { LoadingRegion } from './loading-region';
-import { RetryButton } from './retry-button';
 import { useReloadWhenCurrent } from './use-date-change';
 
 type MoodWeek = {
@@ -42,7 +41,7 @@ export function MoodStats() {
     return query.isError ? (
       <div className="flex flex-col items-start gap-3">
         <Notice notice={{ kind: 'error', text: errorText(query.error) }} />
-        <RetryButton onClick={() => void query.refetch()}>Try again</RetryButton>
+        <RetryButton onRetry={() => void query.refetch()}>Try again</RetryButton>
       </div>
     ) : (
       <LoadingRegion label="Loading mood and energy" shape="card" />

@@ -3,7 +3,7 @@ import { describe, expect, test, vi } from 'vitest';
 
 import { Diary } from './diary';
 import { draftKey as storedDraftKey } from './diary-draft';
-import { formatDate } from './format-date';
+import { formatDate } from './lib/format';
 import { findLive, getLive, queryLive } from './test/live';
 import { render } from './test/render';
 
@@ -322,7 +322,7 @@ describe('showing and saving an entry', () => {
         },
       },
     ]);
-    expect(getLive('status')).toHaveTextContent('Saved the diary entry for October 22, 2026');
+    expect(getLive('status')).toHaveTextContent('Saved the diary entry for Oct 22, 2026');
     // The form shows what the server stored, and nothing is left unsaved.
     expect(await field('Looking back on the day')).toHaveValue('A good day');
     expect(screen.queryByText('You have unsaved changes')).not.toBeInTheDocument();
@@ -395,7 +395,7 @@ describe('showing and saving an entry', () => {
     render(<Diary />);
     await field('Looking back on the day');
     press('Previous day');
-    await screen.findByRole('heading', { level: 2, name: 'October 21, 2026' });
+    await screen.findByRole('heading', { level: 2, name: 'Oct 21, 2026' });
     api.holdNextLoad();
     press('Previous day');
     await flush();
@@ -448,7 +448,7 @@ describe('showing and saving an entry', () => {
     const api = diaryApi();
     api.holdNextLoad();
     render(<Diary />);
-    expect(screen.getByRole('region', { name: 'Loading diary' })).toHaveAttribute(
+    expect(screen.getByRole('status', { name: 'Loading diary' })).toHaveAttribute(
       'aria-busy',
       'true',
     );
@@ -486,9 +486,7 @@ describe('moving between days', () => {
     render(<Diary />);
     await field('Looking back on the day');
     press('Previous day');
-    expect(
-      await screen.findByRole('heading', { level: 2, name: 'October 21, 2026' }),
-    ).toBeVisible();
+    expect(await screen.findByRole('heading', { level: 2, name: 'Oct 21, 2026' })).toBeVisible();
     expect(await field('Looking back on the day')).toHaveValue('');
     await type('Looking back on the day', "Yesterday's diary");
     press('Save');
@@ -499,7 +497,7 @@ describe('moving between days', () => {
     await screen.findByRole('heading', { level: 2, name: `Today (${formatDate(today)})` });
     expect(await field('Looking back on the day')).toHaveValue('A good day');
     press('Previous day');
-    await screen.findByRole('heading', { level: 2, name: 'October 21, 2026' });
+    await screen.findByRole('heading', { level: 2, name: 'Oct 21, 2026' });
     press('Next day');
     await screen.findByRole('heading', { level: 2, name: `Today (${formatDate(today)})` });
     expect(await field('Looking back on the day')).toHaveValue('A good day');
@@ -520,9 +518,7 @@ describe('moving between days', () => {
     press('Save');
     await flush();
     press('Previous day');
-    expect(
-      await screen.findByRole('heading', { level: 2, name: 'October 21, 2026' }),
-    ).toBeVisible();
+    expect(await screen.findByRole('heading', { level: 2, name: 'Oct 21, 2026' })).toBeVisible();
     expect(queryLive('alert')).toBeNull();
   });
 
@@ -535,9 +531,7 @@ describe('moving between days', () => {
     await flush();
     expect(getLive('alert')).toHaveTextContent('A server error occurred');
     press('Previous day');
-    expect(
-      await screen.findByRole('heading', { level: 2, name: 'October 21, 2026' }),
-    ).toBeVisible();
+    expect(await screen.findByRole('heading', { level: 2, name: 'Oct 21, 2026' })).toBeVisible();
     await waitFor(() => expect(queryLive('alert')).toBeNull());
   });
 });
@@ -697,14 +691,12 @@ describe('the unsaved draft', () => {
     diaryApi();
     seedDraft('2026-10-20', 'Text from two days ago');
     render(<Diary />);
-    expect(
-      await screen.findByRole('heading', { level: 2, name: 'October 20, 2026' }),
-    ).toBeVisible();
+    expect(await screen.findByRole('heading', { level: 2, name: 'Oct 20, 2026' })).toBeVisible();
     expect(await field('Looking back on the day')).toHaveValue('Text from two days ago');
     press('Go to today');
     await flush();
     expect(getLive('alert')).toHaveTextContent('Save or discard them');
-    expect(screen.getByRole('heading', { level: 2, name: 'October 20, 2026' })).toBeVisible();
+    expect(screen.getByRole('heading', { level: 2, name: 'Oct 20, 2026' })).toBeVisible();
   });
 
   test('a draft older than a save made elsewhere keeps saying so on every visit', async () => {
@@ -764,7 +756,7 @@ describe('the unsaved draft', () => {
     expect(
       await screen.findByRole('heading', { level: 2, name: `Today (${formatDate(today)})` }),
     ).toBeVisible();
-    expect(getLive('alert')).toHaveTextContent('January 1, 1999 cannot be opened');
+    expect(getLive('alert')).toHaveTextContent('Jan 1, 1999 cannot be opened');
     expect(localStorage.getItem(draftKey)).toBeNull();
   });
 
@@ -1131,7 +1123,7 @@ describe('keyboard focus', () => {
     screen.getByRole('button', { name: 'Previous day' }).focus();
     press('Previous day');
     await flush();
-    expect(screen.getByRole('heading', { level: 2, name: 'October 21, 2026' })).toHaveFocus();
+    expect(screen.getByRole('heading', { level: 2, name: 'Oct 21, 2026' })).toHaveFocus();
     screen.getByRole('button', { name: 'Go to today' }).focus();
     press('Go to today');
     await flush();

@@ -143,10 +143,10 @@ test('each routine shows its rate and history, oldest first, with every state in
   // In words, in the list that opens under the row, rather than only in a hover title.
   const history = within(screen.getByRole('list', { name: 'Wake at 6 recent history' }));
   expect(history.getAllByRole('listitem').map((row) => row.textContent)).toEqual([
-    'October 19, 2026Not applicable',
-    'October 20, 2026Done',
-    'October 21, 2026Not done',
-    'October 22, 2026In progress',
+    'Oct 19, 2026Not applicable',
+    'Oct 20, 2026Done',
+    'Oct 21, 2026Not done',
+    'Oct 22, 2026In progress',
   ]);
   expect(screen.getByText('Wake at 6 by period').tagName).toBe('SUMMARY');
   // The strip of marks is for the eye only: its cells are not read out as list items.

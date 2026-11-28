@@ -73,7 +73,7 @@ test('the list shows a loading region before the first answer', () => {
     vi.fn(() => new Promise(() => undefined)),
   );
   screens('/mandalarts');
-  expect(screen.getByRole('region', { name: 'Loading Mandalarts' })).toHaveAttribute(
+  expect(screen.getByRole('status', { name: 'Loading Mandalarts' })).toHaveAttribute(
     'aria-busy',
     'true',
   );

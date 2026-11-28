@@ -2,7 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { type RefObject, useCallback, useEffect, useRef } from 'react';
 
 import { RequestError } from './lib/api';
-import { serviceDate } from './service-date';
+import { serviceToday } from './lib/format';
 
 // How often an open page looks at the clock. A request follows only if the date has changed, the
 // last load failed for a passing reason, or the server is on another date than this device.
@@ -25,7 +25,7 @@ export function isPassingFailure(cause: unknown) {
 export function useReloadOnDateChange(requestedOn: RefObject<string>, reload: () => void) {
   useEffect(() => {
     const reloadIfDateChanged = () => {
-      if (serviceDate() !== requestedOn.current) reload();
+      if (serviceToday() !== requestedOn.current) reload();
     };
     const timer = setInterval(reloadIfDateChanged, dateCheckMs);
     window.addEventListener('focus', reloadIfDateChanged);
@@ -46,13 +46,13 @@ export function useReloadWhenCurrent(query: { refetch: () => unknown }, path: st
   const client = useQueryClient();
   const { refetch } = query;
   // The device's date when the latest load started; emptied to ask again at the next check.
-  const requestedOn = useRef(serviceDate());
+  const requestedOn = useRef(serviceToday());
   useEffect(
     () =>
       client.getQueryCache().subscribe((event) => {
         if (event.type !== 'updated' || event.query.queryKey[0] !== path) return;
         const { action } = event;
-        if (action.type === 'fetch') requestedOn.current = serviceDate();
+        if (action.type === 'fetch') requestedOn.current = serviceToday();
         else if (action.type === 'error' && isPassingFailure(action.error))
           requestedOn.current = '';
         else if (action.type === 'success' && !action.manual) {

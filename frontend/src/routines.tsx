@@ -1,6 +1,6 @@
+import { LoadingRegion } from './components/load-state/load-state';
 import { Badge } from './components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
-import { LoadingRegion } from './loading-region';
 import { groupByCategory } from './routine-groups';
 import { RoutineAddForm, RoutineItems, RoutineNotices } from './routine-list';
 import { useRoutineList } from './use-routine-list';

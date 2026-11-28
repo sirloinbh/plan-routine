@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
-import { formatDate } from './format-date';
+import { formatDate } from './lib/format';
 
 export type TrendPoint = { start: string; end: string; checked: number; total: number };
 export type Streak = { current: number; best: number };

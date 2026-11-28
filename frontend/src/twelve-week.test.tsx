@@ -171,7 +171,7 @@ const flush = () =>
 const goalsCard = () => screen.getByRole('region', { name: 'Goals for these 12 weeks' });
 
 const lastReview = () =>
-  screen.getByRole('region', { name: 'Review for July 26, 2026 – October 17, 2026' });
+  screen.getByRole('region', { name: 'Review for Jul 26, 2026 – Oct 17, 2026' });
 
 const type = (label: string, value: string) =>
   fireEvent.change(screen.getByRole('textbox', { name: label }), { target: { value } });
@@ -186,7 +186,7 @@ const typeMemo = (title: string, value: string) =>
 
 const saveLastReview = () =>
   fireEvent.submit(
-    screen.getByRole('form', { name: 'Save the review for July 26, 2026 – October 17, 2026' }),
+    screen.getByRole('form', { name: 'Save the review for Jul 26, 2026 – Oct 17, 2026' }),
   );
 
 const button = (name: string) => screen.getByRole('button', { name });
@@ -221,7 +221,7 @@ describe('the goals of this period', () => {
     render(<TwelveWeek />);
     await flush();
     expect(
-      within(goalsCard()).getByText('October 18, 2026 – January 9, 2027 · 12 weeks left'),
+      within(goalsCard()).getByText('Oct 18, 2026 – Jan 9, 2027 · 12 weeks left'),
     ).toBeVisible();
     expect(within(goalsCard()).getByText('No goals yet')).toBeInTheDocument();
     expect(screen.getByRole('checkbox', { name: 'Reset goals' })).toBeInTheDocument();
@@ -416,8 +416,8 @@ describe('reviewing past periods', () => {
     const headings = screen
       .getAllByRole('heading', { level: 2 })
       .map((heading) => heading.textContent);
-    expect(headings.indexOf('July 26, 2026 – October 17, 2026')).toBeLessThan(
-      headings.indexOf('May 3, 2026 – July 25, 2026'),
+    expect(headings.indexOf('Jul 26, 2026 – Oct 17, 2026')).toBeLessThan(
+      headings.indexOf('May 3, 2026 – Jul 25, 2026'),
     );
     expect(screen.getByText('Recent goal')).toBeInTheDocument();
     expect(screen.getByText('Old goal')).toBeInTheDocument();
@@ -659,7 +659,7 @@ describe('keyboard focus', () => {
     saveLastReview();
     await flush();
     expect(
-      screen.getByRole('heading', { level: 2, name: 'July 26, 2026 – October 17, 2026' }),
+      screen.getByRole('heading', { level: 2, name: 'Jul 26, 2026 – Oct 17, 2026' }),
     ).toHaveFocus();
     expect(getLive('status', lastReview())).toHaveTextContent('Saved the review');
     expect(screen.getAllByText('Saved the review')).toHaveLength(1);

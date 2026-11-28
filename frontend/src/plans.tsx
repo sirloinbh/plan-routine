@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
+import { LoadingRegion, RetryButton } from './components/load-state/load-state';
 import { Badge } from './components/ui/badge';
 import { Button } from './components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
@@ -9,7 +10,6 @@ import { Notice } from './components/ui/notice';
 import { SegmentedControl } from './components/ui/segmented-control';
 import { apiKey, useApiMutation, useApiQuery } from './lib/query';
 import { errorText, useNotice } from './lib/use-notice';
-import { LoadingRegion } from './loading-region';
 import { PlanForm, type PlanFormTarget } from './plan-form';
 import {
   formatRange,
@@ -21,7 +21,6 @@ import {
   statusLabels,
   statusVariants,
 } from './plans-data';
-import { RetryButton } from './retry-button';
 
 function PlanRow({
   plan,
@@ -119,7 +118,7 @@ function HorizonPlans({
           notice={query.error ? { kind: 'error', text: errorText(query.error) } : undefined}
         />
         {query.isError && (
-          <RetryButton className="self-start" onClick={() => void query.refetch()}>
+          <RetryButton className="self-start" onRetry={() => void query.refetch()}>
             Reload plans
           </RetryButton>
         )}

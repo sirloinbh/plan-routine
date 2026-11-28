@@ -181,7 +181,7 @@ test('the four-week page shows its period and the days left', async () => {
   expect(
     screen.getByRole('heading', {
       level: 2,
-      name: 'These 4 weeks (October 18, 2026 – November 14, 2026)',
+      name: 'These 4 weeks (Oct 18, 2026 – Nov 14, 2026)',
     }),
   ).toBeVisible();
   expect(screen.getByText('23 days left')).toBeInTheDocument();
@@ -239,7 +239,7 @@ test('the first check after the week changes goes to the new week', async () => 
   render(<WeeklyRoutines />);
   await screen.findByRole('heading', {
     level: 2,
-    name: 'This week (October 18, 2026 – October 24, 2026)',
+    name: 'This week (Oct 18, 2026 – Oct 24, 2026)',
   });
 
   setClock('2026-10-25');
@@ -250,7 +250,7 @@ test('the first check after the week changes goes to the new week', async () => 
   expect(
     screen.getByRole('heading', {
       level: 2,
-      name: 'This week (October 25, 2026 – October 31, 2026)',
+      name: 'This week (Oct 25, 2026 – Oct 31, 2026)',
     }),
   ).toBeVisible();
   expect(screen.getByText(/The date changed and a new period was loaded/)).toBeInTheDocument();
@@ -279,7 +279,7 @@ test('a device clock ahead of the server still reaches the new week', async () =
   expect(
     screen.getByRole('heading', {
       level: 2,
-      name: 'This week (October 18, 2026 – October 24, 2026)',
+      name: 'This week (Oct 18, 2026 – Oct 24, 2026)',
     }),
   ).toBeVisible();
 
@@ -289,7 +289,7 @@ test('a device clock ahead of the server still reaches the new week', async () =
   expect(
     screen.getByRole('heading', {
       level: 2,
-      name: 'This week (October 25, 2026 – October 31, 2026)',
+      name: 'This week (Oct 25, 2026 – Oct 31, 2026)',
     }),
   ).toBeVisible();
   fireEvent.click(await box('Clean'));
@@ -336,7 +336,7 @@ test('shows this week from Sunday to Saturday with its progress', async () => {
   expect(
     screen.getByRole('heading', {
       level: 2,
-      name: 'This week (October 18, 2026 – October 24, 2026)',
+      name: 'This week (Oct 18, 2026 – Oct 24, 2026)',
     }),
   ).toBeVisible();
   expect(within(thisWeek()).getByText('0/3')).toBeInTheDocument();
@@ -377,7 +377,7 @@ test('a later day of the same week stays checked and a new week starts empty', a
   expect(
     screen.getByRole('heading', {
       level: 2,
-      name: 'This week (October 25, 2026 – October 31, 2026)',
+      name: 'This week (Oct 25, 2026 – Oct 31, 2026)',
     }),
   ).toBeVisible();
   expect(await box('Clean')).not.toBeChecked();

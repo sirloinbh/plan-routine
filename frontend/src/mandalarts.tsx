@@ -4,13 +4,13 @@ import { useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 
 import { ConfirmDelete } from './components/confirm-delete/confirm-delete';
+import { LoadingRegion, RetryButton } from './components/load-state/load-state';
 import { Button } from './components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
 import { EmptyState } from './components/ui/empty-state';
 import { Notice } from './components/ui/notice';
 import { apiKey, useApiMutation, useApiQuery } from './lib/query';
 import { errorText, useNotice } from './lib/use-notice';
-import { LoadingRegion } from './loading-region';
 import {
   cellCount,
   type Mandalart,
@@ -20,7 +20,6 @@ import {
 } from './mandalart-cells';
 import { MandalartEditor, NewMandalartDialog } from './mandalart-editor';
 import { MandalartGrid } from './mandalart-grid';
-import { RetryButton } from './retry-button';
 
 export function Mandalarts() {
   const [creating, setCreating] = useState(false);
@@ -31,7 +30,7 @@ export function Mandalarts() {
     return (
       <div className="flex flex-col gap-3">
         <Notice notice={{ kind: 'error', text: errorText(query.error) }} />
-        <RetryButton className="self-start" onClick={() => void query.refetch()}>
+        <RetryButton className="self-start" onRetry={() => void query.refetch()}>
           Try again
         </RetryButton>
       </div>
@@ -126,7 +125,7 @@ export function MandalartView() {
       <div className="flex flex-col gap-3">
         <Notice notice={{ kind: 'error', text: errorText(query.error) }} />
         <div className="flex items-center gap-4">
-          <RetryButton onClick={() => void query.refetch()}>Try again</RetryButton>
+          <RetryButton onRetry={() => void query.refetch()}>Try again</RetryButton>
           {back}
         </div>
       </div>
