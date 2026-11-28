@@ -7,6 +7,7 @@ import {
   isCalendarDate,
   periodFor,
   periodsFor,
+  planPeriodFor,
   weekdayOf,
   weekStart,
 } from '../src/periods.js';
@@ -115,4 +116,42 @@ test('weekdayOf counts from Sunday = 0', () => {
   assert.equal(weekdayOf('2026-10-19'), 1);
   assert.equal(weekdayOf('2026-10-24'), 6);
   assert.equal(weekdayOf('1969-12-28'), 0);
+});
+
+test('plan periods: week, twelve-week and year run in whole weeks from the anchor, a decade from January 1', () => {
+  // Anchor Sunday 2026-10-18.
+  assert.deepEqual(planPeriodFor('week', '2026-10-22', anchor), {
+    start: '2026-10-18',
+    end: '2026-10-24',
+  });
+  assert.deepEqual(planPeriodFor('twelve_week', '2026-10-22', anchor), {
+    start: '2026-10-18',
+    end: '2027-01-09',
+  });
+  assert.deepEqual(planPeriodFor('twelve_week', '2027-01-10', anchor), {
+    start: '2027-01-10',
+    end: '2027-04-03',
+  });
+  // 52 weeks = 364 days.
+  assert.deepEqual(planPeriodFor('year', '2027-10-16', anchor), {
+    start: '2026-10-18',
+    end: '2027-10-16',
+  });
+  assert.deepEqual(planPeriodFor('year', '2027-10-17', anchor), {
+    start: '2027-10-17',
+    end: '2028-10-14',
+  });
+  // Before the anchor falls into earlier periods.
+  assert.deepEqual(planPeriodFor('week', '2026-10-17', anchor), {
+    start: '2026-10-11',
+    end: '2026-10-17',
+  });
+  assert.deepEqual(planPeriodFor('decade', '2026-10-22', anchor), {
+    start: '2026-01-01',
+    end: '2035-12-31',
+  });
+  assert.deepEqual(planPeriodFor('decade', '2030-01-01', anchor), {
+    start: '2030-01-01',
+    end: '2039-12-31',
+  });
 });
