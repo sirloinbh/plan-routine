@@ -70,7 +70,7 @@ test('shows four tabs and starts on this week with its period range', async () =
   ).toEqual(['This week', 'This 12 weeks', 'This year', 'Next 10 years']);
   expect(await screen.findByText('Finish the report')).toBeInTheDocument();
   // Once in the tab header and once on the plan.
-  expect(screen.getAllByText('October 18, 2026 to October 24, 2026')).toHaveLength(2);
+  expect(screen.getAllByText('Oct 18, 2026 to Oct 24, 2026')).toHaveLength(2);
   expect(urls[0]).toBe('/api/plans?horizon=week');
 });
 
@@ -97,7 +97,7 @@ test('each tab lists only the plans of its horizon, with status, description and
   const quarter = (await screen.findByText('Quarter plan')).closest('li')!;
   expect(within(quarter).getByText('In progress')).toBeInTheDocument();
   expect(within(quarter).getByText('Ship the app')).toBeInTheDocument();
-  expect(within(quarter).getByText('October 18, 2026 to January 9, 2027')).toBeInTheDocument();
+  expect(within(quarter).getByText('Oct 18, 2026 to Jan 9, 2027')).toBeInTheDocument();
   expect(screen.queryByText('Week plan')).not.toBeInTheDocument();
 
   fireEvent.click(screen.getByRole('radio', { name: 'This year' }));
@@ -107,7 +107,7 @@ test('each tab lists only the plans of its horizon, with status, description and
   fireEvent.click(screen.getByRole('radio', { name: 'Next 10 years' }));
   expect(await screen.findByText('Decade plan')).toBeInTheDocument();
   expect(screen.getByText('Dropped')).toBeInTheDocument();
-  expect(screen.getAllByText('January 1, 2026 to December 31, 2035')).toHaveLength(2);
+  expect(screen.getAllByText('Jan 1, 2026 to Dec 31, 2035')).toHaveLength(2);
 });
 
 test('an empty tab shows its own empty state', async () => {
@@ -121,7 +121,7 @@ test('an empty tab shows its own empty state', async () => {
 test('shows a loading region first', () => {
   plansApi([]);
   render(<Plans />);
-  expect(screen.getByRole('region', { name: 'Loading plans' })).toHaveAttribute(
+  expect(screen.getByRole('status', { name: 'Loading plans' })).toHaveAttribute(
     'aria-busy',
     'true',
   );

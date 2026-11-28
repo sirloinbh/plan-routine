@@ -1,12 +1,12 @@
 import { useRef, useState } from 'react';
 
+import { LoadingRegion } from './components/load-state/load-state';
 import { Button } from './components/ui/button';
 import { Checkbox } from './components/ui/checkbox';
 import { Label } from './components/ui/label';
 import { Spinner } from './components/ui/spinner';
 import { useFocusRequest } from './focus-moves';
 import { requestJson } from './lib/api';
-import { LoadingRegion } from './loading-region';
 import type { Routine } from './routines';
 
 export type LinkedRoutine = { id: number; name: string };

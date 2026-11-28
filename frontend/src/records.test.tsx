@@ -1,7 +1,8 @@
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { expect, test, vi } from 'vitest';
 
-import { formatDate } from './format-date';
+import { weekdayDate } from './format-date';
+import { formatDate } from './lib/format';
 import { Records } from './records';
 import { findLive, getLive, queryLive } from './test/live';
 import { render } from './test/render';
@@ -152,7 +153,7 @@ const flush = () =>
     for (let i = 0; i < 4; i += 1) await tick();
   });
 const dayButton = (date: string) =>
-  screen.getByRole('button', { name: new RegExp(`^${formatDate(date, 'weekday')}: `) });
+  screen.getByRole('button', { name: new RegExp(`^${weekdayDate(date)}: `) });
 const press = (name: string) => fireEvent.click(screen.getByRole('button', { name }));
 
 test('opens on this month and today, with each day summarised', async () => {
@@ -190,7 +191,7 @@ test('?date= opens that day in its month', async () => {
     '/api/records?month=2026-09',
     '/api/records/2026-09-05',
   ]);
-  expect(screen.getByRole('region', { name: 'Records for September 5, 2026' })).toBeInTheDocument();
+  expect(screen.getByRole('region', { name: 'Records for Sep 5, 2026' })).toBeInTheDocument();
 });
 
 test.each(['?date=nope', '?date=2026-02-30', '?date=2999-01-01', '?date=1999-12-31', ''])(
@@ -215,7 +216,7 @@ test('a chosen day shows its checks, archived routines and diary', async () => {
   await flush();
   fireEvent.click(dayButton('2026-10-20'));
   await flush();
-  const record = screen.getByRole('region', { name: 'Records for October 20, 2026' });
+  const record = screen.getByRole('region', { name: 'Records for Oct 20, 2026' });
   expect(within(record).getByText('Daily routines 1/2 done')).toBeInTheDocument();
   const items = within(record)
     .getAllByRole('listitem')
@@ -282,9 +283,7 @@ test('moving to another month drops a day outside it and loads only the month', 
   await flush();
   expect(screen.getByRole('region', { name: 'October 2026 calendar' })).toBeVisible();
   // Back in the current month, today's records show again.
-  expect(
-    screen.getByRole('region', { name: `Records for ${formatDate(today, 'long')}` }),
-  ).toBeVisible();
+  expect(screen.getByRole('region', { name: `Records for ${formatDate(today)}` })).toBeVisible();
 });
 
 test('re-choosing the shown day reloads the day but not the month', async () => {
@@ -307,14 +306,14 @@ test('a slow answer for an earlier day does not replace the day chosen after it'
   fireEvent.click(dayButton('2026-10-20'));
   await flush();
   // Nothing from the previous day stays on screen while the next one loads.
-  expect(screen.getByRole('region', { name: "Loading this day's records" })).toBeInTheDocument();
+  expect(screen.getByRole('status', { name: "Loading this day's records" })).toBeInTheDocument();
   fireEvent.click(dayButton('2026-10-01'));
   await flush();
   api.release('2026-10-20');
   await flush();
-  expect(screen.getByRole('region', { name: 'Records for October 1, 2026' })).toBeVisible();
+  expect(screen.getByRole('region', { name: 'Records for Oct 1, 2026' })).toBeVisible();
   expect(
-    screen.queryByRole('region', { name: 'Records for October 20, 2026' }),
+    screen.queryByRole('region', { name: 'Records for Oct 20, 2026' }),
   ).not.toBeInTheDocument();
 });
 
@@ -352,7 +351,7 @@ test('a window left open moves on to the new day unless a day was picked', async
   await flush();
   await nextDay(api);
   await flush();
-  expect(screen.getByRole('heading', { level: 2, name: 'Today (October 23, 2026)' })).toBeVisible();
+  expect(screen.getByRole('heading', { level: 2, name: 'Today (Oct 23, 2026)' })).toBeVisible();
   expect(dayButton('2026-10-23')).toHaveAttribute('aria-pressed', 'true');
 });
 
@@ -366,7 +365,7 @@ test('a picked day stays when the date changes', async () => {
   await flush();
   await nextDay(api);
   await flush();
-  expect(screen.getByRole('region', { name: 'Records for October 20, 2026' })).toBeVisible();
+  expect(screen.getByRole('region', { name: 'Records for Oct 20, 2026' })).toBeVisible();
   expect(dayButton('2026-10-23')).toHaveAttribute('aria-current', 'date');
 });
 
@@ -381,7 +380,7 @@ test('picking a day clears the error of an earlier failed day', async () => {
   fireEvent.click(dayButton('2026-10-01'));
   expect(queryLive('alert')).toBeNull();
   await flush();
-  expect(screen.getByRole('region', { name: 'Records for October 1, 2026' })).toBeVisible();
+  expect(screen.getByRole('region', { name: 'Records for Oct 1, 2026' })).toBeVisible();
 });
 
 test('picking the day that failed loads it again rather than waiting forever', async () => {
@@ -394,9 +393,9 @@ test('picking the day that failed loads it again rather than waiting forever', a
   expect(getLive('alert')).toBeInTheDocument();
   fireEvent.click(dayButton('2026-10-20'));
   await flush();
-  expect(screen.getByRole('region', { name: 'Records for October 20, 2026' })).toBeVisible();
+  expect(screen.getByRole('region', { name: 'Records for Oct 20, 2026' })).toBeVisible();
   expect(
-    screen.queryByRole('region', { name: "Loading this day's records" }),
+    screen.queryByRole('status', { name: "Loading this day's records" }),
   ).not.toBeInTheDocument();
 });
 
@@ -442,7 +441,7 @@ test('a failed day load offers its own retry', async () => {
   expect(getLive('alert')).toHaveTextContent('A server error occurred');
   press("Reload this day's records");
   await waitFor(() =>
-    expect(screen.getByRole('region', { name: 'Records for October 20, 2026' })).toBeVisible(),
+    expect(screen.getByRole('region', { name: 'Records for Oct 20, 2026' })).toBeVisible(),
   );
   expect(queryLive('alert')).toBeNull();
 });

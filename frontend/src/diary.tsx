@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 
+import { LoadingRegion, RetryButton } from './components/load-state/load-state';
 import { Button } from './components/ui/button';
 import { Card, CardContent } from './components/ui/card';
 import { Notice } from './components/ui/notice';
@@ -17,13 +18,12 @@ import {
 import { diaryLimits } from './diary-limits';
 import { ScoreField } from './diary-scores';
 import { isFocusFree, useDateHeading } from './focus-moves';
-import { dateHeading, formatDate } from './format-date';
+import { dateHeading } from './format-date';
 import { LabeledTextarea } from './labeled-textarea';
 import { RequestError } from './lib/api';
+import { formatDate } from './lib/format';
 import { apiKey, useApiMutation, useApiQuery } from './lib/query';
 import { useNotice } from './lib/use-notice';
-import { LoadingRegion } from './loading-region';
-import { RetryButton } from './retry-button';
 
 type DiaryEntry = {
   date: string;
@@ -254,7 +254,7 @@ export function Diary() {
     ) : (
       <div className="flex flex-col items-start gap-3">
         <Notice notice={notice} />
-        <RetryButton onClick={() => moveTo(date)}>Try again</RetryButton>
+        <RetryButton onRetry={() => moveTo(date)}>Try again</RetryButton>
       </div>
     );
 

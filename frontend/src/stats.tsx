@@ -1,13 +1,13 @@
+import { LoadingRegion, RetryButton } from './components/load-state/load-state';
 import { Badge } from './components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
 import { EmptyState } from './components/ui/empty-state';
 import { Notice } from './components/ui/notice';
-import { formatDate } from './format-date';
+import { monthYear } from './format-date';
+import { formatDate } from './lib/format';
 import { apiKey, useApiQuery } from './lib/query';
 import { errorText } from './lib/use-notice';
 import { cn } from './lib/utils';
-import { LoadingRegion } from './loading-region';
-import { RetryButton } from './retry-button';
 import { groupByCategory } from './routine-groups';
 import { type Streak, StreakText, TrendCards, type TrendPoint } from './stats-trend';
 import { useReloadWhenCurrent } from './use-date-change';
@@ -238,7 +238,7 @@ export function Stats() {
     <>
       <Notice notice={notice} />
       {loadFailed && (
-        <RetryButton className="self-start" onClick={reload}>
+        <RetryButton className="self-start" onRetry={reload}>
           Try again
         </RetryButton>
       )}
@@ -279,7 +279,7 @@ export function Stats() {
             title="Daily routines by month"
             rows={data.daily.months.map((month) => ({
               key: month.month,
-              label: formatDate(`${month.month}-01`, 'month'),
+              label: monthYear(`${month.month}-01`),
               tally: month,
             }))}
           />

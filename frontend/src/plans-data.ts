@@ -1,4 +1,4 @@
-import { formatDate } from './format-date';
+import { formatDate } from './lib/format';
 
 // What the Plans page and its forms share: the types, the horizons and the labels.
 export type PlanHorizon = 'week' | 'twelve_week' | 'year' | 'decade';

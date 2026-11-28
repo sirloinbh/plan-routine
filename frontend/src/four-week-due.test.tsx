@@ -90,15 +90,13 @@ test('in the last 7 days only unfinished routines are shown with the days left',
   expect(
     screen.getByRole('region', { name: '4-week routines ending soon checklist' }),
   ).toBeVisible();
-  expect(screen.getByText('Ends November 14, 2026. 4 days left')).toBeInTheDocument();
+  expect(screen.getByText('Ends Nov 14, 2026. 4 days left')).toBeInTheDocument();
 });
 
 test('the last day says so', async () => {
   dueApi(seed, { remainingDays: 0 });
   render(<FourWeekDue />);
-  expect(
-    await screen.findByText('Ends November 14, 2026. Today is the last day'),
-  ).toBeInTheDocument();
+  expect(await screen.findByText('Ends Nov 14, 2026. Today is the last day')).toBeInTheDocument();
 });
 
 test('a checked box stays to be undone, even after a reload, and leaving the page drops it', async () => {

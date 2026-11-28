@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
+import { LoadingRegion, RetryButton } from './components/load-state/load-state';
 import { Button } from './components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
 import { Input } from './components/ui/input';
@@ -9,8 +10,6 @@ import { Spinner } from './components/ui/spinner';
 import { useFocusRequest } from './focus-moves';
 import { apiKey, type ApiRequest, useApiMutation, useApiQuery } from './lib/query';
 import { errorText, useNotice } from './lib/use-notice';
-import { LoadingRegion } from './loading-region';
-import { RetryButton } from './retry-button';
 
 export type ProjectLink = { id: number; name: string; url: string };
 
@@ -126,7 +125,7 @@ export function ProjectLinks() {
         {loadFailed && (
           <RetryButton
             className="self-start"
-            onClick={() => {
+            onRetry={() => {
               clear();
               void projectsQuery.refetch();
             }}

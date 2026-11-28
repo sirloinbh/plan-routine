@@ -1,9 +1,9 @@
 import { useState } from 'react';
 
 import { Checklist, type ChecklistItem } from './checklist';
+import { RetryButton } from './components/load-state/load-state';
 import { Notice } from './components/ui/notice';
-import { formatDate } from './format-date';
-import { RetryButton } from './retry-button';
+import { formatDate } from './lib/format';
 import { useChecklist } from './use-checklist';
 
 // Unfinished four-week routines on the daily page, during the last 7 days of their period.
@@ -27,7 +27,7 @@ export function FourWeekDue() {
   return (
     <div className="flex flex-col items-start gap-2">
       <Notice notice={shownNotice} />
-      {loadFailed && <RetryButton onClick={retry}>Reload 4-week routines</RetryButton>}
+      {loadFailed && <RetryButton onRetry={retry}>Reload 4-week routines</RetryButton>}
       {data && items.length > 0 && (
         <>
           <div className="w-full">

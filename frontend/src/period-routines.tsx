@@ -1,10 +1,9 @@
 import { Checklist, type ChecklistItem, ChecklistPending } from './checklist';
+import { LoadingRegion, RetryButton } from './components/load-state/load-state';
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
 import { EmptyState } from './components/ui/empty-state';
 import { Notice } from './components/ui/notice';
-import { formatDate } from './format-date';
-import { LoadingRegion } from './loading-region';
-import { RetryButton } from './retry-button';
+import { formatDate } from './lib/format';
 import { RoutineAddForm, RoutineItems, RoutineNotices } from './routine-list';
 import { useChecklist } from './use-checklist';
 import { useRoutineList } from './use-routine-list';
@@ -50,7 +49,7 @@ export function PeriodRoutines({
           )}
           <Notice notice={checklist.notice} />
           {checklist.loadFailed && (
-            <RetryButton className="self-start" onClick={checklist.retry}>
+            <RetryButton className="self-start" onRetry={checklist.retry}>
               Try again
             </RetryButton>
           )}
@@ -84,7 +83,7 @@ export function PeriodRoutines({
         <CardContent className="flex flex-col gap-3">
           <RoutineNotices notice={list.notice} />
           {list.loadFailed && (
-            <RetryButton className="self-start" onClick={list.refresh}>
+            <RetryButton className="self-start" onRetry={list.refresh}>
               Reload the list
             </RetryButton>
           )}

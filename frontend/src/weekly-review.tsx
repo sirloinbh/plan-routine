@@ -1,15 +1,14 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { type FormEvent, useState } from 'react';
 
+import { LoadingRegion, RetryButton } from './components/load-state/load-state';
 import { Button } from './components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
 import { Notice } from './components/ui/notice';
-import { formatDate } from './format-date';
 import { LabeledTextarea } from './labeled-textarea';
+import { formatDate } from './lib/format';
 import { apiKey, useApiMutation, useApiQuery } from './lib/query';
 import { errorText, useNotice } from './lib/use-notice';
-import { LoadingRegion } from './loading-region';
-import { RetryButton } from './retry-button';
 import { useReloadWhenCurrent } from './use-date-change';
 
 // The server enforces the same limit (backend/src/weekly-review-routes.ts).
@@ -128,7 +127,7 @@ export function WeeklyReview() {
     return query.isError ? (
       <div className="flex flex-col items-start gap-3">
         <Notice notice={{ kind: 'error', text: errorText(query.error) }} />
-        <RetryButton className="self-start" onClick={() => void query.refetch()}>
+        <RetryButton className="self-start" onRetry={() => void query.refetch()}>
           Try again
         </RetryButton>
       </div>

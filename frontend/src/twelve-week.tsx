@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useEffectEvent, useRef, useState } from 'react';
 
+import { LoadingRegion, RetryButton } from './components/load-state/load-state';
 import { Badge } from './components/ui/badge';
 import { Button } from './components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
@@ -8,14 +9,12 @@ import { Input } from './components/ui/input';
 import { Notice } from './components/ui/notice';
 import { Spinner } from './components/ui/spinner';
 import { useFocusRequest } from './focus-moves';
-import { formatDate } from './format-date';
 import { GoalRoutineLinks, type LinkedRoutine } from './goal-routine-links';
 import { LabeledTextarea } from './labeled-textarea';
+import { formatDate } from './lib/format';
 import { apiKey, type ApiRequest, useApiMutation, useApiQuery } from './lib/query';
 import { errorText, type NoticeValue, useNotice } from './lib/use-notice';
-import { LoadingRegion } from './loading-region';
 import { PeriodRoutines } from './period-routines';
-import { RetryButton } from './retry-button';
 import { useReloadWhenCurrent } from './use-date-change';
 
 type Goal = {
@@ -543,7 +542,7 @@ export function TwelveWeek() {
     <div className="flex flex-col gap-6">
       <Notice notice={notice} />
       {loadFailed && (
-        <RetryButton className="self-start" onClick={reload}>
+        <RetryButton className="self-start" onRetry={reload}>
           Reload goals
         </RetryButton>
       )}

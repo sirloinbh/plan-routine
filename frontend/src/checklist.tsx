@@ -2,6 +2,7 @@ import { ExternalLink } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 import { progressText } from './checklist-progress';
+import { LoadingRegion, RetryButton } from './components/load-state/load-state';
 import { Badge } from './components/ui/badge';
 import { Button } from './components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
@@ -10,8 +11,6 @@ import { Input } from './components/ui/input';
 import { Label } from './components/ui/label';
 import { Notice } from './components/ui/notice';
 import type { NoticeValue } from './lib/use-notice';
-import { LoadingRegion } from './loading-region';
-import { RetryButton } from './retry-button';
 
 export type ChecklistItem = {
   id: number;
@@ -49,7 +48,7 @@ export function ChecklistPending({
   return failed ? (
     <div className="flex flex-col items-start gap-3">
       <Notice notice={notice} />
-      <RetryButton onClick={onRetry}>Try again</RetryButton>
+      <RetryButton onRetry={onRetry}>Try again</RetryButton>
     </div>
   ) : (
     <LoadingRegion label="Loading checklist" shape={shape} />

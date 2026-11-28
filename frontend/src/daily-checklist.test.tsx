@@ -2,7 +2,7 @@ import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { expect, test, vi } from 'vitest';
 
 import { DailyChecklist } from './daily-checklist';
-import { formatDate } from './format-date';
+import { formatDate } from './lib/format';
 import { findLive, getLive, queryLive } from './test/live';
 import { render } from './test/render';
 import { unexpectedRequest } from './test/unexpected-request';
@@ -122,7 +122,7 @@ test('shows today with routines by category, hiding empty categories', async () 
   checklistApi(seed);
   render(<DailyChecklist />);
   await box('Wake at 6');
-  expect(screen.getByRole('heading', { level: 2, name: 'Today (October 22, 2026)' })).toBeVisible();
+  expect(screen.getByRole('heading', { level: 2, name: 'Today (Oct 22, 2026)' })).toBeVisible();
   expect(within(region('Wake-up')).getAllByRole('checkbox')).toHaveLength(2);
   expect(within(region('Exercise')).getAllByRole('checkbox')).toHaveLength(1);
   expect(screen.queryByRole('region', { name: 'Diet checklist' })).not.toBeInTheDocument();
@@ -206,7 +206,7 @@ test('another day keeps its own checks and the date buttons stop at the range en
   expect(screen.queryByRole('button', { name: 'Go to today' })).not.toBeInTheDocument();
 
   fireEvent.click(screen.getByRole('button', { name: 'Previous day' }));
-  expect(await screen.findByRole('heading', { level: 2, name: 'October 21, 2026' })).toBeVisible();
+  expect(await screen.findByRole('heading', { level: 2, name: 'Oct 21, 2026' })).toBeVisible();
   expect(await box('Wake at 6')).not.toBeChecked();
   fireEvent.click(await box('Squats'));
   await waitFor(() =>
@@ -238,13 +238,13 @@ test('a page shown again after midnight moves to the new day and saves there', a
   const api = checklistApi(seed);
   api.setToday('2026-10-20');
   render(<DailyChecklist />);
-  await screen.findByRole('heading', { level: 2, name: 'Today (October 20, 2026)' });
+  await screen.findByRole('heading', { level: 2, name: 'Today (Oct 20, 2026)' });
 
   // "Go to today" keeps following the server's today rather than the date it was pressed on.
   fireEvent.click(screen.getByRole('button', { name: 'Previous day' }));
-  await screen.findByRole('heading', { level: 2, name: 'October 19, 2026' });
+  await screen.findByRole('heading', { level: 2, name: 'Oct 19, 2026' });
   fireEvent.click(screen.getByRole('button', { name: 'Go to today' }));
-  await screen.findByRole('heading', { level: 2, name: 'Today (October 20, 2026)' });
+  await screen.findByRole('heading', { level: 2, name: 'Today (Oct 20, 2026)' });
 
   api.setToday(today);
   await showPageAgain();
@@ -320,7 +320,7 @@ test('a failed move can be retried with the same button', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Previous day' }));
   expect(await findLive('alert')).toHaveTextContent('A server error occurred');
   fireEvent.click(screen.getByRole('button', { name: 'Previous day' }));
-  expect(await screen.findByRole('heading', { level: 2, name: 'October 21, 2026' })).toBeVisible();
+  expect(await screen.findByRole('heading', { level: 2, name: 'Oct 21, 2026' })).toBeVisible();
   expect(queryLive('alert')).toBeNull();
 });
 
@@ -347,7 +347,7 @@ test('the first check after midnight is not saved to yesterday and the next goes
   const api = checklistApi(seed);
   api.setToday('2026-10-21');
   render(<DailyChecklist />);
-  await screen.findByRole('heading', { level: 2, name: 'Today (October 21, 2026)' });
+  await screen.findByRole('heading', { level: 2, name: 'Today (Oct 21, 2026)' });
 
   setClock('2026-10-22');
   api.setToday('2026-10-22');
@@ -355,7 +355,7 @@ test('the first check after midnight is not saved to yesterday and the next goes
   await flush();
   expect(api.writes).toEqual([]);
   expect(getLive('status')).toHaveTextContent('The date changed and a new period was loaded');
-  expect(screen.getByRole('heading', { level: 2, name: 'Today (October 22, 2026)' })).toBeVisible();
+  expect(screen.getByRole('heading', { level: 2, name: 'Today (Oct 22, 2026)' })).toBeVisible();
   expect(await box('Wake at 6')).not.toBeChecked();
 
   fireEvent.click(await box('Wake at 6'));
@@ -368,7 +368,7 @@ test('an open window moves to the new day by itself, without requests before tha
   const api = checklistApi(seed);
   api.setToday('2026-10-21');
   render(<DailyChecklist />);
-  await screen.findByRole('heading', { level: 2, name: 'Today (October 21, 2026)' });
+  await screen.findByRole('heading', { level: 2, name: 'Today (Oct 21, 2026)' });
 
   const before = checklistLoads();
   await act(async () => {
@@ -384,7 +384,7 @@ test('an open window moves to the new day by itself, without requests before tha
     await tick();
     await tick();
   });
-  expect(screen.getByRole('heading', { level: 2, name: 'Today (October 22, 2026)' })).toBeVisible();
+  expect(screen.getByRole('heading', { level: 2, name: 'Today (Oct 22, 2026)' })).toBeVisible();
 });
 
 test('focusing the window moves to the new day', async () => {
@@ -392,7 +392,7 @@ test('focusing the window moves to the new day', async () => {
   const api = checklistApi(seed);
   api.setToday('2026-10-21');
   render(<DailyChecklist />);
-  await screen.findByRole('heading', { level: 2, name: 'Today (October 21, 2026)' });
+  await screen.findByRole('heading', { level: 2, name: 'Today (Oct 21, 2026)' });
 
   setClock('2026-10-22');
   api.setToday('2026-10-22');
@@ -401,7 +401,7 @@ test('focusing the window moves to the new day', async () => {
     await tick();
     await tick();
   });
-  expect(screen.getByRole('heading', { level: 2, name: 'Today (October 22, 2026)' })).toBeVisible();
+  expect(screen.getByRole('heading', { level: 2, name: 'Today (Oct 22, 2026)' })).toBeVisible();
 });
 
 const nextCheck = () =>
@@ -416,7 +416,7 @@ test('a failed reload after midnight is tried again at the next check', async ()
   const api = checklistApi(seed);
   api.setToday('2026-10-21');
   render(<DailyChecklist />);
-  await screen.findByRole('heading', { level: 2, name: 'Today (October 21, 2026)' });
+  await screen.findByRole('heading', { level: 2, name: 'Today (Oct 21, 2026)' });
 
   setClock('2026-10-22');
   api.setToday('2026-10-22');
@@ -424,7 +424,7 @@ test('a failed reload after midnight is tried again at the next check', async ()
   await nextCheck();
   expect(getLive('alert')).toHaveTextContent('A server error occurred');
   await nextCheck();
-  expect(screen.getByRole('heading', { level: 2, name: 'Today (October 22, 2026)' })).toBeVisible();
+  expect(screen.getByRole('heading', { level: 2, name: 'Today (Oct 22, 2026)' })).toBeVisible();
   expect(queryLive('alert')).toBeNull();
 });
 
@@ -434,7 +434,7 @@ test('a day that left the editable range is not asked for again every minute', a
   render(<DailyChecklist />);
   await box('Wake at 6');
   fireEvent.click(screen.getByRole('button', { name: 'Previous day' }));
-  await screen.findByRole('heading', { level: 2, name: 'October 21, 2026' });
+  await screen.findByRole('heading', { level: 2, name: 'Oct 21, 2026' });
 
   const working = vi.mocked(fetch).getMockImplementation()!;
   const rejected = vi.fn((url: string, init?: RequestInit) =>
@@ -472,7 +472,7 @@ test('after a failed reload a refused click still explains itself', async () => 
   fireEvent.click(await box('Wake at 6'));
   await flush();
   expect(api.writes).toEqual([]);
-  expect(screen.getByRole('heading', { level: 2, name: 'Today (October 22, 2026)' })).toBeVisible();
+  expect(screen.getByRole('heading', { level: 2, name: 'Today (Oct 22, 2026)' })).toBeVisible();
   expect(getLive('status')).toHaveTextContent('The date changed and a new period was loaded');
 });
 
@@ -483,7 +483,7 @@ test('a chosen past day can still be checked after midnight', async () => {
   render(<DailyChecklist />);
   await box('Wake at 6');
   fireEvent.click(screen.getByRole('button', { name: 'Previous day' }));
-  await screen.findByRole('heading', { level: 2, name: 'October 20, 2026' });
+  await screen.findByRole('heading', { level: 2, name: 'Oct 20, 2026' });
 
   setClock('2026-10-22');
   fireEvent.click(await box('Wake at 6'));
@@ -520,11 +520,11 @@ test('moving to another day puts focus on its date, also where the buttons run o
   await box('Wake at 6');
   pressDate('Previous day');
   await flush();
-  expect(heading('October 21, 2026')).toHaveFocus();
+  expect(heading('Oct 21, 2026')).toHaveFocus();
 
   pressDate('Go to today');
   await flush();
-  expect(heading('Today (October 22, 2026)')).toHaveFocus();
+  expect(heading('Today (Oct 22, 2026)')).toHaveFocus();
 
   for (const day of editable.slice(0, -1).reverse()) {
     pressDate('Previous day');
@@ -554,7 +554,7 @@ test('a slow day does not take focus back once the user has moved on', async () 
   first.focus();
   api.releaseLoad();
   await flush();
-  expect(heading('October 21, 2026')).toBeVisible();
+  expect(heading('Oct 21, 2026')).toBeVisible();
   expect(await box('Wake at 6')).toHaveFocus();
 });
 
@@ -565,7 +565,7 @@ test('midnight changes the day without moving focus', async () => {
   api.setToday('2026-10-21');
   document.dispatchEvent(new Event('visibilitychange'));
   await flush();
-  expect(heading('Today (October 21, 2026)')).toBeVisible();
+  expect(heading('Today (Oct 21, 2026)')).toBeVisible();
   expect(await box('Wake at 6')).toHaveFocus();
 });
 

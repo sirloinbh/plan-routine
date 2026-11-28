@@ -3,9 +3,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 
 import type { ChecklistItem } from './checklist';
 import { requestJson } from './lib/api';
+import { serviceToday } from './lib/format';
 import { apiKey, useApiQuery } from './lib/query';
 import { errorText, useNotice } from './lib/use-notice';
-import { serviceDate } from './service-date';
 import { useReloadWhenCurrent } from './use-date-change';
 
 export type ChecklistData<T> = {
@@ -74,7 +74,7 @@ export function useChecklist<T extends ChecklistItem>(cadence: string, onSaveFai
   // keeps a wrong device clock from causing trouble.
   const shownOn = useRef('');
   useEffect(() => {
-    if (query.data) shownOn.current = serviceDate();
+    if (query.data) shownOn.current = serviceToday();
   }, [query.data]);
 
   // A load that read the server around a save may not show it. Counts every save's start and end, so a
@@ -114,7 +114,7 @@ export function useChecklist<T extends ChecklistItem>(cadence: string, onSaveFai
 
   const toggle = async (itemDate: string, item: ChecklistItem) => {
     // Following today on a screen from an earlier period: this check would land in that period.
-    const current = serviceDate();
+    const current = serviceToday();
     if (date === null && data && current !== shownOn.current && current > data.period.end) {
       status('The date changed and a new period was loaded. Please check again');
       void refetch();
