@@ -259,8 +259,6 @@ test(
   { skip: !url, timeout: 30_000 },
   () =>
     withClient(async (client, pool) => {
-      await client.query(readFileSync(goalLinksMigration, 'utf8'));
-      await client.query(readFileSync(goalLinksMigration, 'utf8'));
       const original = await client.query<{ value: string }>(
         'SELECT value FROM app_settings WHERE key = $1',
         [anchorSettingKey],
@@ -360,12 +358,7 @@ test(
       // Bring the old tables back as they were before migration 016 (it dropped them), then put data in them.
       await client.query(sql);
       await client.query(readFileSync(goalsMigration, 'utf8'));
-      await client.query(
-        readFileSync(
-          new URL('../../database/migrations/005_goal_routines.sql', import.meta.url),
-          'utf8',
-        ),
-      );
+      await client.query(readFileSync(goalLinksMigration, 'utf8'));
       const routines = await client.query<{ id: number }>(
         `INSERT INTO routines (name, cadence)
          VALUES ('Migration check 1', 'weekly'), ('Migration check 2', 'weekly') RETURNING id`,
