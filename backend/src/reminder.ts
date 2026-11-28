@@ -25,8 +25,24 @@ export function createSender(vapid: VapidConfig): SendPush {
   setVapidDetails(vapid.subject, vapid.publicKey, vapid.privateKey);
   // A reminder that arrives hours late is noise: let the push service drop it after 6 hours.
   return async (target, payload) => {
-    await sendNotification(target, payload, { TTL: 6 * 60 * 60 });
+    await sendNotification(target, payload, { TTL: 6 * 60 * 60, timeout: sendTimeoutMs });
   };
+}
+
+/** A push service that does not answer in this time counts as a failed send (#352). */
+export const sendTimeoutMs = 10_000;
+
+/** Rejects (with no `statusCode`) when `send` takes longer than `ms`, so one stuck device cannot hold the loop. */
+async function sendWithin(send: SendPush, target: PushTarget, payload: string, ms: number) {
+  let timer: NodeJS.Timeout | undefined;
+  const late = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(() => reject(new Error('the push service did not answer in time')), ms);
+  });
+  try {
+    await Promise.race([send(target, payload), late]);
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 export const defaultReminderTime = '21:00';
@@ -166,15 +182,18 @@ export async function sendToDevices(
   devices: Device[],
   payload: string,
   log: (message: string) => void = console.error,
+  timeoutMs = sendTimeoutMs,
 ) {
   let sent = 0;
   let failed = 0;
   const gone: string[] = [];
   for (const device of devices) {
     try {
-      await send(
+      await sendWithin(
+        send,
         { endpoint: device.endpoint, keys: { p256dh: device.p256dh, auth: device.auth } },
         payload,
+        timeoutMs,
       );
       sent += 1;
     } catch (error) {
