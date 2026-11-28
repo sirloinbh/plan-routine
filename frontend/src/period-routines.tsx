@@ -14,7 +14,6 @@ type PeriodPage = {
   name: string;
   /** Names the current period: "This week". */
   periodName: string;
-  examples: string;
   emptyHint: string;
   showRemaining?: boolean;
 };
@@ -23,7 +22,6 @@ export function PeriodRoutines({
   cadence,
   name,
   periodName,
-  examples,
   emptyHint,
   showRemaining = false,
 }: PeriodPage) {
@@ -102,7 +100,6 @@ export function PeriodRoutines({
             cadence={cadence}
             addLabel={`Add a ${name} routine`}
             addedTo={`the ${name} list`}
-            placeholder={examples}
           />
         </CardContent>
       </Card>
@@ -116,7 +113,6 @@ export function WeeklyRoutines() {
       cadence="weekly"
       name="weekly"
       periodName="This week"
-      examples="e.g. Write a book report, Clean, Update the budget"
       emptyHint="Add something to do once a week below."
     />
   );
@@ -128,7 +124,6 @@ export function FourWeekRoutines() {
       cadence="four_week"
       name="4-week"
       periodName="These 4 weeks"
-      examples="e.g. Wash bedding, Replace supplies, Deep clean"
       emptyHint="Add something to do once every 4 weeks below."
       showRemaining
     />

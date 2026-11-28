@@ -47,12 +47,7 @@ export function Mandalarts() {
   if (mandalarts.length === 0)
     return (
       <>
-        <EmptyState
-          icon={<Grid3x3 />}
-          title="No Mandalarts yet"
-          description="A Mandalart is a 9x9 chart: one main goal, 8 sub-goals and 8 actions for each sub-goal."
-          action={newButton}
-        />
+        <EmptyState icon={<Grid3x3 />} title="No Mandalarts yet" action={newButton} />
         {dialog}
       </>
     );

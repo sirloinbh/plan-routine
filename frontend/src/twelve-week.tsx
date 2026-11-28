@@ -461,7 +461,6 @@ function CurrentGoals({
             className="min-w-0 flex-1"
             aria-label="New goal"
             data-focus-key={focusKeys.add}
-            placeholder="What to achieve in these 12 weeks"
             value={draft}
             maxLength={200}
             onChange={(event) => setDraft(event.target.value)}
@@ -556,7 +555,6 @@ export function TwelveWeek() {
         cadence="twelve_week"
         name="12-week"
         periodName="This period"
-        examples="e.g. Reset goals"
         emptyHint="Add something to do once every 12 weeks below."
       />
       {reviewed.map(pastCard)}

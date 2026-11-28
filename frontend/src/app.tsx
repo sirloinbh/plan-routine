@@ -96,7 +96,7 @@ function Page({
   children,
 }: {
   title: string;
-  description: string;
+  description?: string;
   health: Health;
   children: ReactNode;
 }) {
@@ -104,7 +104,7 @@ function Page({
     <section aria-labelledby="page-title" className="flex flex-col gap-6">
       <header className="flex flex-col gap-2">
         <h1 id="page-title">{title}</h1>
-        <p className="text-body text-muted-foreground">{description}</p>
+        {description ? <p className="text-body text-muted-foreground">{description}</p> : null}
         {health.state === 'error' ? (
           <p role="alert" className="text-body-sm text-destructive">
             {healthText(health)}
@@ -139,11 +139,7 @@ export function App() {
               <Route
                 path={pages.today}
                 element={
-                  <Page
-                    title="Today"
-                    description="Check off today's daily routines. You can edit today and the 7 days before it"
-                    health={health}
-                  >
+                  <Page title="Today" health={health}>
                     <DailyChecklist />
                     <FourWeekDue />
                     <Button asChild variant="outline" className="self-start">
@@ -155,11 +151,7 @@ export function App() {
               <Route
                 path={pages.diary}
                 element={
-                  <Page
-                    title="Diary"
-                    description="Look back on your day and leave feedback"
-                    health={health}
-                  >
+                  <Page title="Diary" health={health}>
                     <Diary />
                   </Page>
                 }
@@ -167,11 +159,7 @@ export function App() {
               <Route
                 path={pages.routines}
                 element={
-                  <Page
-                    title="Daily routines"
-                    description="Set what to do every day: wake-up, exercise, diet, housework, self-care, study, and reading"
-                    health={health}
-                  >
+                  <Page title="Daily routines" health={health}>
                     <DailyRoutines />
                   </Page>
                 }
@@ -179,11 +167,7 @@ export function App() {
               <Route
                 path={pages.weekly}
                 element={
-                  <Page
-                    title="Weekly routines"
-                    description="Set what to do once a week and check whether you finished it this week"
-                    health={health}
-                  >
+                  <Page title="Weekly routines" health={health}>
                     <WeeklyRoutines />
                   </Page>
                 }
@@ -191,11 +175,7 @@ export function App() {
               <Route
                 path={pages.fourWeek}
                 element={
-                  <Page
-                    title="4-week routines"
-                    description="Set what to do once every 4 weeks and check whether you finished it this period"
-                    health={health}
-                  >
+                  <Page title="4-week routines" health={health}>
                     <FourWeekRoutines />
                   </Page>
                 }
@@ -203,11 +183,7 @@ export function App() {
               <Route
                 path={pages.twelveWeek}
                 element={
-                  <Page
-                    title="12-week routines"
-                    description="Set your goals again every 12 weeks and look back on the last 12 weeks"
-                    health={health}
-                  >
+                  <Page title="12-week routines" health={health}>
                     <TwelveWeek />
                   </Page>
                 }
@@ -215,11 +191,7 @@ export function App() {
               <Route
                 path={pages.mandalarts}
                 element={
-                  <Page
-                    title="Mandalart"
-                    description="Your goal charts: one main goal, 8 sub-goals and 8 actions for each"
-                    health={health}
-                  >
+                  <Page title="Mandalart" health={health}>
                     <Mandalarts />
                   </Page>
                 }
@@ -227,7 +199,7 @@ export function App() {
               <Route
                 path={`${pages.mandalarts}/:id`}
                 element={
-                  <Page title="Mandalart" description="A 9x9 goal chart" health={health}>
+                  <Page title="Mandalart" health={health}>
                     <MandalartView />
                   </Page>
                 }
@@ -235,11 +207,7 @@ export function App() {
               <Route
                 path={pages.plans}
                 element={
-                  <Page
-                    title="Plans"
-                    description="See your plans for this week, these 12 weeks, this year and the next 10 years"
-                    health={health}
-                  >
+                  <Page title="Plans" health={health}>
                     <Plans />
                   </Page>
                 }
@@ -247,11 +215,7 @@ export function App() {
               <Route
                 path={pages.records}
                 element={
-                  <Page
-                    title="Records"
-                    description="Review past daily routine checks and diary entries"
-                    health={health}
-                  >
+                  <Page title="Records" health={health}>
                     <Records />
                   </Page>
                 }
@@ -259,11 +223,7 @@ export function App() {
               <Route
                 path={pages.stats}
                 element={
-                  <Page
-                    title="Completion rates"
-                    description="See how consistently you kept your routines, by period"
-                    health={health}
-                  >
+                  <Page title="Completion rates" health={health}>
                     <div className="flex flex-col gap-6">
                       <Stats />
                       <MoodStats />
@@ -274,11 +234,7 @@ export function App() {
               <Route
                 path={pages.review}
                 element={
-                  <Page
-                    title="Weekly review"
-                    description="Look back on a week: how much you did, what you missed, and what to change"
-                    health={health}
-                  >
+                  <Page title="Weekly review" health={health}>
                     <WeeklyReview />
                   </Page>
                 }
@@ -286,11 +242,7 @@ export function App() {
               <Route
                 path={pages.settings}
                 element={
-                  <Page
-                    title="Settings"
-                    description="Manage the other apps your routines can open, the evening reminder, and your data"
-                    health={health}
-                  >
+                  <Page title="Settings" health={health}>
                     <div className="flex flex-col gap-6">
                       <ProjectLinks />
                       <ReminderSection />

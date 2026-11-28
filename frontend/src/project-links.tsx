@@ -206,7 +206,6 @@ export function ProjectLinks() {
             className="min-w-0 sm:basis-1/3"
             aria-label="Project name"
             data-focus-key={keys.name}
-            placeholder="Budget"
             value={name}
             required
             maxLength={100}
@@ -216,7 +215,6 @@ export function ProjectLinks() {
             className="min-w-0 sm:flex-1"
             aria-label="Project URL"
             data-focus-key={keys.url}
-            placeholder="https://example.com"
             inputMode="url"
             value={url}
             required
