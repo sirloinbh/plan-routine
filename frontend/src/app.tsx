@@ -5,6 +5,7 @@ import {
   CalendarRange,
   ChartNoAxesColumn,
   ClipboardCheck,
+  Grid3x3,
   History,
   ListChecks,
   NotebookPen,
@@ -23,6 +24,7 @@ import { ExportSection } from './export-section';
 import { FourWeekDue } from './four-week-due';
 import { type Health, healthText } from './health';
 import { createQueryClient } from './lib/query';
+import { Mandalarts, MandalartView } from './mandalarts';
 import { MoodStats } from './mood-stats';
 import { FourWeekRoutines, WeeklyRoutines } from './period-routines';
 import { ProjectLinks } from './project-links';
@@ -43,6 +45,7 @@ const pages = {
   weekly: '/weekly',
   fourWeek: '/four-week',
   twelveWeek: '/twelve-week',
+  mandalarts: '/mandalarts',
   records: '/records',
   stats: '/stats',
   review: '/review',
@@ -55,6 +58,7 @@ const nav: NavItem[] = [
   { to: pages.today, label: 'Today', icon: CalendarCheck },
   { to: pages.weekly, label: 'Weekly routines', icon: CalendarRange },
   { to: pages.twelveWeek, label: '12-week routines', icon: Target },
+  { to: pages.mandalarts, label: 'Mandalart', icon: Grid3x3 },
   { to: pages.diary, label: 'Diary', icon: NotebookPen },
   { to: pages.routines, label: 'Daily routines', icon: ListChecks },
   { to: pages.fourWeek, label: '4-week routines', icon: CalendarDays },
@@ -201,6 +205,26 @@ export function App() {
                     health={health}
                   >
                     <TwelveWeek />
+                  </Page>
+                }
+              />
+              <Route
+                path={pages.mandalarts}
+                element={
+                  <Page
+                    title="Mandalart"
+                    description="Your goal charts: one main goal, 8 sub-goals and 8 actions for each"
+                    health={health}
+                  >
+                    <Mandalarts />
+                  </Page>
+                }
+              />
+              <Route
+                path={`${pages.mandalarts}/:id`}
+                element={
+                  <Page title="Mandalart" description="A 9x9 goal chart" health={health}>
+                    <MandalartView />
                   </Page>
                 }
               />
