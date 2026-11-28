@@ -237,9 +237,9 @@ test(
             };
             const periodStart = before.period.start;
             await client.query(
-              `INSERT INTO twelve_week_goals (id, period_start, title, sort_order)
+              `INSERT INTO plans (id, horizon, period_start, title, sort_order)
                OVERRIDING SYSTEM VALUE
-               SELECT n, $2::date, 'Sort ' || n, 0 FROM unnest($1::bigint[]) AS n`,
+               SELECT n, 'twelve_week', $2::date, 'Sort ' || n, 0 FROM unnest($1::bigint[]) AS n`,
               [ids, periodStart],
             );
             const goals = await call('/api/goals');
@@ -263,7 +263,7 @@ test(
           { today: () => '2026-10-22' },
         );
       } finally {
-        await client.query('DELETE FROM twelve_week_goals WHERE id = ANY($1::bigint[])', [ids]);
+        await client.query('DELETE FROM plans WHERE id = ANY($1::bigint[])', [ids]);
         await client.query('DELETE FROM routines WHERE id = ANY($1::bigint[])', [ids]);
         await client.query('DELETE FROM app_settings WHERE key = $1', [anchorSettingKey]);
         if (original.rows[0])

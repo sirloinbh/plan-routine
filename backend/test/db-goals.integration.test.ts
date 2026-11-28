@@ -6,6 +6,10 @@ import { anchorSettingKey } from '../src/routines.js';
 import { url, withClient } from './db-helpers.js';
 import { withApi } from './helpers.js';
 
+const onPlansMigration = new URL(
+  '../../database/migrations/016_goals_on_plans.sql',
+  import.meta.url,
+);
 const goalsMigration = new URL(
   '../../database/migrations/004_twelve_week_goals.sql',
   import.meta.url,
@@ -52,6 +56,8 @@ test(
       await rejects("('2001-02-04', '   ', NULL)");
       await rejects("('2001-02-04', repeat('a', 201), NULL)");
       await rejects("('2001-02-04', 'a', repeat('a', 1001))");
+      // Migration 016 dropped this table; leave the database as it was.
+      await client.query('DROP TABLE IF EXISTS twelve_week_goals');
     }),
 );
 
@@ -155,7 +161,7 @@ test(
             });
             assert.equal(mixed.status, 400);
             const untouched = await client.query(
-              'SELECT achieved, review_note, reviewed_at FROM twelve_week_goals WHERE id = $1',
+              'SELECT achieved, review_note, reviewed_at FROM plans WHERE id = $1',
               [first],
             );
             assert.deepEqual(untouched.rows[0], {
@@ -184,10 +190,23 @@ test(
               ],
             );
 
+            // The review keeps the plan status in step: met is done, not met is dropped.
+            const statuses = await client.query<{ id: number; status: string }>(
+              'SELECT id, status FROM plans WHERE id = ANY($1::bigint[]) ORDER BY id',
+              [[first, second]],
+            );
+            assert.deepEqual(
+              statuses.rows.map((row) => [row.id, row.status]),
+              [
+                [first, 'done'],
+                [second, 'dropped'],
+              ].sort((a, b) => Number(a[0]) - Number(b[0])),
+            );
+
             // Saving the same answers again leaves reviewed_at and updated_at alone; a changed note moves them.
             const stamps = () =>
               client.query<{ reviewed_at: Date; updated_at: Date }>(
-                'SELECT reviewed_at, updated_at FROM twelve_week_goals WHERE id = $1',
+                'SELECT reviewed_at, updated_at FROM plans WHERE id = $1',
                 [first],
               );
             const beforeResave = (await stamps()).rows[0];
@@ -209,16 +228,17 @@ test(
               body: { reviews: [{ id: second, achieved: null, note: '' }] },
             });
             assert.equal(cleared.status, 200);
-            const row = await client.query(
-              'SELECT reviewed_at FROM twelve_week_goals WHERE id = $1',
+            const row = await client.query<{ reviewed_at: Date | null; status: string }>(
+              'SELECT reviewed_at, status FROM plans WHERE id = $1',
               [second],
             );
             assert.equal(row.rows[0].reviewed_at, null);
+            assert.equal(row.rows[0].status, 'planned');
           },
           { today: () => today },
         );
       } finally {
-        await client.query('DELETE FROM twelve_week_goals WHERE id = ANY($1::bigint[])', [created]);
+        await client.query('DELETE FROM plans WHERE id = ANY($1::bigint[])', [created]);
         await client.query('DELETE FROM app_settings WHERE key = $1', [anchorSettingKey]);
         if (original.rows[0])
           await client.query('INSERT INTO app_settings (key, value) VALUES ($1, $2)', [
@@ -239,8 +259,6 @@ test(
   { skip: !url, timeout: 30_000 },
   () =>
     withClient(async (client, pool) => {
-      await client.query(readFileSync(goalLinksMigration, 'utf8'));
-      await client.query(readFileSync(goalLinksMigration, 'utf8'));
       const original = await client.query<{ value: string }>(
         'SELECT value FROM app_settings WHERE key = $1',
         [anchorSettingKey],
@@ -309,10 +327,9 @@ test(
             // Removing the goal removes its links and leaves the routine.
             assert.equal((await put([daily])).status, 200);
             await call(`/api/goals/${goalId}`, { method: 'DELETE' });
-            const left = await client.query(
-              'SELECT 1 FROM twelve_week_goal_routines WHERE goal_id = $1',
-              [goalId],
-            );
+            const left = await client.query('SELECT 1 FROM plan_routines WHERE plan_id = $1', [
+              goalId,
+            ]);
             assert.equal(left.rowCount, 0);
             const kept = await client.query('SELECT 1 FROM routines WHERE id = $1', [daily]);
             assert.equal(kept.rowCount, 1);
@@ -320,7 +337,7 @@ test(
           { today: () => '2026-10-22' },
         );
       } finally {
-        await client.query('DELETE FROM twelve_week_goals WHERE id = ANY($1::bigint[])', [goals]);
+        await client.query('DELETE FROM plans WHERE id = ANY($1::bigint[])', [goals]);
         await client.query('DELETE FROM routines WHERE id = ANY($1::bigint[])', [routines]);
         await client.query('DELETE FROM app_settings WHERE key = $1', [anchorSettingKey]);
         if (original.rows[0])
@@ -328,6 +345,98 @@ test(
             anchorSettingKey,
             original.rows[0].value,
           ]);
+      }
+    }),
+);
+
+test(
+  'the goals-on-plans migration copies goals, reviews and routine links, then drops the old tables',
+  { skip: !url, timeout: 30_000 },
+  () =>
+    withClient(async (client) => {
+      const sql = readFileSync(onPlansMigration, 'utf8');
+      // Bring the old tables back as they were before migration 016 (it dropped them), then put data in them.
+      await client.query(sql);
+      await client.query(readFileSync(goalsMigration, 'utf8'));
+      await client.query(readFileSync(goalLinksMigration, 'utf8'));
+      const routines = await client.query<{ id: number }>(
+        `INSERT INTO routines (name, cadence)
+         VALUES ('Migration check 1', 'weekly'), ('Migration check 2', 'weekly') RETURNING id`,
+      );
+      const [first, second] = routines.rows.map((row) => row.id);
+      const goals = await client.query<{ id: number }>(
+        `INSERT INTO twelve_week_goals (period_start, title, sort_order, achieved, review_note, reviewed_at)
+         VALUES ('2001-02-04', 'Met goal', 0, true, 'Went well', now()),
+                ('2001-02-04', 'Missed goal', 1, false, NULL, now()),
+                ('2001-02-04', 'Open goal', 2, NULL, NULL, NULL)
+         RETURNING id`,
+      );
+      const ids = goals.rows.map((row) => row.id);
+      await client.query(
+        `INSERT INTO twelve_week_goal_routines (goal_id, routine_id)
+         VALUES ($1, $2), ($1, $3), ($4, $2)`,
+        [ids[0], first, second, ids[2]],
+      );
+      try {
+        await client.query(sql);
+        // A re-run after the drop changes nothing and does not fail.
+        await client.query(sql);
+        // The copy is intact after the drop.
+        const copied = await client.query<{
+          title: string;
+          horizon: string;
+          status: string;
+          achieved: boolean | null;
+          review_note: string | null;
+          reviewed: boolean;
+          sort_order: number;
+          period_start: string;
+        }>(
+          `SELECT title, horizon, status, achieved, review_note, reviewed_at IS NOT NULL AS reviewed, sort_order,
+                  period_start::text
+           FROM plans WHERE legacy_goal_id = ANY($1::bigint[]) ORDER BY legacy_goal_id`,
+          [ids],
+        );
+        assert.deepEqual(
+          copied.rows.map((row) => [
+            row.title,
+            row.horizon,
+            row.status,
+            row.achieved,
+            row.review_note,
+            row.reviewed,
+            row.sort_order,
+            row.period_start,
+          ]),
+          [
+            ['Met goal', 'twelve_week', 'done', true, 'Went well', true, 0, '2001-02-04'],
+            ['Missed goal', 'twelve_week', 'dropped', false, null, true, 1, '2001-02-04'],
+            ['Open goal', 'twelve_week', 'planned', null, null, false, 2, '2001-02-04'],
+          ],
+        );
+        const links = await client.query<{ legacy_goal_id: string; routine_id: string }>(
+          `SELECT p.legacy_goal_id::text, l.routine_id::text
+           FROM plan_routines l JOIN plans p ON p.id = l.plan_id
+           WHERE p.legacy_goal_id = ANY($1::bigint[]) ORDER BY p.legacy_goal_id, l.routine_id`,
+          [ids],
+        );
+        assert.deepEqual(
+          links.rows.map((row) => [row.legacy_goal_id, row.routine_id]),
+          [
+            [String(ids[0]), String(first)],
+            [String(ids[0]), String(second)],
+            [String(ids[2]), String(first)],
+          ].sort((a, b) => Number(a[0]) - Number(b[0]) || Number(a[1]) - Number(b[1])),
+        );
+        const gone = await client.query(
+          `SELECT to_regclass('twelve_week_goals') AS goals, to_regclass('twelve_week_goal_routines') AS links`,
+        );
+        assert.deepEqual(gone.rows[0], { goals: null, links: null });
+      } finally {
+        await client.query('DELETE FROM plans WHERE legacy_goal_id = ANY($1::bigint[])', [ids]);
+        await client.query('DELETE FROM routines WHERE id = ANY($1::bigint[])', [[first, second]]);
+        await client.query('DROP TABLE IF EXISTS twelve_week_goal_routines');
+        await client.query('DROP TABLE IF EXISTS twelve_week_goals');
       }
     }),
 );

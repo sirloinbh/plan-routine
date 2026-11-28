@@ -30,11 +30,11 @@ function fakePool(rows: Row[] = []) {
   const query = async (sql: string, params: unknown[] = []) => {
     queries.push({ sql, params });
     if (sql.includes('app_settings')) return { rows: [{ value: '2026-10-18' }] };
-    if (sql.includes('INSERT INTO twelve_week_goals'))
+    if (sql.includes('INSERT INTO plans'))
       return { rows: [goal(9, '2026-10-18', String(params[1]))] };
     if (sql.includes('FOR UPDATE'))
       return { rows: rows.filter((row) => (params[0] as number[]).includes(row.id)) };
-    if (sql.startsWith('UPDATE twelve_week_goals SET title') || sql.startsWith('DELETE')) {
+    if (sql.startsWith('UPDATE plans SET title') || sql.startsWith('DELETE')) {
       const id = sql.startsWith('DELETE') ? params[0] : params[1];
       const start = sql.startsWith('DELETE') ? params[1] : params[2];
       return { rows: rows.filter((row) => row.id === id && row.periodStart === start) };
@@ -123,10 +123,7 @@ test('a new goal goes to the current period in one transaction, with its text tr
     },
     { today },
   );
-  assert.deepEqual(issued(queries, 'INSERT INTO twelve_week_goals')[0].params, [
-    '2026-10-18',
-    'Read 12 books',
-  ]);
+  assert.deepEqual(issued(queries, 'INSERT INTO plans')[0].params, ['2026-10-18', 'Read 12 books']);
   assert.equal(queries[0].sql, 'BEGIN');
   assert.equal(queries.at(-1)?.sql, 'COMMIT');
 });
@@ -337,7 +334,7 @@ function linkPool(options: { goal?: boolean; goalElsewhere?: boolean; allowed?: 
   const query = async (sql: string, params: unknown[] = []) => {
     queries.push({ sql, params });
     if (sql.includes('app_settings')) return { rows: [{ value: '2026-10-18' }] };
-    if (sql.includes('FROM twelve_week_goals WHERE id = $1 AND period_start'))
+    if (sql.includes('FROM plans WHERE id = $1 AND horizon') && sql.includes('FOR UPDATE'))
       return { rows: options.goal === false ? [] : [{ id: params[0] }] };
     if (sql.startsWith('SELECT 1')) return { rows: options.goalElsewhere ? [{}] : [] };
     if (sql.includes('FROM routines'))
@@ -370,16 +367,12 @@ test('linking replaces the links of a current goal in one transaction', async ()
   const steps = queries.map(({ sql }) => sql.split(' ')[0]);
   assert.equal(steps[0], 'BEGIN');
   assert.equal(steps.at(-1), 'COMMIT');
-  const removed = queries.findIndex(({ sql }) =>
-    sql.startsWith('DELETE FROM twelve_week_goal_routines'),
-  );
-  const added = queries.findIndex(({ sql }) =>
-    sql.startsWith('INSERT INTO twelve_week_goal_routines'),
-  );
+  const removed = queries.findIndex(({ sql }) => sql.startsWith('DELETE FROM plan_routines'));
+  const added = queries.findIndex(({ sql }) => sql.startsWith('INSERT INTO plan_routines'));
   assert.ok(removed >= 0);
   assert.ok(removed < added);
   assert.equal(issued(queries, 'FOR SHARE').length, 1);
-  assert.deepEqual(issued(queries, 'INSERT INTO twelve_week_goal_routines')[0].params, [9, [1, 2]]);
+  assert.deepEqual(issued(queries, 'INSERT INTO plan_routines')[0].params, [9, [1, 2]]);
 });
 
 test('linking refuses a routine that cannot serve a goal and changes nothing', async () => {
