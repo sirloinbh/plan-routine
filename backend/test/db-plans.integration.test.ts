@@ -95,7 +95,9 @@ test(
               weeks.plans.filter((row) => created.includes(row.id)).map((row) => row.id),
               [week.id, secondWeek.id],
             );
-            assert.equal(has(await list('decade', '2035-03-03'), decade.id), true);
+            assert.equal(has(await list('decade', '2030-03-03'), decade.id), true);
+            // A decade starts on January 1 of the year given, so another year is another decade.
+            assert.equal(has(await list('decade', '2031-03-03'), decade.id), false);
             assert.equal(has(await list('decade'), decade.id), false);
 
             // Moving a plan to another period puts it at the end there.
