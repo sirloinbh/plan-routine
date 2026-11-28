@@ -239,7 +239,6 @@ function SkipControl({
         ref={input}
         className="min-w-0 flex-1 basis-48"
         aria-label={`Reason for skipping ${item.name} (optional)`}
-        placeholder="Reason (optional)"
         maxLength={skipReasonLimit}
         value={reason}
         onChange={(event) => setReason(event.target.value)}
@@ -290,7 +289,6 @@ function AmountControl({
         min={0}
         step="any"
         aria-label={`Amount of ${item.name} in ${item.unit}`}
-        placeholder={item.unit ?? ''}
         value={text}
         onChange={(event) => setDraft({ from: saved, text: event.target.value })}
       />

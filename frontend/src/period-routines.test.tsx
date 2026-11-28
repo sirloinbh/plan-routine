@@ -200,7 +200,6 @@ test('a four-week routine is added with its cadence and checked under the date',
   const writes = fourWeekApi(23);
   render(<FourWeekRoutines />);
   const input = await screen.findByRole('textbox', { name: 'New 4-week routine name' });
-  expect(input).toHaveAttribute('placeholder', 'e.g. Wash bedding, Replace supplies, Deep clean');
   fireEvent.change(input, { target: { value: 'Deep clean' } });
   fireEvent.click(screen.getByRole('button', { name: 'Add' }));
   await flush();
@@ -390,10 +389,6 @@ test('adding a routine sends no category and it appears in both lists', async ()
   render(<WeeklyRoutines />);
   expect(await screen.findByText('No routines to check for this week')).toBeInTheDocument();
   const input = screen.getByRole('textbox', { name: 'New weekly routine name' });
-  expect(input).toHaveAttribute(
-    'placeholder',
-    'e.g. Write a book report, Clean, Update the budget',
-  );
   fireEvent.change(input, { target: { value: ' Write a book report ' } });
   fireEvent.click(screen.getByRole('button', { name: 'Add' }));
   expect(await box('Write a book report')).not.toBeChecked();

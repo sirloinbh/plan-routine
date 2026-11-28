@@ -281,7 +281,6 @@ export function RoutineItems({
                   <Combobox
                     className="w-32"
                     aria-label={`Unit for ${routine.name}`}
-                    placeholder="Unit, e.g. pages"
                     maxLength={20}
                     autoComplete="off"
                     value={list.amountEditing.unit}
@@ -299,7 +298,6 @@ export function RoutineItems({
                       min={0}
                       step="any"
                       aria-label={`Target amount for ${routine.name}`}
-                      placeholder="Target"
                       value={list.amountEditing.target}
                       onChange={(event) =>
                         list.amountEditing &&
@@ -366,7 +364,6 @@ export function RoutineAddForm({
   addedTo,
   category,
   cadence,
-  placeholder = 'New routine name',
 }: {
   list: RoutineList;
   draftKey: string;
@@ -377,7 +374,6 @@ export function RoutineAddForm({
   category?: string;
   /** `weekly` adds the times-per-week choice. */
   cadence?: string;
-  placeholder?: string;
 }) {
   const schedule = list.schedules[draftKey] ?? noSchedule;
   const units = unitChoices(list);
@@ -401,7 +397,6 @@ export function RoutineAddForm({
         className="min-w-0 flex-1"
         aria-label={addLabel.replace(/^Add (an?) /, 'New ') + ' name'}
         data-focus-key={`add-${draftKey}`}
-        placeholder={placeholder}
         value={list.drafts[draftKey] ?? ''}
         maxLength={100}
         onChange={(event) => list.setDraft(draftKey, event.target.value)}
@@ -442,7 +437,6 @@ export function RoutineAddForm({
         <Combobox
           className="w-28"
           aria-label={`Unit for the new ${addedTo} routine (optional)`}
-          placeholder="Unit, e.g. pages"
           maxLength={20}
           autoComplete="off"
           value={schedule.unit}
@@ -458,7 +452,6 @@ export function RoutineAddForm({
             min={0}
             step="any"
             aria-label={`Target amount for the new ${addedTo} routine (optional)`}
-            placeholder="Target"
             value={schedule.target}
             onChange={(event) =>
               list.setSchedule(draftKey, { ...schedule, target: event.target.value })
