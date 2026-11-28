@@ -76,10 +76,13 @@ const health = () => {
   cells[4][0] = 'Sleep well';
   return { id: 5, title: 'Health', cells };
 };
-const type = (label: string, value: string, within_?: HTMLElement) =>
-  fireEvent.change((within_ ? within(within_) : screen).getByRole('textbox', { name: label }), {
-    target: { value },
-  });
+// Fields, cells and groups are found by their label text, not by role and name. A role query with a name works out the
+// name of every one of the ~100 inputs and ~160 list items on the editor page: 40-150 ms when idle, and over the 1 s
+// wait of findBy* on a busy machine.
+const field = (label: string, scope: Pick<typeof screen, 'getByLabelText'> = screen) =>
+  scope.getByLabelText<HTMLInputElement>(label, { selector: 'input' });
+const type = (label: string, value: string, scope?: Pick<typeof screen, 'getByLabelText'>) =>
+  fireEvent.change(field(label, scope), { target: { value } });
 
 test('a new Mandalart needs a title, is created with it and opens ready to fill in', async () => {
   const writes = api();
@@ -89,26 +92,29 @@ test('a new Mandalart needs a title, is created with it and opens ready to fill 
   fireEvent.click(within(dialog).getByRole('button', { name: 'Create' }));
   expect(await within(dialog).findByText('Enter a title')).toBeInTheDocument();
   expect(writes).toEqual([]);
-  type('Title', ' Health ', dialog);
+  type('Title', ' Health ', within(dialog));
   fireEvent.click(within(dialog).getByRole('button', { name: 'Create' }));
-  expect(await screen.findByRole('heading', { name: 'Editing Health' })).toBeInTheDocument();
+  // The editor is ready when its main goal field is there; the heading is then already on the page.
+  expect(await screen.findByLabelText('Main goal', { selector: 'input' })).toHaveValue('');
+  expect(screen.getByRole('heading', { name: 'Editing Health' })).toBeInTheDocument();
   expect(writes[0]).toMatchObject({ method: 'POST', body: { title: ' Health ' } });
-  expect(screen.getByRole('textbox', { name: 'Main goal' })).toHaveValue('');
 });
 
 test('editing a sub-goal updates its copy in the matching block before saving, and one save sends the whole grid', async () => {
   const writes = api([health()]);
   screens('/mandalarts/5');
   fireEvent.click(await screen.findByRole('button', { name: 'Edit' }));
-  expect(await screen.findByRole('textbox', { name: 'Main goal' })).toHaveValue('Be healthy');
+  expect(await screen.findByLabelText('Main goal', { selector: 'input' })).toHaveValue(
+    'Be healthy',
+  );
   expect(screen.queryByText('You have unsaved changes')).not.toBeInTheDocument();
 
   type('Sub-goal 2', 'Eat well');
-  expect(
-    screen.getByRole('listitem', { name: 'Sub-goal 2 (centre of its block): Eat well' }),
-  ).toBeInTheDocument();
-  const group = screen.getByRole('group', { name: 'Sub-goal 2: Eat well' });
-  type('Action 3 of sub-goal 2', 'No sugar', group);
+  expect(screen.getByLabelText('Sub-goal 2 (centre of its block): Eat well')).toBeInTheDocument();
+  const group = screen
+    .getByText('Sub-goal 2: Eat well', { selector: 'legend' })
+    .closest('fieldset')!;
+  type('Action 3 of sub-goal 2', 'No sugar', within(group));
   expect(screen.getByText('You have unsaved changes')).toBeInTheDocument();
 
   fireEvent.click(screen.getByRole('button', { name: 'Save' }));
@@ -121,9 +127,7 @@ test('editing a sub-goal updates its copy in the matching block before saving, a
   expect(sent[1][2]).toBe('No sugar');
   expect(writes.some((write) => write.method === 'PATCH')).toBe(false);
   // Back in the grid view, the saved grid.
-  expect(
-    await screen.findByRole('listitem', { name: 'Action 3 of sub-goal 2: No sugar' }),
-  ).toBeInTheDocument();
+  expect(await screen.findByLabelText('Action 3 of sub-goal 2: No sugar')).toBeInTheDocument();
 });
 
 test('a changed title is saved too, a blank title is refused before any request', async () => {
@@ -149,7 +153,7 @@ test('a refused save keeps what was typed and shows the server message', async (
   type('Main goal', 'Be very healthy');
   fireEvent.click(screen.getByRole('button', { name: 'Save' }));
   expect(await findLive('alert')).toHaveTextContent('A cell must be 100 characters or fewer');
-  expect(screen.getByRole('textbox', { name: 'Main goal' })).toHaveValue('Be very healthy');
+  expect(field('Main goal')).toHaveValue('Be very healthy');
 });
 
 test('cancelling asks before dropping typed input, and a link inside the app asks too', async () => {
@@ -165,7 +169,7 @@ test('cancelling asks before dropping typed input, and a link inside the app ask
   fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
   const discard = await screen.findByRole('dialog', { name: 'Discard your changes?' });
   fireEvent.click(within(discard).getByRole('button', { name: 'Cancel' }));
-  expect(screen.getByRole('textbox', { name: 'Main goal' })).toHaveValue('Changed');
+  expect(field('Main goal')).toHaveValue('Changed');
   fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
   fireEvent.click(
     within(await screen.findByRole('dialog', { name: 'Discard your changes?' })).getByRole(
