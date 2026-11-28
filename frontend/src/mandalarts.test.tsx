@@ -3,7 +3,8 @@ import { MemoryRouter, Route, Routes } from 'react-router';
 import { expect, test, vi } from 'vitest';
 
 import { cellLabel } from './mandalart-cells';
-import { MandalartGrid, Mandalarts, MandalartView } from './mandalarts';
+import { MandalartGrid } from './mandalart-grid';
+import { Mandalarts, MandalartView } from './mandalarts';
 import { findLive } from './test/live';
 import { render } from './test/render';
 
