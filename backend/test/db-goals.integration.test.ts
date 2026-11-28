@@ -357,7 +357,7 @@ test(
       const sql = readFileSync(onPlansMigration, 'utf8');
       await client.query(sql);
       const routine = await client.query<{ id: number }>(
-        "INSERT INTO routines (name, cadence) VALUES ('Migration check', 'daily') RETURNING id",
+        "INSERT INTO routines (name, cadence) VALUES ('Migration check', 'weekly') RETURNING id",
       );
       const goals = await client.query<{ id: number }>(
         `INSERT INTO twelve_week_goals (period_start, title, sort_order, achieved, review_note, reviewed_at)
