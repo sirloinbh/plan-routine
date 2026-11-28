@@ -78,3 +78,25 @@ export function periodsFor(date: string, anchorDate: string) {
     cadences.map((cadence) => [cadence, periodFor(cadence, date, anchorDate)]),
   ) as Record<Cadence, Period>;
 }
+
+// Plan horizons (#341). Week, twelve_week and year periods run in whole weeks from the same Sunday anchor as the
+// routine periods (52 weeks = 364 days). A decade runs 10 whole calendar years from January 1 of a year the owner
+// picks, so it is not tied to the anchor.
+export const planHorizons = ['week', 'twelve_week', 'year', 'decade'] as const;
+export type PlanHorizon = (typeof planHorizons)[number];
+
+const planPeriodDays = { week: 7, twelve_week: 84, year: 364 } as const;
+/** Years are kept at four digits so every date stays in YYYY-MM-DD form. */
+export const lastPlanDate = '2999-12-31';
+
+export function planPeriodFor(horizon: PlanHorizon, date: string, anchorDate: string): Period {
+  if (horizon === 'decade') {
+    const year = Number(date.slice(0, 4));
+    return { start: `${String(year).padStart(4, '0')}-01-01`, end: `${year + 9}-12-31` };
+  }
+  const length = planPeriodDays[horizon];
+  const origin = toDayNumber(weekStart(anchorDate));
+  const index = Math.floor((toDayNumber(date) - origin) / length);
+  const start = fromDayNumber(origin + index * length);
+  return { start, end: addDays(start, length - 1) };
+}
