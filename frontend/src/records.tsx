@@ -232,7 +232,7 @@ function dateFromAddress() {
 
 // Read-only on purpose: checks and the diary change on their own pages, under their own rules.
 export function Records() {
-  // A day named by ?date= (the search results link here) opens its month and is chosen at the start.
+  // A day named by ?date= opens its month and is chosen at the start.
   const [linked] = useState(dateFromAddress);
   // null follows the server's current month.
   const [month, setMonth] = useState<string | null>(linked?.slice(0, 7) ?? null);

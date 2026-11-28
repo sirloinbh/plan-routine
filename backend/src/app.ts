@@ -17,7 +17,6 @@ import { recordRoutes } from './record-routes.js';
 import type { SendPush, VapidConfig } from './reminder.js';
 import { routineRoutes } from './routine-routes.js';
 import { routineAnchorDate } from './routines.js';
-import { searchRoutes } from './search-routes.js';
 import { setInt8Parser } from './standard/db.js';
 import { errorHandler, notFound, requestLog, serviceDate } from './standard/http.js';
 import { apiRateLimit } from './standard/rate-limit.js';
@@ -73,7 +72,6 @@ export function createApp(
   app.use('/api/project-links', projectLinkRoutes(pool));
   app.use('/api/push', pushRoutes(pool, options.vapid, options.sendPush));
   app.use('/api/records', recordRoutes(pool, today));
-  app.use('/api/search', searchRoutes(pool, today));
   app.use('/api/stats', statsRoutes(pool, today));
   app.use('/api/routines', routineRoutes(pool, today));
   app.use('/api/weekly-review', weeklyReviewRoutes(pool, today));
