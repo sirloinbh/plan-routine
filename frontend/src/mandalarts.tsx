@@ -54,7 +54,7 @@ function Block({
           key={position}
           aria-label={cellLabel(cells, block, position)}
           className={`flex aspect-square items-center justify-center overflow-hidden p-0.5 text-center wrap-anywhere ${
-            large ? 'p-2 text-body' : 'text-[10px] leading-tight sm:text-caption'
+            large ? 'p-2 text-body' : 'text-caption leading-tight'
           } ${cellStyle(block, position)}`}
         >
           <span aria-hidden className={large ? '' : 'line-clamp-4'}>
