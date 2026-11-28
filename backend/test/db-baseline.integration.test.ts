@@ -52,7 +52,13 @@ test(
         [schema],
       );
       const names = created.rows.map((row: { table_name: string }) => row.table_name);
-      for (const table of ['app_settings', 'routines', 'twelve_week_goal_routines'])
+      for (const table of [
+        'app_settings',
+        'routines',
+        'twelve_week_goal_routines',
+        'plans',
+        'plan_routines',
+      ])
         assert.ok(names.includes(table), table);
 
       // A later run applies nothing, so a seeded item the user renamed does not come back.

@@ -79,9 +79,9 @@ export const routineLinksInput = z.object(
 );
 
 // Only active daily and weekly routines can serve a goal, and only those are shown.
-const linkedRoutinesSql = `SELECT r.id, r.name, l.goal_id AS "goalId"
-  FROM twelve_week_goal_routines l JOIN routines r ON r.id = l.routine_id
-  WHERE l.goal_id = ANY($1::bigint[]) AND r.archived_at IS NULL
+const linkedRoutinesSql = `SELECT r.id, r.name, l.plan_id AS "goalId"
+  FROM plan_routines l JOIN routines r ON r.id = l.routine_id
+  WHERE l.plan_id = ANY($1::bigint[]) AND r.archived_at IS NULL
     AND r.cadence IN ('daily', 'weekly')
   ORDER BY CASE r.cadence WHEN 'daily' THEN 0 ELSE 1 END, r.category, r.sort_order, r.id`;
 
@@ -106,9 +106,9 @@ export function goalRoutes(pool: Pool, today: () => string) {
   router.get('/', async (_req, res) => {
     const { current, anchorDate, period } = await currentPeriod(pool);
     const { rows } = await pool.query<GoalRow>(
-      `SELECT ${goalColumns} FROM twelve_week_goals
-       WHERE period_start <= $1
-       ORDER BY period_start DESC, sort_order, twelve_week_goals.id`,
+      `SELECT ${goalColumns} FROM plans
+       WHERE horizon = 'twelve_week' AND period_start <= $1
+       ORDER BY period_start DESC, sort_order, plans.id`,
       [period.start],
     );
     const currentGoals = rows.filter((row) => row.periodStart === period.start);
@@ -147,9 +147,9 @@ export function goalRoutes(pool: Pool, today: () => string) {
     const reply = await inTransaction(pool, async (client) => {
       const { period } = await currentPeriod(client);
       const { rows } = await client.query<GoalRow>(
-        `INSERT INTO twelve_week_goals (period_start, title, sort_order)
-         SELECT $1::date, $2, COALESCE(MAX(sort_order) + 1, 0) FROM twelve_week_goals
-         WHERE period_start = $1::date
+        `INSERT INTO plans (horizon, period_start, title, sort_order)
+         SELECT 'twelve_week', $1::date, $2, COALESCE(MAX(sort_order) + 1, 0) FROM plans
+         WHERE horizon = 'twelve_week' AND period_start = $1::date
          RETURNING ${goalColumns}`,
         [period.start, title],
       );
@@ -160,7 +160,10 @@ export function goalRoutes(pool: Pool, today: () => string) {
 
   // Throws why a goal outside the current period could not be changed: 400 for a past period, 404 for no goal.
   const refuseUnchanged = async (id: number, db: Pool | PoolClient = pool): Promise<never> => {
-    const { rows } = await db.query('SELECT 1 FROM twelve_week_goals WHERE id = $1', [id]);
+    const { rows } = await db.query(
+      "SELECT 1 FROM plans WHERE id = $1 AND horizon = 'twelve_week'",
+      [id],
+    );
     throw rows[0] ? new HttpError(400, pastGoal) : new HttpError(404, goalNotFound);
   };
 
@@ -169,8 +172,8 @@ export function goalRoutes(pool: Pool, today: () => string) {
     const { title } = goalInput.parse(requestBody(req.body));
     const { period } = await currentPeriod(pool);
     const { rows } = await pool.query(
-      `UPDATE twelve_week_goals SET title = $1, updated_at = now()
-       WHERE id = $2 AND period_start = $3 RETURNING ${goalColumns}`,
+      `UPDATE plans SET title = $1, updated_at = now()
+       WHERE id = $2 AND horizon = 'twelve_week' AND period_start = $3 RETURNING ${goalColumns}`,
       [title, id, period.start],
     );
     if (!rows[0]) return refuseUnchanged(id);
@@ -184,7 +187,7 @@ export function goalRoutes(pool: Pool, today: () => string) {
     const reply = await inTransaction(pool, async (client) => {
       const { period } = await currentPeriod(client);
       const target = await client.query(
-        'SELECT id FROM twelve_week_goals WHERE id = $1 AND period_start = $2 FOR UPDATE',
+        "SELECT id FROM plans WHERE id = $1 AND horizon = 'twelve_week' AND period_start = $2 FOR UPDATE",
         [id, period.start],
       );
       if (!target.rows[0]) {
@@ -201,9 +204,9 @@ export function goalRoutes(pool: Pool, today: () => string) {
       if (allowed.rows.length !== routineIds.length) {
         throw new HttpError(400, 'Some routines cannot be linked. Please check again');
       }
-      await client.query('DELETE FROM twelve_week_goal_routines WHERE goal_id = $1', [id]);
+      await client.query('DELETE FROM plan_routines WHERE plan_id = $1', [id]);
       await client.query(
-        `INSERT INTO twelve_week_goal_routines (goal_id, routine_id)
+        `INSERT INTO plan_routines (plan_id, routine_id)
          SELECT $1, unnest($2::bigint[])`,
         [id, routineIds],
       );
@@ -223,7 +226,7 @@ export function goalRoutes(pool: Pool, today: () => string) {
     const { id } = idParam.parse(req.params);
     const { period } = await currentPeriod(pool);
     const { rows } = await pool.query(
-      'DELETE FROM twelve_week_goals WHERE id = $1 AND period_start = $2 RETURNING id',
+      "DELETE FROM plans WHERE id = $1 AND horizon = 'twelve_week' AND period_start = $2 RETURNING id",
       [id, period.start],
     );
     if (!rows[0]) return refuseUnchanged(id);
@@ -237,8 +240,8 @@ export function goalRoutes(pool: Pool, today: () => string) {
       const { period } = await currentPeriod(client);
       const ids = reviews.map((review) => review.id);
       const found = await client.query<{ periodStart: string }>(
-        `SELECT period_start AS "periodStart" FROM twelve_week_goals
-         WHERE id = ANY($1::bigint[]) ORDER BY id FOR UPDATE`,
+        `SELECT period_start AS "periodStart" FROM plans
+         WHERE id = ANY($1::bigint[]) AND horizon = 'twelve_week' ORDER BY id FOR UPDATE`,
         [ids],
       );
       if (found.rows.length !== ids.length) throw new HttpError(404, goalNotFound);
@@ -248,8 +251,12 @@ export function goalRoutes(pool: Pool, today: () => string) {
       // One statement for all reviews (#154). A review whose answers did not change is left untouched, so re-saving
       // does not move reviewed_at. Clearing both answers takes the goal back to "not reviewed yet".
       await client.query(
-        `UPDATE twelve_week_goals AS goal
+        `UPDATE plans AS goal
          SET achieved = review.achieved, review_note = review.note,
+             status = CASE WHEN review.achieved THEN 'done'
+                          WHEN review.achieved IS NOT NULL THEN 'dropped'
+                          WHEN goal.status IN ('done', 'dropped') THEN 'planned'
+                          ELSE goal.status END,
              reviewed_at = CASE WHEN review.achieved IS NULL AND review.note IS NULL THEN NULL ELSE now() END,
              updated_at = now()
          FROM unnest($1::bigint[], $2::boolean[], $3::text[]) AS review(id, achieved, note)
@@ -258,8 +265,8 @@ export function goalRoutes(pool: Pool, today: () => string) {
         [ids, reviews.map((review) => review.achieved), reviews.map((review) => review.note)],
       );
       const { rows } = await client.query(
-        `SELECT ${goalColumns} FROM twelve_week_goals WHERE id = ANY($1::bigint[])
-         ORDER BY sort_order, twelve_week_goals.id`,
+        `SELECT ${goalColumns} FROM plans WHERE id = ANY($1::bigint[]) AND horizon = 'twelve_week'
+         ORDER BY sort_order, plans.id`,
         [ids],
       );
       return { status: 200, body: { goals: rows } };

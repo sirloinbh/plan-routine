@@ -6,6 +6,10 @@ import { anchorSettingKey } from '../src/routines.js';
 import { url, withClient } from './db-helpers.js';
 import { withApi } from './helpers.js';
 
+const onPlansMigration = new URL(
+  '../../database/migrations/016_goals_on_plans.sql',
+  import.meta.url,
+);
 const goalsMigration = new URL(
   '../../database/migrations/004_twelve_week_goals.sql',
   import.meta.url,
@@ -155,7 +159,7 @@ test(
             });
             assert.equal(mixed.status, 400);
             const untouched = await client.query(
-              'SELECT achieved, review_note, reviewed_at FROM twelve_week_goals WHERE id = $1',
+              'SELECT achieved, review_note, reviewed_at FROM plans WHERE id = $1',
               [first],
             );
             assert.deepEqual(untouched.rows[0], {
@@ -184,10 +188,23 @@ test(
               ],
             );
 
+            // The review keeps the plan status in step: met is done, not met is dropped.
+            const statuses = await client.query<{ id: number; status: string }>(
+              'SELECT id, status FROM plans WHERE id = ANY($1::bigint[]) ORDER BY id',
+              [[first, second]],
+            );
+            assert.deepEqual(
+              statuses.rows.map((row) => [row.id, row.status]),
+              [
+                [first, 'done'],
+                [second, 'dropped'],
+              ].sort((a, b) => Number(a[0]) - Number(b[0])),
+            );
+
             // Saving the same answers again leaves reviewed_at and updated_at alone; a changed note moves them.
             const stamps = () =>
               client.query<{ reviewed_at: Date; updated_at: Date }>(
-                'SELECT reviewed_at, updated_at FROM twelve_week_goals WHERE id = $1',
+                'SELECT reviewed_at, updated_at FROM plans WHERE id = $1',
                 [first],
               );
             const beforeResave = (await stamps()).rows[0];
@@ -209,16 +226,17 @@ test(
               body: { reviews: [{ id: second, achieved: null, note: '' }] },
             });
             assert.equal(cleared.status, 200);
-            const row = await client.query(
-              'SELECT reviewed_at FROM twelve_week_goals WHERE id = $1',
+            const row = await client.query<{ reviewed_at: Date | null; status: string }>(
+              'SELECT reviewed_at, status FROM plans WHERE id = $1',
               [second],
             );
             assert.equal(row.rows[0].reviewed_at, null);
+            assert.equal(row.rows[0].status, 'planned');
           },
           { today: () => today },
         );
       } finally {
-        await client.query('DELETE FROM twelve_week_goals WHERE id = ANY($1::bigint[])', [created]);
+        await client.query('DELETE FROM plans WHERE id = ANY($1::bigint[])', [created]);
         await client.query('DELETE FROM app_settings WHERE key = $1', [anchorSettingKey]);
         if (original.rows[0])
           await client.query('INSERT INTO app_settings (key, value) VALUES ($1, $2)', [
@@ -309,10 +327,9 @@ test(
             // Removing the goal removes its links and leaves the routine.
             assert.equal((await put([daily])).status, 200);
             await call(`/api/goals/${goalId}`, { method: 'DELETE' });
-            const left = await client.query(
-              'SELECT 1 FROM twelve_week_goal_routines WHERE goal_id = $1',
-              [goalId],
-            );
+            const left = await client.query('SELECT 1 FROM plan_routines WHERE plan_id = $1', [
+              goalId,
+            ]);
             assert.equal(left.rowCount, 0);
             const kept = await client.query('SELECT 1 FROM routines WHERE id = $1', [daily]);
             assert.equal(kept.rowCount, 1);
@@ -320,7 +337,7 @@ test(
           { today: () => '2026-10-22' },
         );
       } finally {
-        await client.query('DELETE FROM twelve_week_goals WHERE id = ANY($1::bigint[])', [goals]);
+        await client.query('DELETE FROM plans WHERE id = ANY($1::bigint[])', [goals]);
         await client.query('DELETE FROM routines WHERE id = ANY($1::bigint[])', [routines]);
         await client.query('DELETE FROM app_settings WHERE key = $1', [anchorSettingKey]);
         if (original.rows[0])
@@ -328,6 +345,80 @@ test(
             anchorSettingKey,
             original.rows[0].value,
           ]);
+      }
+    }),
+);
+
+test(
+  'the goals-on-plans migration copies goals, reviews and routine links once, however often it runs',
+  { skip: !url, timeout: 30_000 },
+  () =>
+    withClient(async (client) => {
+      const sql = readFileSync(onPlansMigration, 'utf8');
+      await client.query(sql);
+      const routine = await client.query<{ id: number }>(
+        "INSERT INTO routines (name, cadence) VALUES ('Migration check', 'daily') RETURNING id",
+      );
+      const goals = await client.query<{ id: number }>(
+        `INSERT INTO twelve_week_goals (period_start, title, sort_order, achieved, review_note, reviewed_at)
+         VALUES ('2001-02-04', 'Met goal', 0, true, 'Went well', now()),
+                ('2001-02-04', 'Missed goal', 1, false, NULL, now()),
+                ('2001-02-04', 'Open goal', 2, NULL, NULL, NULL)
+         RETURNING id`,
+      );
+      const ids = goals.rows.map((row) => row.id);
+      await client.query(
+        'INSERT INTO twelve_week_goal_routines (goal_id, routine_id) VALUES ($1, $2)',
+        [ids[0], routine.rows[0].id],
+      );
+      try {
+        await client.query(sql);
+        await client.query(sql);
+        const copied = await client.query<{
+          title: string;
+          horizon: string;
+          status: string;
+          achieved: boolean | null;
+          review_note: string | null;
+          reviewed: boolean;
+          sort_order: number;
+        }>(
+          `SELECT title, horizon, status, achieved, review_note, reviewed_at IS NOT NULL AS reviewed, sort_order
+           FROM plans WHERE legacy_goal_id = ANY($1::bigint[]) ORDER BY legacy_goal_id`,
+          [ids],
+        );
+        assert.deepEqual(
+          copied.rows.map((row) => [
+            row.title,
+            row.horizon,
+            row.status,
+            row.achieved,
+            row.review_note,
+            row.reviewed,
+            row.sort_order,
+          ]),
+          [
+            ['Met goal', 'twelve_week', 'done', true, 'Went well', true, 0],
+            ['Missed goal', 'twelve_week', 'dropped', false, null, true, 1],
+            ['Open goal', 'twelve_week', 'planned', null, null, false, 2],
+          ],
+        );
+        const links = await client.query(
+          `SELECT 1 FROM plan_routines l JOIN plans p ON p.id = l.plan_id
+           WHERE p.legacy_goal_id = $1 AND l.routine_id = $2`,
+          [ids[0], routine.rows[0].id],
+        );
+        assert.equal(links.rowCount, 1);
+        // The old tables are left as they were.
+        const old = await client.query(
+          'SELECT 1 FROM twelve_week_goals WHERE id = ANY($1::bigint[])',
+          [ids],
+        );
+        assert.equal(old.rowCount, 3);
+      } finally {
+        await client.query('DELETE FROM plans WHERE legacy_goal_id = ANY($1::bigint[])', [ids]);
+        await client.query('DELETE FROM twelve_week_goals WHERE id = ANY($1::bigint[])', [ids]);
+        await client.query('DELETE FROM routines WHERE id = $1', [routine.rows[0].id]);
       }
     }),
 );
