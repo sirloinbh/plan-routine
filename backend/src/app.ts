@@ -9,6 +9,7 @@ import { checkRoutes } from './check-routes.js';
 import { diaryRoutes } from './diary-routes.js';
 import { exportRoutes } from './export-routes.js';
 import { goalRoutes } from './goal-routes.js';
+import { mandalartRoutes } from './mandalart-routes.js';
 import { moodStatsRoutes } from './mood-stats-routes.js';
 import { calendarDate, periodsFor } from './periods.js';
 import { planRoutes } from './plan-routes.js';
@@ -69,6 +70,7 @@ export function createApp(
   app.use('/api/diary', diaryRoutes(pool, today));
   app.use('/api/export', exportRoutes(pool, today));
   app.use('/api/goals', goalRoutes(pool, today));
+  app.use('/api/mandalarts', mandalartRoutes(pool));
   app.use('/api/mood-stats', moodStatsRoutes(pool, today));
   app.use('/api/plans', planRoutes(pool, today));
   app.use('/api/project-links', projectLinkRoutes(pool));

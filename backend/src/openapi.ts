@@ -7,6 +7,7 @@ import { periodsQuery } from './app.js';
 import { checkInput, checklistQuery, skipInput } from './check-routes.js';
 import { diaryInput, diaryQuery } from './diary-routes.js';
 import { goalInput, reviewsInput, routineLinksInput } from './goal-routes.js';
+import { mandalartCellsInput, mandalartTitleInput } from './mandalart-routes.js';
 import { planInput, planPatchInput, planQuery } from './plan-routes.js';
 import { projectInput } from './project-link-routes.js';
 import { settingsInput, subscriptionInput, unsubscribeInput } from './push-routes.js';
@@ -113,6 +114,36 @@ export const operations: Record<string, Operation> = {
   },
   'DELETE /api/goals/:id': {
     summary: 'Delete a goal of the current period',
+    status: [200, 400, 404],
+  },
+
+  'GET /api/mandalarts': {
+    summary: 'List Mandalarts with the number of filled cells, newest change first',
+    status: [200],
+  },
+  'POST /api/mandalarts': {
+    summary: 'Create a Mandalart with a title and 81 empty cells',
+    body: ['MandalartTitle', mandalartTitleInput],
+    status: [201, 400],
+  },
+  'GET /api/mandalarts/:id': {
+    summary:
+      'Get a Mandalart with its full 9x9 grid: cells[block][position], block 4 position 4 is the main goal, block 4 holds the 8 sub-goals and the centre of each outer block repeats its sub-goal',
+    status: [200, 400, 404],
+  },
+  'PATCH /api/mandalarts/:id': {
+    summary: 'Rename a Mandalart',
+    body: ['MandalartTitle', mandalartTitleInput],
+    status: [200, 400, 404],
+  },
+  'PUT /api/mandalarts/:id/cells': {
+    summary:
+      'Replace the text of all 81 cells at once (empty text clears a cell); the server copies each sub-goal into the centre of its block',
+    body: ['MandalartCells', mandalartCellsInput],
+    status: [200, 400, 404],
+  },
+  'DELETE /api/mandalarts/:id': {
+    summary: 'Delete a Mandalart and its cells',
     status: [200, 400, 404],
   },
 

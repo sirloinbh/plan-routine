@@ -34,7 +34,8 @@ test(
           );
           assert.deepEqual(Object.keys(tables).sort(), names.rows.map((row) => row.name).sort());
           // Tables other work added must be there too.
-          for (const name of ['weekly_reviews', 'routine_skips']) assert.ok(name in tables, name);
+          for (const name of ['weekly_reviews', 'routine_skips', 'mandalarts', 'mandalart_cells'])
+            assert.ok(name in tables, name);
           for (const { name } of names.rows) {
             const count = await client.query<{ n: number }>(
               `SELECT count(*)::int AS n FROM "${name}"`,
