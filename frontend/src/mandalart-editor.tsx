@@ -107,7 +107,6 @@ export function MandalartEditor({
   mandalart: Mandalart;
   onDone: (message?: string) => void;
 }) {
-  const navigate = useNavigate();
   const [title, setTitle] = useState(mandalart.title);
   const [cells, setCells] = useState(() => mirrorGrid(mandalart.cells));
   const [titleMessage, setTitleMessage] = useState<string | undefined>(undefined);
@@ -135,7 +134,7 @@ export function MandalartEditor({
 
   const shown = mirrorGrid(cells);
   const dirty = title.trim() !== mandalart.title || !sameCells(shown, mandalart.cells);
-  const { leavingTo, stay } = useLeaveGuard(dirty);
+  const guard = useLeaveGuard(dirty);
 
   const setCell = (block: number, position: number, value: string) => {
     setFailure(undefined);
@@ -261,16 +260,12 @@ export function MandalartEditor({
         onConfirm={() => onDone()}
       />
       <ConfirmDialog
-        open={leavingTo !== null}
-        onOpenChange={(open) => !open && stay()}
+        open={guard.pending}
+        onOpenChange={(open) => !open && guard.stay()}
         title="Leave without saving?"
         description="What you typed will be lost."
         confirmLabel="Leave"
-        onConfirm={() => {
-          const target = leavingTo;
-          stay();
-          if (target) void navigate(target);
-        }}
+        onConfirm={guard.leave}
       />
     </form>
   );
