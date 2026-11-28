@@ -79,6 +79,9 @@ const pageData = (url: string) => {
   if (url.startsWith('/api/checklist')) return emptyChecklist;
   if (url.startsWith('/api/diary')) return emptyDiary;
   if (url.startsWith('/api/project-links')) return { projects: [] };
+  if (/^\/api\/mandalarts\/\d+/.test(url))
+    return { mandalart: { id: 7, title: 'Plan', cells: Array(9).fill(Array(9).fill('')) } };
+  if (url.startsWith('/api/mandalarts')) return { mandalarts: [] };
   return { routines: [] };
 };
 
@@ -182,6 +185,7 @@ test('the main menu follows the shared order: day log, Week, 12 weeks, other pag
     'Weekly routines',
     '12-week routines',
     'Plans',
+    'Mandalart',
     'Diary',
     'Daily routines',
     '4-week routines',
@@ -260,6 +264,27 @@ test('the main menu opens the twelve-week page', async () => {
     await screen.findByRole('heading', { level: 1, name: '12-week routines' }),
   ).toBeInTheDocument();
   expect(await screen.findByText('No goals yet')).toBeInTheDocument();
+  window.history.replaceState(null, '', '/');
+});
+
+test('the main menu opens the Mandalart page and keeps it marked on a Mandalart', async () => {
+  health({ today: '2026-10-26' });
+  render(<App />);
+  const menu = screen.getByRole('navigation', { name: 'Main menu' });
+  fireEvent.click(within(menu).getByRole('link', { name: 'Mandalart' }));
+  expect(window.location.pathname).toBe('/mandalarts');
+  expect(await screen.findByRole('heading', { level: 1, name: 'Mandalart' })).toBeInTheDocument();
+  expect(await screen.findByText('No Mandalarts yet')).toBeInTheDocument();
+  window.history.replaceState(null, '', '/mandalarts/7');
+  window.dispatchEvent(new PopStateEvent('popstate'));
+  // A full run loads many files at once, so allow more than the default second.
+  expect(
+    await screen.findByRole('link', { name: 'Back to the Mandalart list' }, { timeout: 5000 }),
+  ).toBeInTheDocument();
+  expect(within(menu).getByRole('link', { name: 'Mandalart' })).toHaveAttribute(
+    'aria-current',
+    'page',
+  );
   window.history.replaceState(null, '', '/');
 });
 
