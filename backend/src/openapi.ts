@@ -8,6 +8,7 @@ import { checkInput, checklistQuery, skipInput } from './check-routes.js';
 import { diaryInput, diaryQuery } from './diary-routes.js';
 import { goalInput, reviewsInput, routineLinksInput } from './goal-routes.js';
 import { mandalartCellsInput, mandalartTitleInput } from './mandalart-routes.js';
+import { planInput, planPatchInput, planQuery } from './plan-routes.js';
 import { projectInput } from './project-link-routes.js';
 import { settingsInput, subscriptionInput, unsubscribeInput } from './push-routes.js';
 import { monthQuery } from './record-routes.js';
@@ -20,7 +21,6 @@ import {
   scheduleInput,
 } from './routine-routes.js';
 import { routineInput } from './routines.js';
-import { searchQuery } from './search-routes.js';
 import { buildOpenApi, type Operation } from './standard/openapi.js';
 import { reviewInput, reviewQuery } from './weekly-review-routes.js';
 
@@ -147,6 +147,25 @@ export const operations: Record<string, Operation> = {
     status: [200, 400, 404],
   },
 
+  'GET /api/plans': {
+    summary:
+      'List the plans of one horizon (week, twelve_week, year or decade) for the period holding a date, or the current period',
+    query: planQuery,
+    status: [200, 400],
+  },
+  'POST /api/plans': {
+    summary:
+      'Add a plan to a horizon; its period is the one holding periodStart, or the current period',
+    body: ['Plan', planInput],
+    status: [201, 400],
+  },
+  'PATCH /api/plans/:id': {
+    summary: 'Change the title, description, status or period of a plan; the horizon cannot change',
+    body: ['PlanChange', planPatchInput],
+    status: [200, 400, 404],
+  },
+  'DELETE /api/plans/:id': { summary: 'Delete a plan', status: [200, 400, 404] },
+
   'GET /api/project-links': { summary: 'List project links', status: [200] },
   'POST /api/project-links': {
     summary: 'Add a project link; the URL is https:// or a private access address',
@@ -236,13 +255,6 @@ export const operations: Record<string, Operation> = {
     summary:
       'Save the notes of a week (its Sunday), replacing the existing ones; a blank note clears it; no weeks that have not started',
     body: ['WeeklyReviewNotes', reviewInput],
-    status: [200, 400],
-  },
-
-  'GET /api/search': {
-    summary:
-      'Search diary entries (body and the three notes) and the reasons of skipped daily routines by text in a date range, newest first and paged; with a routine, only the days it was done or missed and its own skip reasons. Needs a word or a routine',
-    query: searchQuery,
     status: [200, 400],
   },
 
