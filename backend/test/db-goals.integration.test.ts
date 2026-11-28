@@ -56,6 +56,8 @@ test(
       await rejects("('2001-02-04', '   ', NULL)");
       await rejects("('2001-02-04', repeat('a', 201), NULL)");
       await rejects("('2001-02-04', 'a', repeat('a', 1001))");
+      // Migration 016 dropped this table; leave the database as it was.
+      await client.query('DROP TABLE IF EXISTS twelve_week_goals');
     }),
 );
 
@@ -350,15 +352,25 @@ test(
 );
 
 test(
-  'the goals-on-plans migration copies goals, reviews and routine links once, however often it runs',
+  'the goals-on-plans migration copies goals, reviews and routine links, then drops the old tables',
   { skip: !url, timeout: 30_000 },
   () =>
     withClient(async (client) => {
       const sql = readFileSync(onPlansMigration, 'utf8');
+      // Bring the old tables back as they were before migration 016 (it dropped them), then put data in them.
       await client.query(sql);
-      const routine = await client.query<{ id: number }>(
-        "INSERT INTO routines (name, cadence) VALUES ('Migration check', 'weekly') RETURNING id",
+      await client.query(readFileSync(goalsMigration, 'utf8'));
+      await client.query(
+        readFileSync(
+          new URL('../../database/migrations/005_goal_routines.sql', import.meta.url),
+          'utf8',
+        ),
       );
+      const routines = await client.query<{ id: number }>(
+        `INSERT INTO routines (name, cadence)
+         VALUES ('Migration check 1', 'weekly'), ('Migration check 2', 'weekly') RETURNING id`,
+      );
+      const [first, second] = routines.rows.map((row) => row.id);
       const goals = await client.query<{ id: number }>(
         `INSERT INTO twelve_week_goals (period_start, title, sort_order, achieved, review_note, reviewed_at)
          VALUES ('2001-02-04', 'Met goal', 0, true, 'Went well', now()),
@@ -368,12 +380,15 @@ test(
       );
       const ids = goals.rows.map((row) => row.id);
       await client.query(
-        'INSERT INTO twelve_week_goal_routines (goal_id, routine_id) VALUES ($1, $2)',
-        [ids[0], routine.rows[0].id],
+        `INSERT INTO twelve_week_goal_routines (goal_id, routine_id)
+         VALUES ($1, $2), ($1, $3), ($4, $2)`,
+        [ids[0], first, second, ids[2]],
       );
       try {
         await client.query(sql);
+        // A re-run after the drop changes nothing and does not fail.
         await client.query(sql);
+        // The copy is intact after the drop.
         const copied = await client.query<{
           title: string;
           horizon: string;
@@ -382,8 +397,10 @@ test(
           review_note: string | null;
           reviewed: boolean;
           sort_order: number;
+          period_start: string;
         }>(
-          `SELECT title, horizon, status, achieved, review_note, reviewed_at IS NOT NULL AS reviewed, sort_order
+          `SELECT title, horizon, status, achieved, review_note, reviewed_at IS NOT NULL AS reviewed, sort_order,
+                  period_start::text
            FROM plans WHERE legacy_goal_id = ANY($1::bigint[]) ORDER BY legacy_goal_id`,
           [ids],
         );
@@ -396,29 +413,37 @@ test(
             row.review_note,
             row.reviewed,
             row.sort_order,
+            row.period_start,
           ]),
           [
-            ['Met goal', 'twelve_week', 'done', true, 'Went well', true, 0],
-            ['Missed goal', 'twelve_week', 'dropped', false, null, true, 1],
-            ['Open goal', 'twelve_week', 'planned', null, null, false, 2],
+            ['Met goal', 'twelve_week', 'done', true, 'Went well', true, 0, '2001-02-04'],
+            ['Missed goal', 'twelve_week', 'dropped', false, null, true, 1, '2001-02-04'],
+            ['Open goal', 'twelve_week', 'planned', null, null, false, 2, '2001-02-04'],
           ],
         );
-        const links = await client.query(
-          `SELECT 1 FROM plan_routines l JOIN plans p ON p.id = l.plan_id
-           WHERE p.legacy_goal_id = $1 AND l.routine_id = $2`,
-          [ids[0], routine.rows[0].id],
-        );
-        assert.equal(links.rowCount, 1);
-        // The old tables are left as they were.
-        const old = await client.query(
-          'SELECT 1 FROM twelve_week_goals WHERE id = ANY($1::bigint[])',
+        const links = await client.query<{ legacy_goal_id: string; routine_id: string }>(
+          `SELECT p.legacy_goal_id::text, l.routine_id::text
+           FROM plan_routines l JOIN plans p ON p.id = l.plan_id
+           WHERE p.legacy_goal_id = ANY($1::bigint[]) ORDER BY p.legacy_goal_id, l.routine_id`,
           [ids],
         );
-        assert.equal(old.rowCount, 3);
+        assert.deepEqual(
+          links.rows.map((row) => [row.legacy_goal_id, row.routine_id]),
+          [
+            [String(ids[0]), String(first)],
+            [String(ids[0]), String(second)],
+            [String(ids[2]), String(first)],
+          ].sort((a, b) => Number(a[0]) - Number(b[0]) || Number(a[1]) - Number(b[1])),
+        );
+        const gone = await client.query(
+          `SELECT to_regclass('twelve_week_goals') AS goals, to_regclass('twelve_week_goal_routines') AS links`,
+        );
+        assert.deepEqual(gone.rows[0], { goals: null, links: null });
       } finally {
         await client.query('DELETE FROM plans WHERE legacy_goal_id = ANY($1::bigint[])', [ids]);
-        await client.query('DELETE FROM twelve_week_goals WHERE id = ANY($1::bigint[])', [ids]);
-        await client.query('DELETE FROM routines WHERE id = $1', [routine.rows[0].id]);
+        await client.query('DELETE FROM routines WHERE id = ANY($1::bigint[])', [[first, second]]);
+        await client.query('DROP TABLE IF EXISTS twelve_week_goal_routines');
+        await client.query('DROP TABLE IF EXISTS twelve_week_goals');
       }
     }),
 );

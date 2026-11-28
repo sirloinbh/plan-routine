@@ -52,14 +52,11 @@ test(
         [schema],
       );
       const names = created.rows.map((row: { table_name: string }) => row.table_name);
-      for (const table of [
-        'app_settings',
-        'routines',
-        'twelve_week_goal_routines',
-        'plans',
-        'plan_routines',
-      ])
+      for (const table of ['app_settings', 'routines', 'plans', 'plan_routines'])
         assert.ok(names.includes(table), table);
+      // The old goals tables are gone after migration 016 (#344).
+      for (const table of ['twelve_week_goals', 'twelve_week_goal_routines'])
+        assert.ok(!names.includes(table), table);
 
       // A later run applies nothing, so a seeded item the user renamed does not come back.
       await client.query("UPDATE routines SET name = 'Renamed' WHERE name = '목표 재설정'");

@@ -5,11 +5,12 @@ import { expect, test } from '@playwright/test';
 // (.claude/rules/frontend.md), and serious or critical violations fail the run.
 //
 // To cover a new screen, append one entry to `screens`: its path and the name of its level-1 heading.
-// Plans (#338) and Mandalart (#339) are not listed yet; their issues add their own entries.
+// Mandalart (#339) is not listed yet; its issues add their own entry.
 const screens = [
   { path: '/today', heading: 'Today' },
   { path: '/weekly', heading: 'Weekly routines' },
   { path: '/twelve-week', heading: '12-week routines' },
+  { path: '/plans', heading: 'Plans' },
   { path: '/diary', heading: 'Diary' },
   { path: '/routines', heading: 'Daily routines' },
   { path: '/four-week', heading: '4-week routines' },
