@@ -7,6 +7,7 @@ import { periodsQuery } from './app.js';
 import { checkInput, checklistQuery, skipInput } from './check-routes.js';
 import { diaryInput, diaryQuery } from './diary-routes.js';
 import { goalInput, reviewsInput, routineLinksInput } from './goal-routes.js';
+import { planInput, planPatchInput, planQuery } from './plan-routes.js';
 import { projectInput } from './project-link-routes.js';
 import { settingsInput, subscriptionInput, unsubscribeInput } from './push-routes.js';
 import { monthQuery } from './record-routes.js';
@@ -115,6 +116,25 @@ export const operations: Record<string, Operation> = {
     summary: 'Delete a goal of the current period',
     status: [200, 400, 404],
   },
+
+  'GET /api/plans': {
+    summary:
+      'List the plans of one horizon (week, twelve_week, year or decade) for the period holding a date, or the current period',
+    query: planQuery,
+    status: [200, 400],
+  },
+  'POST /api/plans': {
+    summary:
+      'Add a plan to a horizon; its period is the one holding periodStart, or the current period',
+    body: ['Plan', planInput],
+    status: [201, 400],
+  },
+  'PATCH /api/plans/:id': {
+    summary: 'Change the title, description, status or period of a plan; the horizon cannot change',
+    body: ['PlanChange', planPatchInput],
+    status: [200, 400, 404],
+  },
+  'DELETE /api/plans/:id': { summary: 'Delete a plan', status: [200, 400, 404] },
 
   'GET /api/project-links': { summary: 'List project links', status: [200] },
   'POST /api/project-links': {

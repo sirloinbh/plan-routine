@@ -11,6 +11,7 @@ import { exportRoutes } from './export-routes.js';
 import { goalRoutes } from './goal-routes.js';
 import { moodStatsRoutes } from './mood-stats-routes.js';
 import { calendarDate, periodsFor } from './periods.js';
+import { planRoutes } from './plan-routes.js';
 import { projectLinkRoutes } from './project-link-routes.js';
 import { pushRoutes } from './push-routes.js';
 import { recordRoutes } from './record-routes.js';
@@ -70,6 +71,7 @@ export function createApp(
   app.use('/api/export', exportRoutes(pool, today));
   app.use('/api/goals', goalRoutes(pool, today));
   app.use('/api/mood-stats', moodStatsRoutes(pool, today));
+  app.use('/api/plans', planRoutes(pool, today));
   app.use('/api/project-links', projectLinkRoutes(pool));
   app.use('/api/push', pushRoutes(pool, options.vapid, options.sendPush));
   app.use('/api/records', recordRoutes(pool, today));
